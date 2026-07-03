@@ -18,6 +18,7 @@ This project is a React, TypeScript, Vite, and Tailwind Sudoku web app based on 
 - pnpm's strict dependency layout exposed previously hoisted imports. Prefer explicit direct dependencies and imports from declared packages, for example `lodash-es/*` instead of undeclared `lodash`.
 - The current baseline checks after the pnpm migration are `pnpm run typecheck`, `pnpm test`, and `pnpm build`.
 - Docker uses Node 24 and Corepack. If testing Docker locally, the container engine must be running; this workspace may report Docker through Podman.
+- `pnpm-workspace.yaml` includes targeted security `overrides` for vulnerable transitive dependency ranges; review them during dependency upgrades and remove any that upstream packages no longer need.
 
 # Testing Notes
 
