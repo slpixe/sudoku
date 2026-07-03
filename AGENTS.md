@@ -27,7 +27,7 @@ This project is a React, TypeScript, Vite, and Tailwind Sudoku web app based on 
 - Use `pnpm install --frozen-lockfile` for verification/CI installs and keep `pnpm-lock.yaml` committed instead of `package-lock.json`.
 - `pnpm-workspace.yaml` currently approves `esbuild` builds with `allowBuilds: esbuild: true`; keep it with the lockfile and Docker install layer.
 - pnpm's strict dependency layout exposed previously hoisted imports. Prefer explicit direct dependencies and imports from declared packages, for example `lodash-es/*` instead of undeclared `lodash`.
-- The current baseline checks after the pnpm migration are `pnpm run typecheck`, `pnpm test`, and `pnpm build`.
+- The current baseline checks after the pnpm migration are `pnpm run typecheck`, `pnpm run lint`, `pnpm test`, and `pnpm build`; include `pnpm run test:e2e` before reporting full checks passed for app behavior changes.
 - Docker uses Node 24 and Corepack. If testing Docker locally, the container engine must be running; this workspace may report Docker through Podman.
 - `pnpm-workspace.yaml` includes targeted security `overrides` for vulnerable transitive dependency ranges; review them during dependency upgrades and remove any that upstream packages no longer need.
 
@@ -35,7 +35,7 @@ This project is a React, TypeScript, Vite, and Tailwind Sudoku web app based on 
 
 - Playwright e2e is run with `pnpm run test:e2e` and starts the app through `pnpm exec vite preview` on isolated port `4179`.
 - Keep Playwright `reuseExistingServer` disabled so tests do not accidentally run against another local app.
-- Run `pnpm run test:e2e` after changes that affect routing, game interactions, persistence, puzzle selection, or sharing.
+- Run `pnpm run test:e2e` after changes that affect routing, game interactions, persistence, puzzle selection, sharing, or other user-visible app flows.
 
 # Sudoku Data Notes
 
@@ -50,4 +50,4 @@ This project is a React, TypeScript, Vite, and Tailwind Sudoku web app based on 
 - Inspect the existing code before making assumptions or broad changes.
 - Prefer small, safe refactors over large rewrites unless a larger change is explicitly needed.
 - Preserve current behavior unless the task explicitly asks to change it.
-- Run relevant checks after changes when practical, especially build, typecheck, tests, and UI smoke checks.
+- Run relevant checks after changes when practical, especially typecheck, lint, unit tests, build, and Playwright e2e for user-visible app flows.
