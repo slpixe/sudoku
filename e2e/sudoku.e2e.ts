@@ -142,7 +142,9 @@ test("supports number entry, erase, undo, redo, notes, hints, and keyboard short
   await expect(page.getByRole("button", {name: "Erase"})).toBeDisabled();
   await expect(page.getByRole("button", {name: /Notes (ON|OFF)/})).toBeDisabled();
   await expect(page.getByRole("button", {name: /Hint\s+Active cell/})).toBeDisabled();
-  await page.keyboard.press("Escape");
+  await expect(page.getByRole("button", {name: "Resume game"})).toBeVisible();
+  await page.getByRole("button", {name: "Resume game"}).focus();
+  await page.keyboard.press("Enter");
   await expect(page.getByRole("button", {name: "Pause"})).toBeVisible();
 });
 
