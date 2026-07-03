@@ -27,9 +27,9 @@ This project is a React, TypeScript, Vite, and Tailwind Sudoku web app based on 
 
 # Sudoku Data Notes
 
-- Built-in puzzle collections are loaded from `sudokus/easy.txt`, `sudokus/medium.txt`, `sudokus/hard.txt`, `sudokus/expert.txt`, and `sudokus/evil.txt` using Vite raw imports.
-- `scripts/generate_sudokus.ts` appends generated puzzles directly to `sudokus/<difficulty>.txt`; review generated data before committing it.
-- `scripts/fetch_sudokus.ts` writes root-level `sudokus-*.json` files for fetched puzzle batches; those are local artifacts and should stay ignored.
+- Runtime puzzle collections are loaded from `sudokus/easy.txt`, `medium.txt`, `hard.txt`, `expert.txt`, and `evil.txt` using Vite raw imports.
+- `scripts/generate_sudokus.ts` uses the local generator and appends directly usable puzzles to `sudokus/<difficulty>.txt`; review generated data before committing it.
+- `scripts/fetch_sudokus.ts` can fetch from WebSudoku or Sudoku.com, but writes intermediate root-level `sudokus-*.json` artifacts that are not loaded by the app.
 - TS scripts run through `scripts/register_ts_node.mjs` because this ESM project uses extensionless TypeScript imports.
 
 # Agent Instructions
