@@ -36,8 +36,6 @@ export interface Collection extends CollectionIndex {
 interface CollectionRepository {
   getCollections(): CollectionIndex[];
   getCollection(collectionId: string): Collection;
-  saveCollection(collection: Collection): void;
-  removeCollection(collectionId: string): void;
 }
 
 // The collections have an id, name and a list of sudokus.
@@ -92,13 +90,5 @@ export const localStorageCollectionRepository: CollectionRepository = {
       name: collectionName,
       sudokusRaw: collectionSudokus,
     };
-  },
-  saveCollection(collection: Collection): void {
-    localStorage.setItem(createCollectionSudokusKey(collection.id), collection.sudokusRaw);
-    localStorage.setItem(createCollectionNamesKey(collection.id), collection.name);
-  },
-  removeCollection(collectionId: string): void {
-    localStorage.removeItem(createCollectionSudokusKey(collectionId));
-    localStorage.removeItem(createCollectionNamesKey(collectionId));
   },
 };

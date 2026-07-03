@@ -11,6 +11,7 @@ export interface SudokuMenuNumbersProps {
   showOccurrences: boolean;
   sudoku: Cell[];
   showHints: boolean;
+  layout?: "side" | "row";
   setNumber: (cellCoordinates: CellCoordinates, number: number) => void;
   setNotes: (cellCoordinates: CellCoordinates, notes: number[]) => void;
 }
@@ -21,11 +22,17 @@ const SudokuMenuNumbers: React.FC<SudokuMenuNumbersProps> = ({
   showOccurrences,
   sudoku,
   showHints,
+  layout = "side",
   setNumber,
   setNotes,
 }) => {
   return (
-    <div className="grid w-full overflow-hidden justify-center gap-2 md:grid-cols-3 grid-cols-9">
+    <div
+      className={clsx("grid w-full grid-cols-9 justify-center overflow-hidden", {
+        "gap-1 sm:gap-2": layout === "row",
+        "gap-2 md:grid-cols-3": layout === "side",
+      })}
+    >
       {SUDOKU_NUMBERS.map((n) => {
         const occurrences = sudoku.filter((c) => c.number === n).length;
 
@@ -55,6 +62,7 @@ const SudokuMenuNumbers: React.FC<SudokuMenuNumbersProps> = ({
           <Button
             aria-label={`Set ${n}`}
             className={clsx("relative font-bold", {
+              "aspect-square p-0 text-base sm:text-lg md:text-xl": layout === "row",
               "bg-gray-400": occurrences == 9,
               "bg-red-400 dark:bg-red-400": showOccurrences && occurrences > 9,
               "bg-sky-600 dark:bg-sky-600 text-white":

@@ -13,7 +13,6 @@ import SudokuMenuNumbers from "src/components/sudoku/SudokuMenuNumbers";
 import SudokuMenuControls from "src/components/sudoku/SudokuMenuControls";
 import {Container} from "src/components/Layout";
 import Shortcuts from "./Game/shortcuts/Shortcuts";
-import Checkbox from "src/components/Checkbox";
 import {cellsToSimpleSudoku, stringifySudoku, parseSudoku} from "src/lib/engine/utility";
 import {solve} from "src/lib/engine/solverAC3";
 import {Link, useLocation, useNavigate} from "@tanstack/react-router";
@@ -182,56 +181,6 @@ const NextSudokuButton: React.FC<{gameState: GameState; setDisableAutoSync: (dis
   );
 };
 
-const ShareButton: React.FC<{
-  gameState: GameState;
-  sudokuState: SudokuState;
-}> = ({gameState, sudokuState}) => {
-  const [copied, setCopied] = React.useState(false);
-
-  const copyToClipboard = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-    } catch (error) {
-      console.error("Error copying to clipboard", error);
-      // Fallback for older browsers
-      const textArea = document.createElement("textarea");
-      textArea.value = text;
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand("copy");
-      document.body.removeChild(textArea);
-    }
-  };
-
-  const handleShare = async () => {
-    const stringifiedSudoku = stringifySudoku(cellsToSimpleSudoku(sudokuState.current));
-    const params = new URLSearchParams({
-      sudokuIndex: String(gameState.sudokuIndex + 1),
-      sudoku: stringifiedSudoku,
-      sudokuCollectionName: gameState.sudokuCollectionName,
-    });
-    const shareUrl = `${window.location.origin}${window.location.pathname}#/?${params.toString()}`;
-
-    await copyToClipboard(shareUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1000);
-  };
-
-  const {t} = useTranslation();
-
-  return (
-    <button
-      aria-label={t("share")}
-      className="text-white hover:cursor-pointer p-1 hover:bg-gray-500 rounded-md border-none bg-transparent"
-      data-testid="share-sudoku"
-      onClick={handleShare}
-      type="button"
-    >
-      {copied ? t("copied") : `🔗 ${t("share")}`}
-    </button>
-  );
-};
-
 const CenteredContinueButton: React.FC<{visible: boolean; onClick: () => void}> = ({visible, onClick}) => (
   <div
     onClick={onClick}
@@ -302,84 +251,6 @@ function getSearchNumber(search: Record<string, unknown>, name: string) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : undefined;
 }
-
-const SettingsAndInformation = () => {
-  const {
-    state,
-    toggleShowHints,
-    toggleShowOccurrences,
-    toggleShowCircleMenu,
-    toggleShowWrongEntries,
-    toggleShowConflicts,
-  } = useUserPreferences();
-  const {t} = useTranslation();
-
-  return (
-    <div className="text-white">
-      <div className="grid gap-4">
-        <div className="md:block hidden">
-          <h2 className="mb-2 text-3xl font-bold">{t("shortcuts")}</h2>
-          <div className="grid gap-2">
-            <ul className="list-disc pl-6">
-              <li>{t("arrow_keys")}</li>
-              <li>{t("number_keys")}</li>
-              <li>{t("backspace")}</li>
-              <li>{t("escape")}</li>
-              <li>{t("hint")}</li>
-              <li>{t("note_mode")}</li>
-              <li>{t("undo")}</li>
-              <li>{t("redo")}</li>
-              <li>{t("copy_paste_notes")}</li>
-            </ul>
-          </div>
-        </div>
-        <div>
-          <h2 className="mb-2 text-3xl font-bold">{t("settings")}</h2>
-          <div className="grid gap-2">
-            <Checkbox id="generated_notes" checked={state.showHints} onChange={toggleShowHints}>
-              {t("show_auto_notes")}
-            </Checkbox>
-            <Checkbox id="highlight_wrong_entries" checked={state.showWrongEntries} onChange={toggleShowWrongEntries}>
-              {t("highlight_wrong_entries")}
-            </Checkbox>
-            <Checkbox id="highlight_conflicts" checked={state.showConflicts} onChange={toggleShowConflicts}>
-              {t("highlight_conflicts")}
-            </Checkbox>
-            <Checkbox id="circle_menu" checked={state.showCircleMenu} onChange={toggleShowCircleMenu}>
-              {t("show_circle_menu")}
-            </Checkbox>
-            <Checkbox id="show_occurrences" checked={state.showOccurrences} onChange={toggleShowOccurrences}>
-              {t("show_occurrences")}
-            </Checkbox>
-          </div>
-        </div>
-        <div>
-          <h2 className="text-3xl font-bold text-white">{t("about")}</h2>
-          <p className="text-white">
-            {t("about_text")}{" "}
-            <a target="_blank" className="underline" href="https://github.com/TN1ck/super-sudoku" rel="noreferrer">
-              Github
-            </a>
-            .{" "}
-            <a href="https://tn1ck.com" target="_blank" className="hover:underline" rel="noreferrer">
-              {t("created_by")}
-            </a>
-            {t("report_issue")}{" "}
-            <a
-              target="_blank"
-              className="underline"
-              href="https://github.com/TN1ck/super-sudoku/issues"
-              rel="noreferrer"
-            >
-              Github
-            </a>
-            .
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 const GameInner: React.FC<{
   sudokuState: SudokuState;
@@ -502,7 +373,6 @@ const GameInner: React.FC<{
           <div className="flex text-white flex-col sm:flex-row sm:justify-end sm:items-center gap-2">
             <div className="flex gap-2 items-center">
               <DifficultyShow data-testid="current-game-label">{`${collectionName} #${game.sudokuIndex + 1}`}</DifficultyShow>
-              <ShareButton gameState={game} sudokuState={sudokuState} />
             </div>
             <div className="hidden sm:block">{"|"}</div>
             <GameTimer />
@@ -539,8 +409,8 @@ const GameInner: React.FC<{
             </div>
           </div>
         </header>
-        <div className="flex gap-4 flex-col md:flex-row">
-          <main className="mt-4 flex-grow md:min-w-96 w-full">
+        <div className="flex justify-center">
+          <main className="mt-4 w-full max-w-3xl">
             <Sudoku
               showWrongEntries={userPreferencesState.showWrongEntries && game.state === GameStateMachine.running}
               showConflicts={userPreferencesState.showConflicts && game.state === GameStateMachine.running}
@@ -584,29 +454,29 @@ const GameInner: React.FC<{
 
               <CenteredContinueButton visible={pausedGame && !game.won} onClick={continueGame} />
             </Sudoku>
+            <div className="mt-3 grid gap-3">
+              <SudokuMenuNumbers
+                layout="row"
+                notesMode={game.notesMode}
+                showOccurrences={userPreferencesState.showOccurrences}
+                activeCell={game.activeCellCoordinates}
+                sudoku={sudokuState.current}
+                showHints={userPreferencesState.showHints}
+                setNumber={setNumber}
+                setNotes={setNotes}
+              />
+              <SudokuMenuControls
+                notesMode={game.notesMode}
+                activeCellCoordinates={game.activeCellCoordinates ?? {x: 0, y: 0}}
+                clearCell={clearCell}
+                activateNotesMode={activateNotesMode}
+                deactivateNotesMode={deactivateNotesMode}
+                getHint={getHint}
+                canUndo={canUndo}
+                undo={undo}
+              />
+            </div>
           </main>
-          <div className="grid gap-4 mt-4">
-            <SudokuMenuNumbers
-              notesMode={game.notesMode}
-              showOccurrences={userPreferencesState.showOccurrences}
-              activeCell={game.activeCellCoordinates}
-              sudoku={sudokuState.current}
-              showHints={userPreferencesState.showHints}
-              setNumber={setNumber}
-              setNotes={setNotes}
-            />
-            <SudokuMenuControls
-              notesMode={game.notesMode}
-              activeCellCoordinates={game.activeCellCoordinates ?? {x: 0, y: 0}}
-              clearCell={clearCell}
-              activateNotesMode={activateNotesMode}
-              deactivateNotesMode={deactivateNotesMode}
-              getHint={getHint}
-              canUndo={canUndo}
-              undo={undo}
-            />
-            <SettingsAndInformation />
-          </div>
         </div>
       </div>
     </Container>

@@ -5,10 +5,10 @@ import mediumSudokus from "../../../sudokus/medium.txt?raw";
 import hardSudokus from "../../../sudokus/hard.txt?raw";
 import expertSudokus from "../../../sudokus/expert.txt?raw";
 import evilSudokus from "../../../sudokus/evil.txt?raw";
-import {parseSudoku, stringifySudoku} from "src/lib/engine/utility";
+import {parseSudoku} from "src/lib/engine/utility";
 import {solve} from "src/lib/engine/solverAC3";
 import {useCallback, useState} from "react";
-import {BaseCollection, Collection, CollectionIndex, localStorageCollectionRepository} from "../database/collections";
+import {BaseCollection, Collection, localStorageCollectionRepository} from "../database/collections";
 
 export interface SudokuRaw {
   iterations: number;
@@ -91,32 +91,11 @@ export function getCollections() {
 }
 
 export function useSudokuCollections() {
-  const [collections, setCollections] = useState<CollectionIndex[]>(getCollections());
-
+  const collections = getCollections();
   const [activeCollectionId, setActiveCollectionId] = useState<string>("easy");
 
   const isBaseCollection = useCallback((collectionId: string) => {
     return Object.keys(BASE_SUDOKU_COLLECTIONS).includes(collectionId);
-  }, []);
-
-  const addCollection = useCallback((collection: string) => {
-    const collectionId = crypto.randomUUID();
-    const newCollection = {id: collectionId, name: collection, sudokusRaw: ""};
-    localStorageCollectionRepository.saveCollection(newCollection);
-    setCollections(getCollections());
-    return newCollection;
-  }, []);
-
-  const addSudokuToCollection = useCallback((collectionId: string, sudoku: SimpleSudoku) => {
-    const stringifiedSudoku = stringifySudoku(sudoku);
-    const collection = localStorageCollectionRepository.getCollection(collectionId);
-    const newSudokusRaw =
-      collection.sudokusRaw.length > 0 ? collection.sudokusRaw + "\n" + stringifiedSudoku : stringifiedSudoku;
-    localStorageCollectionRepository.saveCollection({
-      ...collection,
-      sudokusRaw: newSudokusRaw,
-    });
-    setCollections(getCollections());
   }, []);
 
   const getCollection = useCallback(
@@ -135,17 +114,8 @@ export function useSudokuCollections() {
 
   const activeCollection = getCollection(activeCollectionId);
 
-  const removeCollection = (collectionId: string) => {
-    localStorageCollectionRepository.removeCollection(collectionId);
-    setCollections(getCollections());
-  };
-
   return {
     collections,
-    addCollection,
-    removeCollection,
-    addSudokuToCollection,
-    isBaseCollection,
     getCollection,
     activeCollection,
     setActiveCollectionId,

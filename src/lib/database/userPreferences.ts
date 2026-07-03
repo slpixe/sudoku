@@ -12,9 +12,17 @@ export const DEFAULT_USER_PREFERENCES: UserPreferences = {
   showHints: false,
   showWrongEntries: false,
   showConflicts: true,
-  showCircleMenu: true,
-  showOccurrences: false,
+  showCircleMenu: false,
+  showOccurrences: true,
 };
+
+function fixedUserPreferences(preferences: Partial<UserPreferences> = {}): UserPreferences {
+  // The settings UI is hidden, so persisted values must not leave controls in an unreachable state.
+  return {
+    ...preferences,
+    ...DEFAULT_USER_PREFERENCES,
+  };
+}
 
 interface UserPreferencesRepository {
   getPreferences(): UserPreferences;
@@ -36,11 +44,7 @@ export const localStorageUserPreferencesRepository: UserPreferencesRepository = 
     try {
       const parsed = JSON.parse(storedPreferences);
 
-      // Merge with defaults to handle cases where new preferences are added
-      return {
-        ...DEFAULT_USER_PREFERENCES,
-        ...parsed,
-      };
+      return fixedUserPreferences(parsed);
     } catch (error) {
       console.warn("Failed to parse user preferences from localStorage:", error);
       return DEFAULT_USER_PREFERENCES;
@@ -53,7 +57,7 @@ export const localStorageUserPreferencesRepository: UserPreferencesRepository = 
     }
 
     try {
-      localStorage.setItem(STORAGE_KEY_USER_PREFERENCES, JSON.stringify(preferences));
+      localStorage.setItem(STORAGE_KEY_USER_PREFERENCES, JSON.stringify(fixedUserPreferences(preferences)));
     } catch (error) {
       console.warn("Failed to save user preferences to localStorage:", error);
     }

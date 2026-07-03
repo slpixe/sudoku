@@ -1,7 +1,6 @@
 import * as React from "react";
 
 import {getSudokusPaginated, SudokuRaw, useSudokuCollections} from "src/lib/game/sudokus";
-import {SimpleSudoku} from "src/lib/engine/types";
 import SudokuPreview from "../../components/sudoku/SudokuPreview";
 import {formatDuration} from "src/utils/format";
 import {useState} from "react";
@@ -11,7 +10,6 @@ import {useElementWidth} from "src/utils/hooks";
 import {useNavigate} from "@tanstack/react-router";
 import {localStoragePlayedSudokuRepository, StoredPlayedSudokuState} from "src/lib/database/playedSudokus";
 import {Collection, translateCollectionName} from "src/lib/database/collections";
-import NewSudoku from "./NewSudoku";
 import {useTranslation} from "react-i18next";
 
 const TabItem = ({active, children, ...props}: React.ButtonHTMLAttributes<HTMLButtonElement> & {active: boolean}) => (
@@ -222,17 +220,8 @@ const usePaginatedSudokus = (collection: Collection, page: number, pageSize: num
 };
 
 const GameSelect: React.FC = () => {
-  const {
-    activeCollection,
-    setActiveCollectionId,
-    collections,
-    addCollection,
-    isBaseCollection,
-    addSudokuToCollection,
-    removeCollection,
-  } = useSudokuCollections();
+  const {activeCollection, setActiveCollectionId, collections} = useSudokuCollections();
   const [page, setPage] = useState(0);
-  const {t} = useTranslation();
 
   const pageSize = 12;
   const {sudokus: pageSudokus, totalPages: pageCount} = usePaginatedSudokus(activeCollection, page, pageSize);
@@ -240,34 +229,8 @@ const GameSelect: React.FC = () => {
 
   const setActiveCollectionAndResetPage = (collection: string) => {
     setActiveCollectionId(collection);
-    setShowNewSudokuComponent(false);
     setPage(0);
   };
-
-  const saveSudoku = async (sudoku: SimpleSudoku) => {
-    addSudokuToCollection(activeCollection.id, sudoku);
-    // TODO: add a toast notification
-    setShowNewSudokuComponent(false);
-  };
-
-  const [showNewSudokuComponent, setShowNewSudokuComponent] = useState(false);
-  const removeCollectionLocal = () => {
-    if (isBaseCollectionLocal) {
-      alert(t("cannot_delete_base_collection"));
-      return;
-    }
-    const areYouSure = confirm(
-      t("confirm_delete_collection", {collection: translateCollectionName(activeCollection.name)}),
-    );
-    if (!areYouSure) {
-      return;
-    }
-    removeCollection(activeCollection.id);
-    setActiveCollectionId(collections[0].id);
-    setPage(0);
-  };
-
-  const isBaseCollectionLocal = isBaseCollection(activeCollection.id);
 
   return (
     <div className="mt-8">
@@ -282,43 +245,8 @@ const GameSelect: React.FC = () => {
               {translateCollectionName(collection.name)}
             </TabItem>
           ))}
-          <TabItem
-            active={false}
-            onClick={() => {
-              const newCollectionName = prompt(t("enter_new_collection_name"));
-              if (newCollectionName) {
-                const newCollection = addCollection(newCollectionName);
-                setActiveCollectionId(newCollection.id);
-                setPage(0);
-              }
-            }}
-          >
-            {t("add_new_collection")}
-          </TabItem>
         </div>
       </div>
-      {!isBaseCollectionLocal && (
-        <div className="flex justify-between items-center gap-2 mb-4">
-          {!showNewSudokuComponent ? (
-            <Button className="bg-teal-600 dark:bg-teal-600 text-white" onClick={() => setShowNewSudokuComponent(true)}>
-              {t("add_sudoku")}
-            </Button>
-          ) : (
-            <Button onClick={() => setShowNewSudokuComponent(false)}>{t("close_new_sudoku_creator")}</Button>
-          )}
-          <Button onClick={removeCollectionLocal}>{t("delete_collection")}</Button>
-        </div>
-      )}
-      {!isBaseCollectionLocal && showNewSudokuComponent && (
-        <div className="mb-4 p-4 bg-gray-900 rounded-sm border border-gray-700 flex flex-col gap-4">
-          <div className="flex justify-between items-center">
-            <div className="text-white text-lg sm:text-2xl font-bold">{t("create_new_sudoku")}</div>
-            <Button onClick={() => setShowNewSudokuComponent(false)}>{t("close")}</Button>
-          </div>
-          <p className="text-white">{t("add_your_own_sudoku", {collection: activeCollection.name})}</p>
-          <NewSudoku saveSudoku={saveSudoku} />
-        </div>
-      )}
       <GameIndex pageSudokus={pageSudokus} pageStart={pageStart} sudokuCollectionName={activeCollection.id} />
       {pageCount > 1 && <PageSelector page={page} pageCount={pageCount} setPage={setPage} />}
     </div>

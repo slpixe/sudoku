@@ -3,10 +3,7 @@ import {expect, Page, test} from "@playwright/test";
 const FIRST_PUZZLE = "534920700060007309900000010008700000496803002721594806000200940800046100003000000";
 const FIRST_SOLUTION = "534921768162487359987635214358762491496813572721594836615278943879346125243159687";
 const ONE_EMPTY_CELL_PUZZLE = `${FIRST_SOLUTION.slice(0, -1)}0`;
-const ISSUE_33_CUSTOM_PUZZLE = "008600700900020000000000800000050046300000010000009000046800000000000900070000000";
-const ISSUE_33_CUSTOM_SOLUTION = "428615793931728654765943821892157346357486219614239578546892137183574962279361485";
 const SHORTCUT_MODIFIER = "Control";
-const CUSTOM_SUDOKU_VERIFICATION_LIMIT_MS = 5_000;
 
 function gameUrl(sudoku = FIRST_PUZZLE, sudokuIndex = 1, sudokuCollectionName = "easy") {
   const params = new URLSearchParams({
@@ -30,13 +27,6 @@ function cellNotes(page: Page, x: number, y: number) {
   return page.getByTestId(`sudoku-cell-notes-${x}-${y}`);
 }
 
-function cellCoordinates(index: number) {
-  return {
-    x: index % 9,
-    y: Math.floor(index / 9),
-  };
-}
-
 async function openGame(page: Page, sudoku = FIRST_PUZZLE, sudokuIndex = 1, collection = "easy", label = "Easy") {
   await page.goto(gameUrl(sudoku, sudokuIndex, collection));
   await expect(page.getByTestId("current-game-label")).toHaveText(`${label} #${sudokuIndex}`);
@@ -58,22 +48,6 @@ async function selectCell(page: Page, x: number, y: number) {
   await expect(cell(page, x, y)).toHaveAttribute("data-cell-active", "true");
 }
 
-async function enterSudokuValues(
-  page: Page,
-  values: string,
-  shouldEnter: (value: string, index: number) => boolean = (value) => value !== "0",
-) {
-  for (const [index, value] of [...values].entries()) {
-    if (!shouldEnter(value, index)) {
-      continue;
-    }
-
-    const {x, y} = cellCoordinates(index);
-    await selectCell(page, x, y);
-    await page.keyboard.press(value);
-  }
-}
-
 async function expectStoredPreferences(page: Page, preferences: Record<string, boolean>) {
   await expect
     .poll(() =>
@@ -84,10 +58,6 @@ async function expectStoredPreferences(page: Page, preferences: Record<string, b
     )
     .toMatchObject(preferences);
 }
-
-test.beforeEach(async ({baseURL, context}) => {
-  await context.grantPermissions(["clipboard-read", "clipboard-write"], {origin: baseURL});
-});
 
 test("supports number entry, erase, undo, redo, notes, hints, and keyboard shortcuts", async ({page}) => {
   await openGame(page);
@@ -147,39 +117,67 @@ test("supports number entry, erase, undo, redo, notes, hints, and keyboard short
   await expect(page.getByRole("button", {name: "Pause"})).toBeVisible();
 });
 
-test("persists game settings, dark mode, and language selection", async ({page}) => {
+test("uses fixed game preferences, dark mode, and language selection", async ({page}) => {
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      "super-sudoku-user-preferences",
+      JSON.stringify({
+        showHints: true,
+        showWrongEntries: true,
+        showConflicts: false,
+        showCircleMenu: true,
+        showOccurrences: false,
+      }),
+    );
+  });
+
   await openGame(page);
 
-  await page.locator("#generated_notes").check();
-  await expect(cellNotes(page, 5, 0)).toContainText("1");
+  await expect(page.getByRole("heading", {name: "Shortcuts"})).toHaveCount(0);
+  await expect(page.getByRole("heading", {name: "Settings"})).toHaveCount(0);
+  await expect(page.getByRole("heading", {name: "About"})).toHaveCount(0);
+  await expect(page.locator("#generated_notes")).toHaveCount(0);
+  await expect(page.locator("#highlight_wrong_entries")).toHaveCount(0);
+  await expect(page.locator("#highlight_conflicts")).toHaveCount(0);
+  await expect(page.locator("#circle_menu")).toHaveCount(0);
+  await expect(page.locator("#show_occurrences")).toHaveCount(0);
+  await expect(page.getByTestId("share-sudoku")).toHaveCount(0);
 
-  await page.locator("#show_occurrences").check();
+  await expect(cellNotes(page, 5, 0)).toHaveText("");
   await expect(page.getByTestId("sudoku-number-occurrences-5")).toBeVisible();
 
-  await page.locator("#highlight_conflicts").uncheck();
-  await page.locator("#highlight_wrong_entries").check();
+  const boardBox = await page.getByTestId("sudoku-board").boundingBox();
+  const keypadBox = await page.getByTestId("sudoku-number-5").boundingBox();
+  if (!boardBox || !keypadBox) {
+    throw new Error("Sudoku board and keypad must be visible");
+  }
+  expect(keypadBox.y).toBeGreaterThan(boardBox.y + boardBox.height - 1);
+  expect(Math.abs(keypadBox.width - keypadBox.height)).toBeLessThanOrEqual(1);
+
+  const undoBox = await page.getByRole("button", {name: "Undo"}).boundingBox();
+  if (!undoBox) {
+    throw new Error("Undo button must be visible");
+  }
+  expect(undoBox.y).toBeGreaterThan(keypadBox.y + keypadBox.height - 1);
+
   await selectCell(page, 5, 0);
   await page.getByRole("button", {name: "Set 2"}).click();
   await expect(cell(page, 5, 0)).toHaveAttribute("data-cell-conflict", "true");
 
-  await page.locator("#circle_menu").uncheck();
   await selectCell(page, 7, 0);
   await expect(page.getByTestId("sudoku-menu-circle")).toHaveCount(0);
 
   await expectStoredPreferences(page, {
-    showHints: true,
-    showWrongEntries: true,
-    showConflicts: false,
+    showHints: false,
+    showWrongEntries: false,
+    showConflicts: true,
     showCircleMenu: false,
     showOccurrences: true,
   });
 
   await page.reload();
-  await expect(page.locator("#generated_notes")).toBeChecked();
-  await expect(page.locator("#highlight_wrong_entries")).toBeChecked();
-  await expect(page.locator("#highlight_conflicts")).not.toBeChecked();
-  await expect(page.locator("#circle_menu")).not.toBeChecked();
-  await expect(page.locator("#show_occurrences")).toBeChecked();
+  await expect(page.getByTestId("sudoku-number-occurrences-5")).toBeVisible();
+  await expect(page.getByTestId("sudoku-menu-circle")).toHaveCount(0);
 
   await page.getByRole("button", {name: "Toggle dark mode"}).click();
   await expect(page.locator("body")).toHaveClass(/dark/);
@@ -212,78 +210,14 @@ test("changes games through the selection screen", async ({page}) => {
 
   await page.getByRole("button", {name: "New game"}).click();
   await expect(page.getByRole("heading", {name: "Select Game"})).toBeVisible();
+  await expect(page.getByRole("button", {name: "+ New Collection"})).toHaveCount(0);
+  await expect(page.getByRole("button", {name: "Add sudoku +"})).toHaveCount(0);
+  await expect(page.getByRole("button", {name: "Delete Collection"})).toHaveCount(0);
+  await expect(page.getByText("Create new sudoku")).toHaveCount(0);
 
   await page.getByRole("button", {name: "Medium"}).click();
   await page.getByTestId("sudoku-preview-1").click();
 
   await expect(page.getByTestId("current-game-label")).toHaveText("Medium #1");
   await expect(page).toHaveURL(/sudokuCollectionName=medium/);
-});
-
-test("creates and solves a difficult custom sudoku", async ({page}) => {
-  test.setTimeout(60_000);
-  const customCollectionName = "Issue #33 custom";
-
-  await page.goto("/#/select-game");
-  await expect(page.getByRole("heading", {name: "Select Game"})).toBeVisible();
-
-  page.once("dialog", async (dialog) => {
-    expect(dialog.type()).toBe("prompt");
-    await dialog.accept(customCollectionName);
-  });
-  await page.getByRole("button", {name: "+ New Collection"}).click();
-  await expect(page.getByRole("button", {name: customCollectionName})).toBeVisible();
-
-  await page.getByRole("button", {name: "Add sudoku +"}).click();
-  await expect(page.getByText("Create new sudoku")).toBeVisible();
-
-  await enterSudokuValues(page, ISSUE_33_CUSTOM_PUZZLE);
-
-  const saveStartedAt = performance.now();
-  await page.getByRole("button", {name: "Save sudoku"}).click();
-  await expect(page.getByTestId("sudoku-preview-1")).toBeVisible();
-  const saveDurationMs = performance.now() - saveStartedAt;
-  expect(saveDurationMs).toBeLessThan(CUSTOM_SUDOKU_VERIFICATION_LIMIT_MS);
-
-  await page.getByTestId("sudoku-preview-1").click();
-  await expect(page.getByTestId("current-game-label")).toHaveText(`${customCollectionName} #1`);
-  await continueIfPaused(page);
-  await page.locator("#circle_menu").uncheck();
-  await expect(page.locator("#circle_menu")).not.toBeChecked();
-
-  await enterSudokuValues(page, ISSUE_33_CUSTOM_SOLUTION, (_, index) => ISSUE_33_CUSTOM_PUZZLE[index] === "0");
-
-  await expect(page.getByText(/Congrats, you won/)).toBeVisible();
-  await expect(
-    page.getByText(
-      `Congratulations! You arrived at the end of collection "${customCollectionName}". Select a new sudoku to play.`,
-    ),
-  ).toBeVisible();
-  await expect
-    .poll(() =>
-      page.getByTestId("sudoku-board").evaluate((board) => {
-        const text = board.textContent ?? "";
-        return text.match(/arrived at the end of collection/g)?.length ?? 0;
-      }),
-    )
-    .toBe(1);
-});
-
-test("copies a shareable sudoku URL that opens the same puzzle", async ({context, page}) => {
-  await openGame(page);
-
-  await page.getByTestId("share-sudoku").click();
-  await expect(page.getByTestId("share-sudoku")).toContainText("Copied");
-
-  const shareUrl = await page.evaluate(() => navigator.clipboard.readText());
-  expect(shareUrl).toContain("#/?");
-  expect(shareUrl).toContain(`sudoku=${FIRST_PUZZLE}`);
-  expect(shareUrl).toContain("sudokuCollectionName=easy");
-
-  const sharedPage = await context.newPage();
-  await sharedPage.goto(shareUrl);
-  await expect(sharedPage.getByTestId("current-game-label")).toHaveText("Easy #1");
-  await continueIfPaused(sharedPage);
-  await expect(cellValue(sharedPage, 0, 0)).toHaveText("5");
-  await expect(cellValue(sharedPage, 5, 0)).toHaveText("");
 });
