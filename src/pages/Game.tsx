@@ -17,7 +17,7 @@ import {cellsToSimpleSudoku, stringifySudoku, parseSudoku} from "src/lib/engine/
 import {solve} from "src/lib/engine/solverAC3";
 import {Link, useLocation, useNavigate} from "@tanstack/react-router";
 import {localStoragePlayedSudokuRepository} from "src/lib/database/playedSudokus";
-import {UserPreferences} from "src/lib/database/userPreferences";
+import type {UserPreferences} from "src/lib/database/userPreferences";
 import {formatDuration} from "src/utils/format";
 import throttle from "lodash-es/throttle";
 import {TimerProvider} from "src/context/TimerContext";
@@ -25,11 +25,7 @@ import {useEffect} from "react";
 import {CellCoordinates, SimpleSudoku} from "src/lib/engine/types";
 import {DarkModeButton} from "src/components/DarkModeButton";
 import {useTranslation} from "react-i18next";
-import {
-  INITIAL_USER_PREFERENCES_STATE,
-  UserPreferencesProvider,
-  useUserPreferences,
-} from "src/context/UserPrefencesContext";
+import {UserPreferencesProvider, useUserPreferences} from "src/context/UserPrefencesContext";
 import {getSudokusPaginated, useSudokuCollections} from "src/lib/game/sudokus";
 import {t} from "i18next";
 import {translateCollectionName} from "src/lib/database/collections";
@@ -503,11 +499,9 @@ export function AppProvider({children}: {children: React.ReactNode}) {
 
   const initialGameState: GameState = currentSudoku ? currentSudoku.game : INITIAL_GAME_STATE;
 
-  const initialUserPreferencesState: UserPreferences = INITIAL_USER_PREFERENCES_STATE;
-
   return (
     <GameProvider initialState={initialGameState}>
-      <UserPreferencesProvider initialState={initialUserPreferencesState}>
+      <UserPreferencesProvider>
         <TimerProvider>
           <SudokuProvider initialState={initialSudokuState}>{children}</SudokuProvider>
         </TimerProvider>
@@ -633,6 +627,7 @@ const GameWithRouteManagement = () => {
       sudokuCollectionName,
       storedSudoku?.game.timesSolved ?? 0,
       storedSudoku?.game.previousTimes ?? [],
+      userPreferencesState,
     );
 
     // If we have a stored sudoku, we need to set the game state and sudoku state.
@@ -663,6 +658,7 @@ const GameWithRouteManagement = () => {
     gameState.sudokuIndex,
     newGame,
     setSudoku,
+    userPreferencesState,
     t,
   ]);
 

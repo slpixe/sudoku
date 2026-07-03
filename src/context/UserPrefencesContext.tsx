@@ -1,11 +1,15 @@
-import React, {createContext, useContext, useReducer, useCallback, ReactNode} from "react";
-import {localStorageUserPreferencesRepository, UserPreferences} from "src/lib/database/userPreferences";
+import React, {createContext, useContext, useReducer, useCallback, ReactNode, useEffect} from "react";
+import {
+  DEFAULT_USER_PREFERENCES,
+  localStorageUserPreferencesRepository,
+  UserPreferences,
+} from "src/lib/database/userPreferences";
 
-function getInitialGameState(): UserPreferences {
+function getInitialUserPreferencesState(): UserPreferences {
   return localStorageUserPreferencesRepository.getPreferences();
 }
 
-export const INITIAL_USER_PREFERENCES_STATE: UserPreferences = getInitialGameState();
+export const INITIAL_USER_PREFERENCES_STATE: UserPreferences = DEFAULT_USER_PREFERENCES;
 
 const TOGGLE_SHOW_HINTS = "user_preferences/TOGGLE_SHOW_HINTS";
 const TOGGLE_SHOW_OCCURRENCES = "user_preferences/TOGGLE_SHOW_OCCURRENCES";
@@ -75,10 +79,17 @@ interface UserPreferencesProviderProps {
 
 export function UserPreferencesProvider({
   children,
-  initialState = INITIAL_USER_PREFERENCES_STATE,
+  initialState,
 }: UserPreferencesProviderProps) {
-  const [state, dispatch] = useReducer(userPreferencesReducer, initialState);
-  localStorageUserPreferencesRepository.savePreferences(state);
+  const [state, dispatch] = useReducer(
+    userPreferencesReducer,
+    initialState,
+    (state) => state ?? getInitialUserPreferencesState(),
+  );
+
+  useEffect(() => {
+    localStorageUserPreferencesRepository.savePreferences(state);
+  }, [state]);
 
   const toggleShowHints = useCallback(() => {
     dispatch({type: TOGGLE_SHOW_HINTS});

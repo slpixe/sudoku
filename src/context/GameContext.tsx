@@ -1,7 +1,7 @@
 import React, {createContext, useContext, useReducer, useCallback, ReactNode} from "react";
 import {CellCoordinates} from "src/lib/engine/types";
 import {START_SUDOKU_COLLECTION, START_SUDOKU_INDEX} from "src/lib/game/sudokus";
-import {localStorageUserPreferencesRepository} from "src/lib/database/userPreferences";
+import type {UserPreferences} from "src/lib/database/userPreferences";
 
 export enum GameStateMachine {
   running = "RUNNING",
@@ -61,6 +61,7 @@ type GameAction =
       sudokuCollectionName: string;
       timesSolved: number;
       previousTimes: number[];
+      preferences: UserPreferences;
     }
   | {type: typeof SET_GAME_STATE; state: GameState}
   | {type: typeof PAUSE_GAME}
@@ -87,7 +88,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     case SET_GAME_STATE:
       return action.state;
     case NEW_GAME:
-      const currentPreferences = localStorageUserPreferencesRepository.getPreferences();
       return {
         ...INITIAL_GAME_STATE,
         sudokuIndex: action.sudokuIndex,
@@ -95,7 +95,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         timesSolved: action.timesSolved,
         previousTimes: action.previousTimes,
         state: GameStateMachine.running,
-        ...currentPreferences,
+        ...action.preferences,
       };
     case WON_GAME:
       const justWon = state.won === false;
@@ -182,7 +182,13 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
 interface GameContextType {
   state: GameState;
-  newGame: (sudokuIndex: number, sudokuCollectionName: string, timesSolved: number, previousTimes: number[]) => void;
+  newGame: (
+    sudokuIndex: number,
+    sudokuCollectionName: string,
+    timesSolved: number,
+    previousTimes: number[],
+    preferences: UserPreferences,
+  ) => void;
   setGameState: (state: GameState) => void;
   wonGame: () => void;
   pauseGame: () => void;
@@ -214,8 +220,14 @@ export function GameProvider({children, initialState = INITIAL_GAME_STATE}: Game
   const [state, dispatch] = useReducer(gameReducer, initialState);
 
   const newGame = useCallback(
-    (sudokuIndex: number, sudokuCollectionName: string, timesSolved: number, previousTimes: number[]) => {
-      dispatch({type: NEW_GAME, sudokuIndex, sudokuCollectionName, timesSolved, previousTimes});
+    (
+      sudokuIndex: number,
+      sudokuCollectionName: string,
+      timesSolved: number,
+      previousTimes: number[],
+      preferences: UserPreferences,
+    ) => {
+      dispatch({type: NEW_GAME, sudokuIndex, sudokuCollectionName, timesSolved, previousTimes, preferences});
     },
     [],
   );
