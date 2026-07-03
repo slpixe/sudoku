@@ -1,0 +1,14 @@
+import {parseSudoku} from "src/lib/engine/utility";
+import type {SudokuRaw} from "src/lib/game/types";
+
+export {START_SUDOKU_COLLECTION, START_SUDOKU_INDEX} from "src/lib/game/baseCollections";
+
+const START_SUDOKU_RAW = "534920700060007309900000010008700000496803002721594806000200940800046100003000000";
+const START_SUDOKU_SOLUTION_RAW =
+  "534921768162487359987635214358762491496813572721594836615278943879346125243159687";
+
+export const START_SUDOKU: SudokuRaw = {
+  iterations: 0,
+  sudoku: parseSudoku(START_SUDOKU_RAW),
+  solution: parseSudoku(START_SUDOKU_SOLUTION_RAW),
+};

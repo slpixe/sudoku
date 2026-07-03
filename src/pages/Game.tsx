@@ -13,13 +13,15 @@ import Shortcuts from "./Game/shortcuts/Shortcuts";
 import type {UserPreferences} from "src/lib/database/userPreferences";
 import {CellCoordinates, SimpleSudoku} from "src/lib/engine/types";
 import {useUserPreferences} from "src/context/UserPrefencesContext";
-import {useSudokuCollections} from "src/lib/game/sudokus";
-import {translateCollectionName} from "src/lib/database/collections";
 import {ContinueOverlay} from "./Game/ContinueOverlay";
 import {GameHeader} from "./Game/GameHeader";
 import {GameProviders} from "./Game/GameProviders";
-import {GameWonOverlay} from "./Game/GameWonOverlay";
 import {useGameRouteSync} from "./Game/useGameRouteSync";
+import {getSudokuCollectionDisplayName} from "src/lib/game/collectionNames";
+
+const GameWonOverlay = React.lazy(() =>
+  import("./Game/GameWonOverlay").then((module) => ({default: module.GameWonOverlay})),
+);
 
 const GameInner: React.FC<{
   sudokuState: SudokuState;
@@ -68,15 +70,9 @@ const GameInner: React.FC<{
 }) => {
   const canUndo = sudokuState.historyIndex < sudokuState.history.length - 1;
   const sudoku = sudokuState.current;
-  const {getCollection} = useSudokuCollections();
   const collectionName = React.useMemo(() => {
-    try {
-      return translateCollectionName(getCollection(game.sudokuCollectionName).name);
-    } catch (error) {
-      console.error("Error loading sudoku collection:", error);
-      return translateCollectionName(game.sudokuCollectionName);
-    }
-  }, [game.sudokuCollectionName, getCollection]);
+    return getSudokuCollectionDisplayName(game.sudokuCollectionName);
+  }, [game.sudokuCollectionName]);
 
   React.useEffect(() => {
     const isSolved = SudokuGame.isSolved(sudoku);
@@ -165,7 +161,11 @@ const GameInner: React.FC<{
               setNotes={setNotes}
               clearNumber={clearCell}
             >
-              {game.won && <GameWonOverlay game={game} setDisableAutoSync={setDisableAutoSync} />}
+              {game.won && (
+                <React.Suspense fallback={null}>
+                  <GameWonOverlay game={game} setDisableAutoSync={setDisableAutoSync} />
+                </React.Suspense>
+              )}
 
               <ContinueOverlay visible={pausedGame && !game.won} onClick={continueGame} />
             </Sudoku>

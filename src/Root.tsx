@@ -2,22 +2,28 @@ import * as React from "react";
 
 import {createHashHistory, createRootRoute, createRoute, createRouter, RouterProvider} from "@tanstack/react-router";
 
-import Game from "./pages/Game";
-import SelectGame from "./pages/SelectGame";
 import {OfflineIndicator} from "./components/OfflineIndicator";
+
+const LazyGame = React.lazy(() => import("./pages/Game"));
+const LazySelectGame = React.lazy(() => import("./pages/SelectGame"));
+
+const GameRoute = () => <LazyGame />;
+const SelectGameRoute = () => <LazySelectGame />;
+
+const routeFallback = <div className="min-h-screen bg-gray-800 dark:bg-gray-900" />;
 
 const rootRoute = createRootRoute();
 
 const gameRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
-  component: Game,
+  component: GameRoute,
 });
 
 const selectGameRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/select-game",
-  component: SelectGame,
+  component: SelectGameRoute,
 });
 
 rootRoute.addChildren([gameRoute, selectGameRoute]);
@@ -26,7 +32,7 @@ const hashHistory = createHashHistory();
 
 const router = createRouter({
   routeTree: rootRoute,
-  defaultNotFoundComponent: Game,
+  defaultNotFoundComponent: GameRoute,
   history: hashHistory,
 });
 
@@ -103,7 +109,9 @@ const App = () => {
   return (
     <ErrorBoundary>
       <OfflineIndicator />
-      <RouterProvider router={router} />
+      <React.Suspense fallback={routeFallback}>
+        <RouterProvider router={router} />
+      </React.Suspense>
     </ErrorBoundary>
   );
 };

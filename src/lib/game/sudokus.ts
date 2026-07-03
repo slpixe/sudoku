@@ -1,5 +1,3 @@
-import {SimpleSudoku} from "src/lib/engine/types";
-
 import easySudokus from "../../../sudokus/easy.txt?raw";
 import mediumSudokus from "../../../sudokus/medium.txt?raw";
 import hardSudokus from "../../../sudokus/hard.txt?raw";
@@ -9,13 +7,11 @@ import {parseSudoku} from "src/lib/engine/utility";
 import {solve} from "src/lib/engine/solverAC3";
 import {useCallback, useState} from "react";
 import {BaseCollection, Collection} from "../database/collections";
+import {BASE_COLLECTION_IDS, isBaseCollectionId} from "src/lib/game/baseCollections";
 import {appPersistence} from "src/lib/persistence/appPersistence";
+import type {SudokuRaw} from "src/lib/game/types";
 
-export interface SudokuRaw {
-  iterations: number;
-  sudoku: SimpleSudoku;
-  solution: SimpleSudoku;
-}
+export type {SudokuRaw};
 
 export interface PaginatedSudokus {
   sudokus: SudokuRaw[];
@@ -80,13 +76,8 @@ export function getSudokusPaginated(collection: Collection, page: number = 0, pa
   };
 }
 
-export const START_SUDOKU_INDEX = 0;
-export const START_SUDOKU_COLLECTION = {id: "easy", name: "easy", sudokusRaw: BASE_SUDOKU_COLLECTIONS.easy};
-export const START_SUDOKU = getSudokusPaginated(START_SUDOKU_COLLECTION, START_SUDOKU_INDEX, START_SUDOKU_INDEX + 1)
-  .sudokus[0];
-
 export function getCollections() {
-  const baseCollections = Object.keys(BASE_SUDOKU_COLLECTIONS);
+  const baseCollections = BASE_COLLECTION_IDS;
   const collections = appPersistence.collections.loadIndex();
   return [...baseCollections.map((collection) => ({id: collection, name: collection})), ...collections];
 }
@@ -96,7 +87,7 @@ export function useSudokuCollections() {
   const [activeCollectionId, setActiveCollectionId] = useState<string>("easy");
 
   const isBaseCollection = useCallback((collectionId: string) => {
-    return Object.keys(BASE_SUDOKU_COLLECTIONS).includes(collectionId);
+    return isBaseCollectionId(collectionId);
   }, []);
 
   const getCollection = useCallback(

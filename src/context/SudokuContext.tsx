@@ -1,7 +1,7 @@
 import React, {createContext, useContext, useReducer, useCallback, ReactNode} from "react";
 import {Cell, SimpleSudoku, CellCoordinates} from "src/lib/engine/types";
 import {simpleSudokuToCells, squareIndex} from "src/lib/engine/utility";
-import {START_SUDOKU} from "src/lib/game/sudokus";
+import {START_SUDOKU} from "src/lib/game/startSudoku";
 
 export interface SudokuState {
   current: Cell[];
