@@ -24,7 +24,6 @@ import {TimerProvider} from "src/context/TimerContext";
 import {useEffect} from "react";
 import {CellCoordinates, SimpleSudoku} from "src/lib/engine/types";
 import {DarkModeButton} from "src/components/DarkModeButton";
-import LanguageSelector from "src/components/LanguageSelector";
 import {useTranslation} from "react-i18next";
 import {
   INITIAL_USER_PREFERENCES_STATE,
@@ -381,7 +380,6 @@ const GameInner: React.FC<{
           <div className="flex">
             <div className="flex gap-2 flex-col justify-end items-end sm:flex-row">
               <div className="flex gap-2">
-                <LanguageSelector />
                 <DarkModeButton />
                 <ClearGameButton
                   pauseGame={pauseGame}

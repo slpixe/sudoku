@@ -18,28 +18,21 @@ export enum Language {
   ZH = "zh",
 }
 
-export const LANGUAGE_TRANSLATIONS: Record<Language, string> = {
-  [Language.EN]: "English",
-  [Language.FR]: "Français",
-  [Language.ES]: "Español",
-  [Language.DE]: "Deutsch",
-  [Language.IT]: "Italiano",
-  [Language.PT]: "Português",
-  [Language.ZH]: "中文",
-};
-
-export const LANGUAGES = [Language.EN, Language.FR, Language.ES, Language.DE, Language.IT, Language.PT, Language.ZH];
+const SUPPORTED_LANGUAGES = Object.values(Language);
 
 // Detect browser language and return a supported language
 const getBrowserLanguage = (): Language => {
-  const savedLang = localStorage.getItem("language");
-  if (savedLang && Object.values(Language).includes(savedLang as Language)) {
-    return savedLang as Language;
+  const browserLanguages = navigator.languages.length > 0 ? navigator.languages : [navigator.language];
+
+  for (const browserLanguage of browserLanguages) {
+    const languageCode = browserLanguage.split("-")[0].toLowerCase();
+    const supportedLanguage = SUPPORTED_LANGUAGES.find((language) => language === languageCode);
+    if (supportedLanguage) {
+      return supportedLanguage;
+    }
   }
 
-  const browserLang = navigator.language.split("-")[0].toLowerCase();
-  const supportedLang = Object.values(Language).find((lang) => lang === browserLang);
-  return supportedLang || Language.EN;
+  return Language.EN;
 };
 
 i18n.use(initReactI18next).init({

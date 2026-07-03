@@ -117,7 +117,7 @@ test("supports number entry, erase, undo, redo, notes, hints, and keyboard short
   await expect(page.getByRole("button", {name: "Pause"})).toBeVisible();
 });
 
-test("uses fixed game preferences, dark mode, and language selection", async ({page}) => {
+test("uses fixed game preferences and dark mode", async ({page}) => {
   await page.addInitScript(() => {
     localStorage.setItem(
       "super-sudoku-user-preferences",
@@ -182,13 +182,24 @@ test("uses fixed game preferences, dark mode, and language selection", async ({p
   await page.getByRole("button", {name: "Toggle dark mode"}).click();
   await expect(page.locator("body")).toHaveClass(/dark/);
   await expect.poll(() => page.evaluate(() => localStorage.getItem("darkMode"))).toBe("true");
-
-  await page.getByLabel("Select language").selectOption("es");
-  await expect(page.getByRole("button", {name: "Nuevo juego"})).toBeVisible();
-  await expect.poll(() => page.evaluate(() => localStorage.getItem("language"))).toBe("es");
+  await expect(page.getByLabel("Select language")).toHaveCount(0);
 
   await page.reload();
+  await expect(page.getByRole("button", {name: "New game"})).toBeVisible();
+});
+
+test("uses browser language automatically", async ({page}) => {
+  await page.addInitScript(() => {
+    localStorage.setItem("language", "fr");
+    Object.defineProperty(navigator, "language", {value: "es-ES", configurable: true});
+    Object.defineProperty(navigator, "languages", {value: ["es-ES", "es", "en-US"], configurable: true});
+  });
+
+  await page.goto(gameUrl());
+
+  await expect(page.getByTestId("current-game-label")).toHaveText("Fácil #1");
   await expect(page.getByRole("button", {name: "Nuevo juego"})).toBeVisible();
+  await expect(page.getByLabel("Select language")).toHaveCount(0);
 });
 
 test("solves a sudoku and starts the next game from the win screen", async ({page}) => {
