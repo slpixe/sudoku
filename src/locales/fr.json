@@ -41,6 +41,8 @@
   "note_btn": "Notes",
   "hint_btn": "Indice",
   "hint_btn_target": "Cellule active",
+  "conflicts_btn": "Conflit",
+  "counts_btn": "Compte",
   "language": "Langue",
   "difficulty_easy": "Facile",
   "difficulty_medium": "Moyen",

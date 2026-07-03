@@ -42,6 +42,8 @@
   "note_btn": "Note",
   "hint_btn": "Suggerimento",
   "hint_btn_target": "Cella attiva",
+  "conflicts_btn": "Conflitto",
+  "counts_btn": "Conteggio",
   "language": "Lingua",
   "difficulty_easy": "Facile",
   "difficulty_medium": "Medio",

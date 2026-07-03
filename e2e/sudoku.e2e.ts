@@ -142,14 +142,20 @@ test("supports number entry, erase, undo, redo, notes, hints, and keyboard short
   await expect(page.getByRole("button", {name: "Erase"})).toBeDisabled();
   await expect(page.getByRole("button", {name: /Notes (ON|OFF)/})).toBeDisabled();
   await expect(page.getByRole("button", {name: /Hint\s+Active cell/})).toBeDisabled();
+  await expect(page.getByRole("button", {name: /Clash\s+(ON|OFF)/})).toBeDisabled();
+  await expect(page.getByRole("button", {name: /Count\s+(ON|OFF)/})).toBeDisabled();
   await expect(page.getByRole("button", {name: "Resume game"})).toBeVisible();
   await page.getByRole("button", {name: "Resume game"}).focus();
   await page.keyboard.press("Enter");
   await expect(page.getByRole("button", {name: "Pause"})).toBeVisible();
 });
 
-test("uses fixed game preferences and dark mode", async ({page}) => {
+test("uses visible game preference toggles and dark mode", async ({page}) => {
   await page.addInitScript(() => {
+    if (sessionStorage.getItem("seeded-user-preferences")) {
+      return;
+    }
+
     localStorage.setItem(
       "sudoku-user-preferences",
       JSON.stringify({
@@ -160,6 +166,7 @@ test("uses fixed game preferences and dark mode", async ({page}) => {
         showOccurrences: false,
       }),
     );
+    sessionStorage.setItem("seeded-user-preferences", "true");
   });
 
   await openGame(page);
@@ -175,7 +182,9 @@ test("uses fixed game preferences and dark mode", async ({page}) => {
   await expect(page.getByTestId("share-sudoku")).toHaveCount(0);
 
   await expect(cellNotes(page, 5, 0)).toHaveText("");
-  await expect(page.getByTestId("sudoku-number-occurrences-5")).toBeVisible();
+  await expect(page.getByTestId("sudoku-toggle-conflicts")).toHaveAttribute("aria-pressed", "false");
+  await expect(page.getByTestId("sudoku-toggle-occurrences")).toHaveAttribute("aria-pressed", "false");
+  await expect(page.getByTestId("sudoku-number-occurrences-5")).toHaveCount(0);
 
   const boardBox = await page.getByTestId("sudoku-board").boundingBox();
   const keypadBox = await page.getByTestId("sudoku-number-5").boundingBox();
@@ -193,7 +202,15 @@ test("uses fixed game preferences and dark mode", async ({page}) => {
 
   await selectCell(page, 5, 0);
   await page.getByRole("button", {name: "Set 2"}).click();
+  await expect(cell(page, 5, 0)).toHaveAttribute("data-cell-conflict", "false");
+
+  await page.getByRole("button", {name: /Clash\s+OFF/}).click();
   await expect(cell(page, 5, 0)).toHaveAttribute("data-cell-conflict", "true");
+  await expect(page.getByTestId("sudoku-toggle-conflicts")).toHaveAttribute("aria-pressed", "true");
+
+  await page.getByRole("button", {name: /Count\s+OFF/}).click();
+  await expect(page.getByTestId("sudoku-number-occurrences-5")).toBeVisible();
+  await expect(page.getByTestId("sudoku-toggle-occurrences")).toHaveAttribute("aria-pressed", "true");
 
   await selectCell(page, 7, 0);
   await expect(page.getByTestId("sudoku-menu-circle")).toHaveCount(0);
@@ -207,6 +224,8 @@ test("uses fixed game preferences and dark mode", async ({page}) => {
   });
 
   await page.reload();
+  await expect(page.getByTestId("sudoku-toggle-conflicts")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByTestId("sudoku-toggle-occurrences")).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByTestId("sudoku-number-occurrences-5")).toBeVisible();
   await expect(page.getByTestId("sudoku-menu-circle")).toHaveCount(0);
 

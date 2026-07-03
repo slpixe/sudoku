@@ -42,6 +42,8 @@
   "note_btn": "Notizen",
   "hint_btn": "Hinweis",
   "hint_btn_target": "Aktive Zelle",
+  "conflicts_btn": "Konflikt",
+  "counts_btn": "Anzahl",
   "language": "Sprache",
   "difficulty_easy": "Einfach",
   "difficulty_medium": "Mittel",

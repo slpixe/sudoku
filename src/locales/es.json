@@ -42,6 +42,8 @@
   "note_btn": "Notas",
   "hint_btn": "Pista",
   "hint_btn_target": "Celda activa",
+  "conflicts_btn": "Choque",
+  "counts_btn": "Conteo",
   "language": "Idioma",
   "difficulty_easy": "Fácil",
   "difficulty_medium": "Medio",

@@ -42,6 +42,8 @@
   "note_btn": "Notes",
   "hint_btn": "Hint",
   "hint_btn_target": "Active cell",
+  "conflicts_btn": "Clash",
+  "counts_btn": "Count",
   "language": "Language",
   "difficulty_easy": "Easy",
   "difficulty_medium": "Medium",

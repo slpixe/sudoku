@@ -45,6 +45,8 @@ const GameInner: React.FC<{
   resetGame: () => void;
   deactivateNotesMode: () => void;
   copyNotes: (notes: number[]) => void;
+  toggleShowConflicts: () => void;
+  toggleShowOccurrences: () => void;
 }> = ({
   sudokuState,
   setSudoku,
@@ -66,6 +68,8 @@ const GameInner: React.FC<{
   resetGame,
   deactivateNotesMode,
   copyNotes,
+  toggleShowConflicts,
+  toggleShowOccurrences,
 }) => {
   const canUndo = sudokuState.historyIndex < sudokuState.history.length - 1;
   const sudoku = sudokuState.current;
@@ -194,9 +198,13 @@ const GameInner: React.FC<{
                 notesMode={game.notesMode}
                 activeCellCoordinates={game.activeCellCoordinates}
                 disabled={pausedGame}
+                showConflicts={userPreferencesState.showConflicts}
+                showOccurrences={userPreferencesState.showOccurrences}
                 clearCell={clearCell}
                 activateNotesMode={activateNotesMode}
                 deactivateNotesMode={deactivateNotesMode}
+                toggleShowConflicts={toggleShowConflicts}
+                toggleShowOccurrences={toggleShowOccurrences}
                 getHint={getHint}
                 canUndo={canUndo}
                 undo={undo}
@@ -225,7 +233,7 @@ const GameWithRouteManagement = () => {
     hideMenu,
     copyNotes,
   } = useGame();
-  const {state: userPreferencesState} = useUserPreferences();
+  const {state: userPreferencesState, toggleShowConflicts, toggleShowOccurrences} = useUserPreferences();
   const {
     setSudokuState,
     state: sudokuState,
@@ -270,6 +278,8 @@ const GameWithRouteManagement = () => {
       resetGame={resetGame}
       deactivateNotesMode={deactivateNotesMode}
       copyNotes={copyNotes}
+      toggleShowConflicts={toggleShowConflicts}
+      toggleShowOccurrences={toggleShowOccurrences}
     />
   );
 };

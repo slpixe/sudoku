@@ -8,27 +8,15 @@ function getInitialUserPreferencesState(): UserPreferences {
 
 export const INITIAL_USER_PREFERENCES_STATE: UserPreferences = DEFAULT_USER_PREFERENCES;
 
-const TOGGLE_SHOW_HINTS = "user_preferences/TOGGLE_SHOW_HINTS";
 const TOGGLE_SHOW_OCCURRENCES = "user_preferences/TOGGLE_SHOW_OCCURRENCES";
 const TOGGLE_SHOW_CONFLICTS = "user_preferences/TOGGLE_SHOW_CONFLICTS";
-const TOGGLE_SHOW_CIRCLE_MENU = "user_preferences/TOGGLE_SHOW_CIRCLE_MENU";
-const TOGGLE_SHOW_WRONG_ENTRIES = "user_preferences/TOGGLE_SHOW_WRONG_ENTRIES";
 
 type UserPreferencesAction =
-  | {type: typeof TOGGLE_SHOW_HINTS}
   | {type: typeof TOGGLE_SHOW_OCCURRENCES}
-  | {type: typeof TOGGLE_SHOW_CONFLICTS}
-  | {type: typeof TOGGLE_SHOW_CIRCLE_MENU}
-  | {type: typeof TOGGLE_SHOW_WRONG_ENTRIES};
+  | {type: typeof TOGGLE_SHOW_CONFLICTS};
 
 export function userPreferencesReducer(state: UserPreferences, action: UserPreferencesAction): UserPreferences {
   switch (action.type) {
-    case TOGGLE_SHOW_HINTS:
-      const newStateHints = {
-        ...state,
-        showHints: !state.showHints,
-      };
-      return newStateHints;
     case TOGGLE_SHOW_OCCURRENCES:
       const newStateOccurrences = {
         ...state,
@@ -41,18 +29,6 @@ export function userPreferencesReducer(state: UserPreferences, action: UserPrefe
         showConflicts: !state.showConflicts,
       };
       return newStateConflicts;
-    case TOGGLE_SHOW_CIRCLE_MENU:
-      const newStateCircleMenu = {
-        ...state,
-        showCircleMenu: !state.showCircleMenu,
-      };
-      return newStateCircleMenu;
-    case TOGGLE_SHOW_WRONG_ENTRIES:
-      const newStateWrongEntries = {
-        ...state,
-        showWrongEntries: !state.showWrongEntries,
-      };
-      return newStateWrongEntries;
     default:
       return state;
   }
@@ -60,11 +36,8 @@ export function userPreferencesReducer(state: UserPreferences, action: UserPrefe
 
 interface UserPreferencesContextType {
   state: UserPreferences;
-  toggleShowHints: () => void;
   toggleShowOccurrences: () => void;
   toggleShowConflicts: () => void;
-  toggleShowCircleMenu: () => void;
-  toggleShowWrongEntries: () => void;
 }
 
 const UserPreferencesContext = createContext<UserPreferencesContextType | undefined>(undefined);
@@ -85,10 +58,6 @@ export function UserPreferencesProvider({children, initialState}: UserPreference
     appPersistence.userPreferences.save(state);
   }, [state]);
 
-  const toggleShowHints = useCallback(() => {
-    dispatch({type: TOGGLE_SHOW_HINTS});
-  }, []);
-
   const toggleShowOccurrences = useCallback(() => {
     dispatch({type: TOGGLE_SHOW_OCCURRENCES});
   }, []);
@@ -97,21 +66,10 @@ export function UserPreferencesProvider({children, initialState}: UserPreference
     dispatch({type: TOGGLE_SHOW_CONFLICTS});
   }, []);
 
-  const toggleShowCircleMenu = useCallback(() => {
-    dispatch({type: TOGGLE_SHOW_CIRCLE_MENU});
-  }, []);
-
-  const toggleShowWrongEntries = useCallback(() => {
-    dispatch({type: TOGGLE_SHOW_WRONG_ENTRIES});
-  }, []);
-
   const value = {
     state,
-    toggleShowHints,
     toggleShowOccurrences,
     toggleShowConflicts,
-    toggleShowCircleMenu,
-    toggleShowWrongEntries,
   };
 
   return <UserPreferencesContext.Provider value={value}>{children}</UserPreferencesContext.Provider>;

@@ -16,11 +16,20 @@ export const DEFAULT_USER_PREFERENCES: UserPreferences = {
   showOccurrences: true,
 };
 
-function fixedUserPreferences(preferences: Partial<UserPreferences> = {}): UserPreferences {
-  // The settings UI is hidden, so persisted values must not leave controls in an unreachable state.
+function fixedUserPreferences(preferences: unknown = {}): UserPreferences {
+  const storedPreferences =
+    preferences && typeof preferences === "object" ? (preferences as Partial<UserPreferences>) : undefined;
+
   return {
-    ...preferences,
     ...DEFAULT_USER_PREFERENCES,
+    showConflicts:
+      typeof storedPreferences?.showConflicts === "boolean"
+        ? storedPreferences.showConflicts
+        : DEFAULT_USER_PREFERENCES.showConflicts,
+    showOccurrences:
+      typeof storedPreferences?.showOccurrences === "boolean"
+        ? storedPreferences.showOccurrences
+        : DEFAULT_USER_PREFERENCES.showOccurrences,
   };
 }
 

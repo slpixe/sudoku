@@ -48,14 +48,18 @@ describe("localStorageUserPreferencesRepository", () => {
     expect(localStorageUserPreferencesRepository.getPreferences()).toEqual(DEFAULT_USER_PREFERENCES);
   });
 
-  it("normalizes valid and partial stored preferences to current defaults", () => {
+  it("loads visible preferences while fixing hidden preferences to current defaults", () => {
     vi.stubGlobal(
       "localStorage",
       createLocalStorageMock({
         [storageKey]: JSON.stringify(nonDefaultPreferences),
       }),
     );
-    expect(localStorageUserPreferencesRepository.getPreferences()).toEqual(DEFAULT_USER_PREFERENCES);
+    expect(localStorageUserPreferencesRepository.getPreferences()).toEqual({
+      ...DEFAULT_USER_PREFERENCES,
+      showConflicts: false,
+      showOccurrences: false,
+    });
 
     vi.stubGlobal(
       "localStorage",
@@ -74,12 +78,18 @@ describe("localStorageUserPreferencesRepository", () => {
     expect(console.warn).toHaveBeenCalledOnce();
   });
 
-  it("saves normalized preferences", () => {
+  it("saves only visible preference changes", () => {
     const storage = createLocalStorageMock();
     vi.stubGlobal("localStorage", storage);
 
     localStorageUserPreferencesRepository.savePreferences(nonDefaultPreferences);
 
-    expect(localStorage.getItem(storageKey)).toBe(JSON.stringify(DEFAULT_USER_PREFERENCES));
+    expect(localStorage.getItem(storageKey)).toBe(
+      JSON.stringify({
+        ...DEFAULT_USER_PREFERENCES,
+        showConflicts: false,
+        showOccurrences: false,
+      }),
+    );
   });
 });

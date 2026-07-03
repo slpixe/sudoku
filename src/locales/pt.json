@@ -42,6 +42,8 @@
   "note_btn": "Notas",
   "hint_btn": "Dica",
   "hint_btn_target": "Célula ativa",
+  "conflicts_btn": "Conflito",
+  "counts_btn": "Contagem",
   "language": "Idioma",
   "difficulty_easy": "Fácil",
   "difficulty_medium": "Médio",
