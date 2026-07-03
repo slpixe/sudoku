@@ -9,6 +9,7 @@ artifacts
 playwright-report
 test-results
 blob-report
+.playwright-mcp/
 coverage
 *.log
 .env.local
