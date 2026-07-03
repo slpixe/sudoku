@@ -38,7 +38,7 @@ export const CellNote = ({left, top, children}: {left: number; top: number; chil
   return (
     <div
       style={{top: `${top}%`, left: `${left}%`}}
-      className="absolute -translate-x-1/2 -translate-y-1/2 text-xs text-sky-400 sm:text-sm"
+      className="absolute -translate-x-1/2 -translate-y-1/2 text-[clamp(0.75rem,2.8vw,1.125rem)] leading-none text-sky-400"
     >
       {children}
     </div>
@@ -183,12 +183,15 @@ export const GridCellNumber = ({
         left: `${left}%`,
         top: `${top}%`,
       }}
-      className={clsx("pointer-events-none absolute z-20 -translate-x-1/2 -translate-y-1/2 text-lg font-bold", {
-        "text-black dark:text-white": initial,
-        "text-amber-600": highlight && !conflict,
-        "text-teal-600": !initial && !highlight && !conflict,
-        "text-red-600 dark:text-red-300": conflict && !initial,
-      })}
+      className={clsx(
+        "pointer-events-none absolute z-20 -translate-x-1/2 -translate-y-1/2 text-[clamp(1.5rem,7vw,3rem)] font-bold leading-none",
+        {
+          "text-black dark:text-white": initial,
+          "text-amber-600": highlight && !conflict,
+          "text-teal-600": !initial && !highlight && !conflict,
+          "text-red-600 dark:text-red-300": conflict && !initial,
+        },
+      )}
     >
       {children}
     </div>
