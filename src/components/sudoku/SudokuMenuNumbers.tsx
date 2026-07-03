@@ -42,6 +42,7 @@ const SudokuMenuNumbers: React.FC<SudokuMenuNumbersProps> = ({
     >
       {SUDOKU_NUMBERS.map((n) => {
         const occurrences = boardData.occurrences[n];
+        const completed = occurrences === 9;
 
         const setNumberOrNote = () => {
           if (!activeCell) {
@@ -63,7 +64,6 @@ const SudokuMenuNumbers: React.FC<SudokuMenuNumbersProps> = ({
             aria-label={`Set ${n}`}
             className={clsx("relative font-bold", {
               "aspect-square p-0 text-base sm:text-lg md:text-xl": layout === "row",
-              "bg-gray-400": occurrences == 9,
               "bg-red-400 dark:bg-red-400": showOccurrences && occurrences > 9,
               "bg-sky-600 dark:bg-sky-600 text-white":
                 notesMode && userNotes.includes(n) && activeCellData?.number === 0,
@@ -73,6 +73,7 @@ const SudokuMenuNumbers: React.FC<SudokuMenuNumbersProps> = ({
                 autoNotes.includes(n) &&
                 !userNotes.includes(n) &&
                 activeCellData?.number === 0,
+              "bg-gray-300 text-gray-600 opacity-70 grayscale dark:bg-gray-700 dark:text-gray-300": completed,
             })}
             data-testid={`sudoku-number-${n}`}
             disabled={disabled}
