@@ -39,7 +39,7 @@ export const DarkModeButton = () => {
     <button
       aria-label="Toggle dark mode"
       onClick={toggleDarkMode}
-      className="md:h-10 md:w-10 h-8 w-8 rounded-sm p-1 hover:bg-gray-800"
+      className="md:h-10 md:w-10 h-8 w-8 rounded-sm p-1 touch-manipulation hover:bg-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-800"
     >
       <svg className="fill-violet-700 block dark:hidden" fill="currentColor" viewBox="0 0 20 20">
         <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path>

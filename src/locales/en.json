@@ -55,5 +55,12 @@
   "select_game_title": "Select Game",
   "go_back": "Go back",
   "select_game_subtitle": "Select a new sudoku to play or continue with an already started game.",
-  "confirm_clear": "Are you sure you want to restart this game? Your progress will be lost."
+  "confirm_clear": "Are you sure you want to restart this game? Your progress will be lost.",
+  "confirm_restart_finished": "Are you sure? This will restart the sudoku and reset the timer. It will continue to say that you solved it.",
+  "invalid_sudoku_url": "The Sudoku in the URL is invalid.",
+  "select_sudoku": "Select sudoku {{sudokuIndex}}",
+  "dialog_confirmation": "Confirmation",
+  "dialog_message": "Message",
+  "dialog_ok": "OK",
+  "dialog_cancel": "Cancel"
 }

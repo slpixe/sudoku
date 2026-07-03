@@ -3,6 +3,7 @@ import * as React from "react";
 import {useLocation, useNavigate} from "@tanstack/react-router";
 import throttle from "lodash-es/throttle";
 import {useTranslation} from "react-i18next";
+import {useAppDialog} from "src/components/AppDialog";
 import {GameState} from "src/context/GameContext";
 import {SudokuState} from "src/context/SudokuContext";
 import {translateCollectionName} from "src/lib/database/collections";
@@ -107,6 +108,7 @@ export function useGameRouteSync({
   const location = useLocation();
   const navigate = useNavigate();
   const {t} = useTranslation();
+  const dialog = useAppDialog();
   const [initialized, setInitialized] = React.useState(false);
 
   const currentPath = location.pathname;
@@ -187,78 +189,98 @@ export function useGameRouteSync({
       return;
     }
 
-    const {
-      gameState: currentGameState,
-      sudokuState: currentSudokuState,
-      userPreferencesState: currentUserPreferencesState,
-      t: translate,
-    } = latestStateRef.current;
-    const currentSudoku = cellsToSimpleSudoku(currentSudokuState.current);
-    if (stringifySudoku(currentSudoku) === routeSudoku.sudoku) {
+    let cancelled = false;
+
+    const loadRouteSudoku = async () => {
+      const {
+        gameState: currentGameState,
+        sudokuState: currentSudokuState,
+        userPreferencesState: currentUserPreferencesState,
+        t: translate,
+      } = latestStateRef.current;
+      const currentSudoku = cellsToSimpleSudoku(currentSudokuState.current);
+      if (stringifySudoku(currentSudoku) === routeSudoku.sudoku) {
+        syncedRouteKeyRef.current = routeSudoku.key;
+        setInitialized(true);
+        return;
+      }
+
+      console.info("Loading sudoku from URL", routeSudoku.sudokuIndex, routeSudoku.sudoku, routeSudoku.sudokuCollectionName);
+      if (currentGameState.secondsPlayed > 5 && !currentGameState.won) {
+        const areYouSure = await dialog.confirm({
+          message: translate("confirm_new_game", {
+            currentCollectionName: translateCollectionName(currentGameState.sudokuCollectionName),
+            currentIndex: currentGameState.sudokuIndex + 1,
+            newCollectionName: translateCollectionName(routeSudoku.sudokuCollectionName),
+            newIndex: routeSudoku.sudokuIndex,
+          }),
+        });
+        if (cancelled) {
+          return;
+        }
+        if (!areYouSure) {
+          setInitialized(true);
+          replaceRouteWithGameState(currentGameState, currentSudokuState);
+          return;
+        }
+      }
+
+      try {
+        const parsedSudoku = parseSudoku(routeSudoku.sudoku);
+        const solvedSudoku = solve(parsedSudoku);
+        if (solvedSudoku.sudoku) {
+          setSudoku(parsedSudoku, solvedSudoku.sudoku);
+        } else {
+          await dialog.alert({message: translate("invalid_sudoku_url")});
+          if (cancelled) {
+            return;
+          }
+          setInitialized(true);
+          replaceRouteWithGameState(currentGameState, currentSudokuState);
+          return;
+        }
+      } catch (error) {
+        await dialog.alert({message: translate("invalid_sudoku_url")});
+        if (cancelled) {
+          return;
+        }
+        setInitialized(true);
+        console.error(error);
+        replaceRouteWithGameState(currentGameState, currentSudokuState);
+        return;
+      }
+
+      const storedSudoku = appPersistence.playedSudokus.load(routeSudoku.sudoku);
+      newGame(
+        routeSudoku.sudokuIndex - 1,
+        routeSudoku.sudokuCollectionName,
+        storedSudoku?.game.timesSolved ?? 0,
+        storedSudoku?.game.previousTimes ?? [],
+        currentUserPreferencesState,
+      );
+
+      if (storedSudoku && !storedSudoku.game.won) {
+        setGameState({...storedSudoku.game});
+        setSudokuState({
+          current: storedSudoku.sudoku,
+          history: [storedSudoku.sudoku],
+          historyIndex: 0,
+        });
+      }
       syncedRouteKeyRef.current = routeSudoku.key;
       setInitialized(true);
-      return;
-    }
+      continueGame();
+    };
 
-    console.info("Loading sudoku from URL", routeSudoku.sudokuIndex, routeSudoku.sudoku, routeSudoku.sudokuCollectionName);
-    if (currentGameState.secondsPlayed > 5 && !currentGameState.won) {
-      const areYouSure = confirm(
-        translate("confirm_new_game", {
-          currentCollectionName: translateCollectionName(currentGameState.sudokuCollectionName),
-          currentIndex: currentGameState.sudokuIndex + 1,
-          newCollectionName: translateCollectionName(routeSudoku.sudokuCollectionName),
-          newIndex: routeSudoku.sudokuIndex,
-        }),
-      );
-      if (!areYouSure) {
-        setInitialized(true);
-        replaceRouteWithGameState(currentGameState, currentSudokuState);
-        return;
-      }
-    }
+    void loadRouteSudoku();
 
-    try {
-      const parsedSudoku = parseSudoku(routeSudoku.sudoku);
-      const solvedSudoku = solve(parsedSudoku);
-      if (solvedSudoku.sudoku) {
-        setSudoku(parsedSudoku, solvedSudoku.sudoku);
-      } else {
-        alert(translate("invalid_sudoku_url"));
-        setInitialized(true);
-        replaceRouteWithGameState(currentGameState, currentSudokuState);
-        return;
-      }
-    } catch (error) {
-      alert(translate("invalid_sudoku_url"));
-      setInitialized(true);
-      console.error(error);
-      replaceRouteWithGameState(currentGameState, currentSudokuState);
-      return;
-    }
-
-    const storedSudoku = appPersistence.playedSudokus.load(routeSudoku.sudoku);
-    newGame(
-      routeSudoku.sudokuIndex - 1,
-      routeSudoku.sudokuCollectionName,
-      storedSudoku?.game.timesSolved ?? 0,
-      storedSudoku?.game.previousTimes ?? [],
-      currentUserPreferencesState,
-    );
-
-    if (storedSudoku && !storedSudoku.game.won) {
-      setGameState({...storedSudoku.game});
-      setSudokuState({
-        current: storedSudoku.sudoku,
-        history: [storedSudoku.sudoku],
-        historyIndex: 0,
-      });
-    }
-    syncedRouteKeyRef.current = routeSudoku.key;
-    setInitialized(true);
-    continueGame();
+    return () => {
+      cancelled = true;
+    };
   }, [
     currentPath,
     routeSudoku,
+    dialog,
     setGameState,
     setSudokuState,
     continueGame,

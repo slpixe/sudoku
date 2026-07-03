@@ -51,10 +51,11 @@ export default class SudokuPreview extends React.PureComponent<{
   id: number;
   darken?: boolean;
   size?: number;
+  ariaLabel?: string;
   onClick: () => void;
 }> {
   render() {
-    const {sudoku, id, onClick, size = 150} = this.props;
+    const {sudoku, id, onClick, size = 150, ariaLabel} = this.props;
     const containerHeight = size;
     const containerWidth = size;
     const height = 100;
@@ -64,21 +65,13 @@ export default class SudokuPreview extends React.PureComponent<{
     const xSection = height / 9;
     const ySection = width / 9;
 
-    const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-      if (event.key === "Enter") {
-        onClick();
-      }
-    };
-
     return (
-      <div
-        aria-label={`Select sudoku ${id}`}
-        className="user-select-none hover:cursor-pointer group"
+      <button
+        aria-label={ariaLabel ?? `Select sudoku ${id}`}
+        className="user-select-none group block border-0 bg-transparent p-0 text-left touch-manipulation hover:cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-800"
         data-testid={`sudoku-preview-${id}`}
-        role="button"
-        tabIndex={id + 4}
         onClick={onClick}
-        onKeyDown={onKeyDown}
+        type="button"
       >
         <div
           className="relative bg-gray-100 dark:bg-gray-700 rounded-sm"
@@ -121,7 +114,7 @@ export default class SudokuPreview extends React.PureComponent<{
             <div className="absolute z-20 top-0 left-0 w-full h-full bg-black opacity-20 group-hover:opacity-0 transition-opacity duration-300" />
           ) : null}
         </div>
-      </div>
+      </button>
     );
   }
 }

@@ -2,6 +2,7 @@ import * as React from "react";
 
 import {useNavigate} from "@tanstack/react-router";
 import {useTranslation} from "react-i18next";
+import {useAppDialog} from "src/components/AppDialog";
 import Button from "src/components/Button";
 import {DarkModeButton} from "src/components/DarkModeButton";
 import {GameState, GameStateMachine} from "src/context/GameContext";
@@ -35,30 +36,20 @@ const ClearGameButton: React.FC<{
   clearGame: () => void;
   pauseGame: () => void;
   continueGame: () => void;
-  paused: boolean;
   disabled: boolean;
-}> = ({clearGame, pauseGame, continueGame, paused, disabled}) => {
+}> = ({clearGame, pauseGame, continueGame, disabled}) => {
   const {t} = useTranslation();
-  const [confirmingClear, setConfirmingClear] = React.useState(false);
+  const dialog = useAppDialog();
 
-  React.useEffect(() => {
-    if (!confirmingClear || !paused) {
-      return;
-    }
-
-    setConfirmingClear(false);
-    const areYouSure = confirm(t("confirm_clear"));
+  const clearGameLocal = async () => {
+    pauseGame();
+    const areYouSure = await dialog.confirm({message: t("confirm_clear")});
     if (!areYouSure) {
       continueGame();
       return;
     }
 
     clearGame();
-  }, [clearGame, confirmingClear, continueGame, paused, t]);
-
-  const clearGameLocal = () => {
-    pauseGame();
-    setConfirmingClear(true);
   };
 
   return (
@@ -128,7 +119,6 @@ export const GameHeader: React.FC<{
             <ClearGameButton
               pauseGame={pauseGame}
               continueGame={continueGame}
-              paused={game.state === GameStateMachine.paused}
               disabled={game.won || game.state === GameStateMachine.paused}
               clearGame={clearGame}
             />

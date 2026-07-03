@@ -2,6 +2,7 @@ import {expect, Page, test} from "@playwright/test";
 
 const FIRST_PUZZLE = "534920700060007309900000010008700000496803002721594806000200940800046100003000000";
 const SECOND_PUZZLE = "009043005867002003040060027002086050930420000058397040300270900001000002724059030";
+const MEDIUM_FIRST_PUZZLE = "502000000003400000000005093700006002000003608008021070870032504106080020400070300";
 const FIRST_SOLUTION = "534921768162487359987635214358762491496813572721594836615278943879346125243159687";
 const ONE_EMPTY_CELL_PUZZLE = `${FIRST_SOLUTION.slice(0, -1)}0`;
 const SHORTCUT_MODIFIER = "Control";
@@ -81,6 +82,43 @@ async function expectStoredPreferences(page: Page, preferences: Record<string, b
       }),
     )
     .toMatchObject(preferences);
+}
+
+async function seedFinishedSudoku(page: Page, sudoku: string, sudokuIndex: number, collection: string) {
+  await page.addInitScript(
+    ({collection, sudoku, sudokuIndex}) => {
+      const cells = sudoku.split("").map((value, index) => ({
+        x: index % 9,
+        y: Math.floor(index / 9),
+        number: Number(value),
+        initial: value !== "0",
+        notes: [],
+        solution: Number(value),
+      }));
+
+      localStorage.setItem(
+        `sudoku-played-${sudoku}`,
+        JSON.stringify({
+          game: {
+            activeCellCoordinates: undefined,
+            sudokuCollectionName: collection,
+            notesMode: false,
+            showNotes: false,
+            showMenu: false,
+            state: "PAUSED",
+            sudokuIndex: sudokuIndex - 1,
+            won: true,
+            timesSolved: 1,
+            previousTimes: [123],
+            secondsPlayed: 123,
+            clipboardNotes: null,
+          },
+          sudoku: cells,
+        }),
+      );
+    },
+    {collection, sudoku, sudokuIndex},
+  );
 }
 
 test("supports number entry, erase, undo, redo, notes, hints, and keyboard shortcuts", async ({page}) => {
@@ -273,25 +311,25 @@ test("clears the current game only after confirmation", async ({page}) => {
   await page.getByRole("button", {name: "Set 1"}).click();
   await expect(cellValue(page, 5, 0)).toHaveText("1");
 
-  page.once("dialog", async (dialog) => {
-    expect(dialog.message()).toBe("Are you sure you want to restart this game? Your progress will be lost.");
-    await dialog.dismiss();
-  });
   await page.getByRole("button", {name: "Clear"}).click();
+  const clearDialog = page.getByRole("dialog");
+  await expect(clearDialog).toContainText("Are you sure you want to restart this game? Your progress will be lost.");
+  await clearDialog.getByRole("button", {name: "Cancel"}).click();
+  await expect(clearDialog).toHaveCount(0);
   await expect(page.getByRole("button", {name: "Pause"})).toBeVisible();
   await expect(cellValue(page, 5, 0)).toHaveText("1");
 
-  page.once("dialog", async (dialog) => {
-    expect(dialog.message()).toBe("Are you sure you want to restart this game? Your progress will be lost.");
-    await dialog.accept();
-  });
   await page.getByRole("button", {name: "Clear"}).click();
+  await expect(clearDialog).toContainText("Are you sure you want to restart this game? Your progress will be lost.");
+  await clearDialog.getByRole("button", {name: "OK"}).click();
+  await expect(clearDialog).toHaveCount(0);
   await expect(page.getByRole("button", {name: "Pause"})).toBeVisible();
   await expect(cellValue(page, 5, 0)).toHaveText("");
   await expectGameSearch(page, FIRST_PUZZLE, 1, "easy");
 });
 
 test("changes games through the selection screen", async ({page}) => {
+  await seedFinishedSudoku(page, MEDIUM_FIRST_PUZZLE, 1, "medium");
   await openGame(page);
 
   await page.getByRole("button", {name: "New game"}).click();
@@ -302,7 +340,21 @@ test("changes games through the selection screen", async ({page}) => {
   await expect(page.getByText("Create new sudoku")).toHaveCount(0);
 
   await page.getByRole("button", {name: "Medium"}).click();
-  await page.getByTestId("sudoku-preview-1").click();
+  const mediumPreview = page.getByRole("button", {name: "Select sudoku 1", exact: true});
+  await mediumPreview.focus();
+  await expect(mediumPreview).toBeFocused();
+  await page.keyboard.press("Enter");
+
+  const restartDialog = page.getByRole("dialog");
+  await expect(restartDialog).toContainText("This will restart the sudoku and reset the timer");
+  await restartDialog.getByRole("button", {name: "Cancel"}).click();
+  await expect(restartDialog).toHaveCount(0);
+  await expect(page.getByRole("heading", {name: "Select Game"})).toBeVisible();
+
+  await mediumPreview.focus();
+  await page.keyboard.press("Enter");
+  await expect(restartDialog).toContainText("This will restart the sudoku and reset the timer");
+  await restartDialog.getByRole("button", {name: "OK"}).click();
 
   await expect(page.getByTestId("current-game-label")).toHaveText("Medium #1");
   await expect(page).toHaveURL(/sudokuCollectionName=medium/);

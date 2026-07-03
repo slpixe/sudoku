@@ -10,11 +10,12 @@ import {useElementWidth} from "src/utils/hooks";
 import {useNavigate} from "@tanstack/react-router";
 import {Collection, translateCollectionName} from "src/lib/database/collections";
 import {useTranslation} from "react-i18next";
+import {useAppDialog} from "src/components/AppDialog";
 import {appPersistence, StoredPlayedSudokuState} from "src/lib/persistence/appPersistence";
 
 const TabItem = ({active, children, ...props}: React.ButtonHTMLAttributes<HTMLButtonElement> & {active: boolean}) => (
   <button
-    className={`px-1 xs:px-2 sm:px-4 text-xs sm:text-sm md:text-base py-2 pointer capitalize rounded-sm border-none hover:bg-gray-500 ${
+    className={`px-1 xs:px-2 sm:px-4 text-xs sm:text-sm md:text-base py-2 pointer capitalize rounded-sm border-none touch-manipulation hover:bg-gray-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-800 ${
       active ? "bg-white text-black dark:bg-gray-600 dark:text-white" : "bg-transparent text-white dark:text-gray-300"
     }`}
     {...props}
@@ -111,12 +112,11 @@ const SudokuToSelect = ({
   const finished = localSudoku && localSudoku.game.won;
   const navigate = useNavigate();
   const {t} = useTranslation();
+  const dialog = useAppDialog();
 
-  const choose = () => {
+  const choose = async () => {
     if (finished) {
-      const areYouSure = confirm(
-        "Are you sure? This will restart the sudoku and reset the timer. It will continue to say that you solved it.",
-      );
+      const areYouSure = await dialog.confirm({message: t("confirm_restart_finished")});
       if (!areYouSure) {
         return;
       }
@@ -152,7 +152,7 @@ const SudokuToSelect = ({
               <div>{`Solved ${localSudoku.game.timesSolved} ${localSudoku.game.timesSolved === 1 ? "time" : "times"}`}</div>
             )}
             {unfinished && <div>{t("continue")}</div>}
-            {finished && <div>{`Restart?`}</div>}
+            {finished && <div>{t("restart?")}</div>}
           </div>
         </div>
       ) : null}
@@ -169,6 +169,7 @@ const SudokuToSelect = ({
           size={size}
           onClick={choose}
           id={index + 1}
+          ariaLabel={t("select_sudoku", {sudokuIndex: index + 1})}
           sudoku={finished ? sudoku.solution : sudoku.sudoku}
           darken
         />
