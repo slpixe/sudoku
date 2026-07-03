@@ -26,7 +26,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/tn1ck/super-sudoku
+          images: ghcr.io/${{ github.repository }}
 
       - name: Set up Docker Buildx
         id: buildx
