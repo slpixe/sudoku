@@ -10,6 +10,17 @@ This project is a React, TypeScript, Vite, and Tailwind Sudoku web app based on 
 - Update the styling and interface to match the user's preferences.
 - Use pnpm consistently for local development, CI, Docker, and Playwright web-server commands.
 
+# GitHub Issue Workflow
+
+- GitHub Issues are the source of truth for the current improvement backlog; Beads is not used for this project right now.
+- The tracking issue is `#1` (`Codebase improvement backlog`) in `slpixe/sudoku`.
+- At the start of a new OpenCode session focused on backlog work, run `gh issue view 1 --comments` and `gh issue list --state open --limit 20` to inspect available work.
+- Ask the user which issue to work on before making changes. Do not silently choose an issue unless the user explicitly asks you to pick.
+- Once the user chooses an issue, comment on that issue with `Claiming this for the current OpenCode session.` and focus only on that issue unless the user expands scope.
+- If the selected issue affects `src/pages/Game.tsx`, avoid working concurrently with other Game-page refactor issues unless the user confirms coordination.
+- When follow-up work is discovered, create or suggest a new GitHub issue linked to the selected issue instead of expanding scope unexpectedly.
+- Current suggested order: `#4` split `Game.tsx`, `#2` persistence boundaries, `#3` URL/timer hacks, `#7` reducer/persistence tests, `#10` board derivation performance, `#5` bundle size, `#9` accessibility/touch polish, `#8` CI checks, `#6` docs/metadata drift.
+
 # Package Manager Notes
 
 - pnpm is the active package manager, pinned as `pnpm@11.9.0` via `packageManager` in `package.json`.
