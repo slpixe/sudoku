@@ -21,7 +21,7 @@ type UserPreferencesAction =
   | {type: typeof TOGGLE_SHOW_CIRCLE_MENU}
   | {type: typeof TOGGLE_SHOW_WRONG_ENTRIES};
 
-function userPreferencesReducer(state: UserPreferences, action: UserPreferencesAction): UserPreferences {
+export function userPreferencesReducer(state: UserPreferences, action: UserPreferencesAction): UserPreferences {
   switch (action.type) {
     case TOGGLE_SHOW_HINTS:
       const newStateHints = {

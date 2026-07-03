@@ -83,7 +83,7 @@ type GameAction =
   | {type: typeof WON_GAME}
   | {type: typeof COPY_NOTES; notes: number[]};
 
-function gameReducer(state: GameState, action: GameAction): GameState {
+export function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
     case SET_GAME_STATE:
       return action.state;

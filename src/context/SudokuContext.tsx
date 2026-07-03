@@ -83,7 +83,7 @@ function fixSudokuNotes(sudoku: Cell[], newCell: Cell) {
   });
 }
 
-function sudokuReducer(state: SudokuState, action: SudokuAction): SudokuState {
+export function sudokuReducer(state: SudokuState, action: SudokuAction): SudokuState {
   switch (action.type) {
     case SET_SUDOKU_STATE:
       return action.sudokuState;
@@ -171,7 +171,7 @@ function sudokuReducer(state: SudokuState, action: SudokuAction): SudokuState {
       }
 
       // Add to history
-      const newHistory = [newGrid, ...state.history];
+      const newHistory = [newGrid, ...state.history.slice(state.historyIndex)];
 
       return {
         current: newGrid,
