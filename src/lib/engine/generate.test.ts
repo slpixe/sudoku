@@ -1,4 +1,4 @@
-import generateSudoku, {isSudokuUnique} from "./generate";
+import generateSudoku, {DIFFICULTY_RANGES, isSudokuUnique} from "./generate";
 import {createSeededRandom} from "./seededRandom";
 import {solve} from "./solverAC3";
 import {EMPTY_SUDOKU, ISSUE_33_CUSTOM_SUDOKU, SOLVED_SUDOKUS} from "./testutils";
@@ -11,6 +11,17 @@ const INVALID_GIVENS_SUDOKU = parseSudoku(
 );
 
 describe("generate", () => {
+  it("uses non-overlapping difficulty ranges", () => {
+    const difficulties = [DIFFICULTY.EASY, DIFFICULTY.MEDIUM, DIFFICULTY.HARD, DIFFICULTY.EXPERT, DIFFICULTY.EVIL];
+
+    for (let i = 1; i < difficulties.length; i++) {
+      const previousDifficulty = difficulties[i - 1];
+      const currentDifficulty = difficulties[i];
+
+      expect(DIFFICULTY_RANGES[currentDifficulty][0]).toBeGreaterThan(DIFFICULTY_RANGES[previousDifficulty][1]);
+    }
+  });
+
   it("generates the same sudoku using a seed", () => {
     const randomFn = createSeededRandom(10);
     const sudoku = generateSudoku(DIFFICULTY.EASY, randomFn);
@@ -28,8 +39,8 @@ describe("generate", () => {
     // Check if it is unique.
     expect(isSudokuUnique(sudoku.sudoku)).toBe(true);
     // Check if it can be solved.
-    // The difficulty is capped, as we don't do to many changes.
-    expect(solve(sudoku.sudoku).iterations).toBe(32);
+    // The difficulty is capped, as we don't do too many changes.
+    expect(solve(sudoku.sudoku).iterations).toBe(47);
   });
 
 });

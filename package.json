@@ -18,13 +18,12 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "prettier:write": "prettier --write './src/**/*.ts' './src/**/*.tsx'",
-    "fetch-sudokus": "ts-node --project ./tsconfig.json ./scripts/fetch_sudokus.ts -l 6 -n 100 -p sudokuDotCom",
-    "generate-easy-sudokus": "ts-node --project ./tsconfig.json ./scripts/generate_sudokus.ts -d easy -n 500",
-    "generate-medium-sudokus": "ts-node --project ./tsconfig.json ./scripts/generate_sudokus.ts -d medium -n 500",
-    "generate-hard-sudokus": "ts-node --project ./tsconfig.json ./scripts/generate_sudokus.ts -d hard -n 500",
-    "generate-expert-sudokus": "ts-node --project ./tsconfig.json ./scripts/generate_sudokus.ts -d expert -n 500",
-    "generate-evil-sudokus": "ts-node --project ./tsconfig.json ./scripts/generate_sudokus.ts -d evil -n 500",
-    "read-sudokus": "ts-node --project ./tsconfig.json ./scripts/read_sudokus.ts"
+    "fetch-sudokus": "node --import ./scripts/register_ts_node.mjs --experimental-specifier-resolution=node ./scripts/fetch_sudokus.ts -l 6 -n 100 -p sudokuDotCom",
+    "generate-easy-sudokus": "node --import ./scripts/register_ts_node.mjs --experimental-specifier-resolution=node ./scripts/generate_sudokus.ts -d easy -n 500",
+    "generate-medium-sudokus": "node --import ./scripts/register_ts_node.mjs --experimental-specifier-resolution=node ./scripts/generate_sudokus.ts -d medium -n 500",
+    "generate-hard-sudokus": "node --import ./scripts/register_ts_node.mjs --experimental-specifier-resolution=node ./scripts/generate_sudokus.ts -d hard -n 500",
+    "generate-expert-sudokus": "node --import ./scripts/register_ts_node.mjs --experimental-specifier-resolution=node ./scripts/generate_sudokus.ts -d expert -n 500",
+    "generate-evil-sudokus": "node --import ./scripts/register_ts_node.mjs --experimental-specifier-resolution=node ./scripts/generate_sudokus.ts -d evil -n 500"
   },
   "keywords": [
     "sudoku",

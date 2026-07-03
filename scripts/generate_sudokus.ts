@@ -33,7 +33,8 @@ function writeSudoku(sudoku: SimpleSudoku) {
   const iterations = solverAC3.solve(sudoku).iterations;
   const printedSudoku = stringifySudoku(sudoku);
   console.log(`Write sudoku with ${iterations} iterations\n`, printedSudoku);
-  fs.appendFileSync(`sudokus_${difficulty}.txt`, printedSudoku + "\n");
+  fs.mkdirSync("sudokus", {recursive: true});
+  fs.appendFileSync(`sudokus/${difficulty}.txt`, printedSudoku + "\n");
 }
 
 const number = options.number;

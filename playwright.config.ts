@@ -1,5 +1,8 @@
 import {defineConfig, devices} from "@playwright/test";
 
+const e2ePort = 4179;
+const e2eBaseURL = `http://127.0.0.1:${e2ePort}`;
+
 export default defineConfig({
   testDir: "./e2e",
   testMatch: "**/*.e2e.ts",
@@ -14,7 +17,7 @@ export default defineConfig({
       ]
     : "list",
   use: {
-    baseURL: "http://127.0.0.1:4173",
+    baseURL: e2eBaseURL,
     colorScheme: "light",
     locale: "en-US",
     screenshot: "only-on-failure",
@@ -28,9 +31,9 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "npm run build && npm run preview -- --host 127.0.0.1 --port 4173",
-    reuseExistingServer: !process.env.CI,
+    command: `pnpm run build && pnpm exec vite preview --host 127.0.0.1 --port ${e2ePort}`,
+    reuseExistingServer: false,
     timeout: 120_000,
-    url: "http://127.0.0.1:4173",
+    url: e2eBaseURL,
   },
 });

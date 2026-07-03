@@ -6,6 +6,14 @@ typings
 node_modules
 tmp
 artifacts
+playwright-report
+test-results
+blob-report
+coverage
+*.log
+.env.local
+.env.*.local
+sudokus-*.json
 sudokus_easy.txt
 sudokus_medium.txt
 sudokus_hard.txt

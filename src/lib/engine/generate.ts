@@ -44,7 +44,7 @@ export const DIFFICULTY_GOALS = {
 export const DIFFICULTY_RANGES = {
   [DIFFICULTY.EASY]: [0, 7],
   [DIFFICULTY.MEDIUM]: [8, 20],
-  [DIFFICULTY.HARD]: [20, 70],
+  [DIFFICULTY.HARD]: [21, 70],
   [DIFFICULTY.EXPERT]: [71, 299],
   [DIFFICULTY.EVIL]: [300, 10000],
 };
@@ -64,9 +64,9 @@ export function isSudokuUnique(sudoku: SimpleSudoku): boolean {
  * Whenever a number is encountered that would lead to two different solutions,
  * one number is set and the new sudoku is returned.
  *
- * When uniqueness could not be increased, returns the same sudoku.
+ * When uniqueness could not be increased, returns null.
  */
-function enhanceUniqueness(sudoku: SimpleSudoku, randomFn: () => number): SimpleSudoku {
+function enhanceUniqueness(sudoku: SimpleSudoku, randomFn: () => number): SimpleSudoku | null {
   const randomRows = randomIndexes(randomFn);
   for (const row of randomRows) {
     const randomColumns = randomIndexes(randomFn);
@@ -90,7 +90,7 @@ function enhanceUniqueness(sudoku: SimpleSudoku, randomFn: () => number): Simple
       }
     }
   }
-  return sudoku;
+  return null;
 }
 
 /**
@@ -209,7 +209,7 @@ function cloneSudoku(sudoku: SimpleSudoku): SimpleSudoku {
 }
 
 const RELATIVE_DRIFT = 20;
-// this is mostly needed for the esay difficulty, because the iterations needed there
+// this is mostly needed for the easy difficulty, because the iterations needed there
 // are too low that the relative drift would do anything
 const ABSOLUTE_DRIFT = 3;
 
@@ -219,7 +219,7 @@ export function increaseDifficultyOfSudoku(sudoku: SimpleSudoku, randomFn: () =>
   while (coordinateList.length > 0) {
     const sampleXY = sample(coordinateList, randomFn);
     const [x, y] = sampleXY;
-    coordinateList = coordinateList.filter(([cx, cy]) => cx !== x && cy !== y);
+    coordinateList = coordinateList.filter(([cx, cy]) => cx !== x || cy !== y);
     const newSudoku = cloneSudoku(sudoku);
     newSudoku[x][y] = 0;
     const newCosts = sudokuSolver(newSudoku).iterations;
@@ -247,7 +247,7 @@ function makeSudokuUnique(sudoku: SimpleSudoku, randomFn: () => number): [Simple
   sudoku = cloneSudoku(sudoku);
   while (!isSudokuUnique(sudoku)) {
     const newBestSudoku = enhanceUniqueness(sudoku, randomFn);
-    if (newBestSudoku === undefined) {
+    if (newBestSudoku === null) {
       console.log("Max uniqueness reached");
       break;
     }
