@@ -51,6 +51,7 @@ Born from a simple request - my Grandma wanted to play Sudoku, but I wasn't sati
 
 ### Prerequisites
 - **Node.js** (version 20 or higher) - [Download here](https://nodejs.org/en/download/package-manager/)
+- **pnpm** (Corepack uses the version pinned in `package.json`)
 
 ### Quick Start
 ```bash
@@ -58,18 +59,21 @@ Born from a simple request - my Grandma wanted to play Sudoku, but I wasn't sati
 git clone https://github.com/tn1ck/super-sudoku.git
 cd super-sudoku
 
+# Enable pnpm through Corepack
+corepack enable
+
 # Install dependencies
-npm install
+pnpm install
 
 # Start development server
-npm start
+pnpm start
 ```
 
 The app will be available at [http://127.0.0.1:3000](http://127.0.0.1:3000)
 
 ### Build for Production
 ```bash
-npm run build
+pnpm build
 ```
 Generated files will be in the `dist` directory.
 

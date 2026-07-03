@@ -20,7 +20,7 @@ import {Link, useLocation, useNavigate} from "@tanstack/react-router";
 import {localStoragePlayedSudokuRepository} from "src/lib/database/playedSudokus";
 import {UserPreferences} from "src/lib/database/userPreferences";
 import {formatDuration} from "src/utils/format";
-import {throttle} from "lodash";
+import throttle from "lodash-es/throttle";
 import {TimerProvider} from "src/context/TimerContext";
 import {useEffect} from "react";
 import {CellCoordinates, SimpleSudoku} from "src/lib/engine/types";
