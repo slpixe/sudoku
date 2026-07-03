@@ -3,7 +3,7 @@ import hotkeys from "hotkeys-js";
 import {SUDOKU_COORDINATES, SUDOKU_NUMBERS} from "src/lib/engine/utility";
 import {Cell} from "src/lib/engine/types";
 import {ShortcutScope} from "./ShortcutScope";
-import SudokuGame from "src/lib/game/SudokuGame";
+import {DerivedBoardData, getCellIndex} from "src/lib/game/deriveBoardData";
 
 const GridShortcuts: React.FC<{
   continueGame: () => void;
@@ -16,6 +16,7 @@ const GridShortcuts: React.FC<{
   setNotes: (cell: Cell, notes: number[]) => void;
   undo: () => void;
   redo: () => void;
+  boardData: DerivedBoardData;
   sudoku: Cell[];
   activeCell: Cell | undefined;
   notesMode: boolean;
@@ -33,6 +34,7 @@ const GridShortcuts: React.FC<{
   setNotes,
   undo,
   redo,
+  boardData,
   sudoku,
   activeCell,
   notesMode,
@@ -57,6 +59,7 @@ const GridShortcuts: React.FC<{
     setNotes,
     undo,
     redo,
+    boardData,
     clipboardNotes,
     copyNotes,
   });
@@ -78,6 +81,7 @@ const GridShortcuts: React.FC<{
       setNotes,
       undo,
       redo,
+      boardData,
       clipboardNotes,
       copyNotes,
     };
@@ -164,13 +168,11 @@ const GridShortcuts: React.FC<{
     SUDOKU_NUMBERS.forEach((n) => {
       const keys = [String(n), `num_${n}`].join(",");
       hotkeys(keys, ShortcutScope.Game, () => {
-        const {activeCell, notesMode, showHints, sudoku, setNumber, setNotes} = stateRef.current;
+        const {activeCell, boardData, notesMode, showHints, setNumber, setNotes} = stateRef.current;
         if (activeCell && !activeCell.initial) {
           if (notesMode) {
-            const conflicting = SudokuGame.conflictingFields(sudoku);
             const userNotes = activeCell.notes;
-            const conflictingCell = conflicting[activeCell.y * 9 + activeCell.x];
-            const autoNotes = showHints ? conflictingCell.possibilities : [];
+            const autoNotes = showHints ? boardData.notePossibilities[getCellIndex(activeCell)] ?? [] : [];
             const notesToUse = userNotes.length === 0 && autoNotes.length > 0 ? autoNotes : userNotes;
 
             const newNotes = notesToUse.includes(n) ? notesToUse.filter((note) => note !== n) : [...userNotes, n];

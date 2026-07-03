@@ -5,6 +5,7 @@ import MenuShortcuts from "./MenuShortcuts";
 import GridShortcuts from "./GridShortcuts";
 import {ShortcutScope} from "./ShortcutScope";
 import {Cell} from "src/lib/engine/types";
+import {DerivedBoardData} from "src/lib/game/deriveBoardData";
 
 interface ShortcutsProps {
   gameState: GameStateMachine;
@@ -18,6 +19,7 @@ interface ShortcutsProps {
   setNotes: (cell: Cell, notes: number[]) => void;
   undo: () => void;
   redo: () => void;
+  boardData: DerivedBoardData;
   sudoku: Cell[];
   activeCell: Cell | undefined;
   notesMode: boolean;
@@ -39,6 +41,7 @@ const Shortcuts: React.FC<ShortcutsProps> = ({
   setNotes,
   undo,
   redo,
+  boardData,
   sudoku,
   activeCell,
   notesMode,
@@ -70,6 +73,7 @@ const Shortcuts: React.FC<ShortcutsProps> = ({
         setNotes={setNotes}
         undo={undo}
         redo={redo}
+        boardData={boardData}
         sudoku={sudoku}
         activeCell={activeCell}
         notesMode={notesMode}

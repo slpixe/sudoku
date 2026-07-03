@@ -12,8 +12,8 @@ import {
 import SudokuGame from "src/lib/game/SudokuGame";
 import {Bounds} from "src/components/sudoku/types";
 import {Cell, CellCoordinates} from "src/lib/engine/types";
-import flatten from "lodash-es/flatten";
 import {useElementWidth} from "src/utils/hooks";
+import {DerivedBoardData, getCellIndex} from "src/lib/game/deriveBoardData";
 
 const SudokuGrid = React.memo(
   ({width, height, hideLeftRight = false}: {width: number; height: number; hideLeftRight?: boolean}) => {
@@ -123,7 +123,7 @@ const SudokuCell = React.memo(
 );
 
 interface SudokuProps {
-  activeCell?: CellCoordinates;
+  boardData: DerivedBoardData;
   sudoku: Cell[];
   showHints: boolean;
   showWrongEntries: boolean;
@@ -142,7 +142,7 @@ interface SudokuProps {
 export const Sudoku: React.FC<SudokuProps> = ({
   sudoku,
   showHints,
-  activeCell: passedActiveCell,
+  boardData,
   hideMenu,
   showMenu,
   selectCell,
@@ -161,29 +161,13 @@ export const Sudoku: React.FC<SudokuProps> = ({
   const xSection = height / 9;
   const ySection = width / 9;
 
-  const activeCell = passedActiveCell && sudoku.find((c) => c.x === passedActiveCell.x && c.y === passedActiveCell.y);
+  const activeCell = boardData.activeCell;
   const selectionPosition = {
     x: (activeCell && activeCell.x) || 0,
     y: (activeCell && activeCell.y) || 0,
   };
 
   const positionedCells = SudokuGame.positionedCells(sudoku, width, height);
-  const conflicting = SudokuGame.conflictingFields(sudoku);
-  const uniquePaths = SudokuGame.uniquePaths(
-    flatten(
-      conflicting.map((c) => {
-        return SudokuGame.getPathsFromConflicting(c, sudoku);
-      }),
-    ),
-  );
-
-  const pathCells = flatten(
-    uniquePaths.map((p) => {
-      return SudokuGame.getPathBetweenCell(p.from, p.to);
-    }),
-  );
-
-  const friendsOfActiveCell = activeCell ? SudokuGame.sameSquareColumnRow(activeCell, sudoku) : [];
 
   const sudokuContainerRef = React.useRef(null);
   const containerWidth = useElementWidth(sudokuContainerRef);
@@ -218,15 +202,11 @@ export const Sudoku: React.FC<SudokuProps> = ({
             }
           };
           const position = positionedCells[i];
-          const conflicted = conflicting[i];
+          const cellIndex = getCellIndex(c);
 
-          const notes = showHints && c.notes.length === 0 ? conflicted.possibilities : c.notes;
+          const notes = showHints && c.notes.length === 0 ? boardData.notePossibilities[i] : c.notes;
 
-          const inConflictPath =
-            showConflicts &&
-            pathCells.some((d) => {
-              return d.x === c.x && d.y === c.y;
-            });
+          const inConflictPath = showConflicts && boardData.pathCellIndexes.has(cellIndex);
 
           const bounds: Bounds = {
             width: xSection,
@@ -236,9 +216,7 @@ export const Sudoku: React.FC<SudokuProps> = ({
           };
 
           const isActive = activeCell ? c.x === activeCell.x && c.y === activeCell.y : false;
-          const highlight = friendsOfActiveCell.some((cc) => {
-            return cc.x === c.x && cc.y === c.y;
-          });
+          const highlight = boardData.friendCellIndexes.has(cellIndex);
           const isWrong = showWrongEntries && (c.number === 0 ? false : c.solution !== c.number);
           const highlightNumber = activeCell && c.number !== 0 ? activeCell.number === c.number : false;
 
@@ -280,7 +258,7 @@ export const Sudoku: React.FC<SudokuProps> = ({
                 setNumber={setNumber}
                 setNotes={setNotes}
                 clearNumber={clearNumber}
-                sudoku={sudoku}
+                notePossibilities={boardData.notePossibilities[getCellIndex(activeCell)] ?? []}
                 showMenu={showMenu}
               />
             </MenuWrapper>

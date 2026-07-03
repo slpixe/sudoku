@@ -1,16 +1,16 @@
 import * as React from "react";
 import {SUDOKU_NUMBERS} from "src/lib/engine/utility";
-import {CellCoordinates, Cell} from "src/lib/engine/types";
+import {CellCoordinates} from "src/lib/engine/types";
 import Button from "src/components/Button";
 import clsx from "clsx";
-import SudokuGame from "src/lib/game/SudokuGame";
+import {DerivedBoardData, getCellIndex} from "src/lib/game/deriveBoardData";
 
 export interface SudokuMenuNumbersProps {
   notesMode: boolean;
   activeCell?: CellCoordinates;
+  boardData: DerivedBoardData;
   disabled?: boolean;
   showOccurrences: boolean;
-  sudoku: Cell[];
   showHints: boolean;
   layout?: "side" | "row";
   setNumber: (cellCoordinates: CellCoordinates, number: number) => void;
@@ -20,14 +20,19 @@ export interface SudokuMenuNumbersProps {
 const SudokuMenuNumbers: React.FC<SudokuMenuNumbersProps> = ({
   notesMode,
   activeCell,
+  boardData,
   disabled = false,
   showOccurrences,
-  sudoku,
   showHints,
   layout = "side",
   setNumber,
   setNotes,
 }) => {
+  const activeCellIndex = activeCell ? getCellIndex(activeCell) : undefined;
+  const activeCellData = boardData.activeCell;
+  const userNotes = activeCellData?.notes ?? [];
+  const autoNotes = activeCellIndex !== undefined && showHints ? boardData.notePossibilities[activeCellIndex] ?? [] : [];
+
   return (
     <div
       className={clsx("grid w-full grid-cols-9 justify-center overflow-hidden", {
@@ -36,14 +41,7 @@ const SudokuMenuNumbers: React.FC<SudokuMenuNumbersProps> = ({
       })}
     >
       {SUDOKU_NUMBERS.map((n) => {
-        const occurrences = sudoku.filter((c) => c.number === n).length;
-
-        const conflicting = SudokuGame.conflictingFields(sudoku);
-
-        const activeCellData = activeCell ? sudoku[activeCell.y * 9 + activeCell.x] : undefined;
-        const userNotes = activeCellData?.notes ?? [];
-        const conflictingCell = activeCell ? conflicting[activeCell.y * 9 + activeCell.x] : undefined;
-        const autoNotes = (showHints ? conflictingCell?.possibilities : []) ?? [];
+        const occurrences = boardData.occurrences[n];
 
         const setNumberOrNote = () => {
           if (!activeCell) {

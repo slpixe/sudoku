@@ -18,6 +18,7 @@ import {GameHeader} from "./Game/GameHeader";
 import {GameProviders} from "./Game/GameProviders";
 import {useGameRouteSync} from "./Game/useGameRouteSync";
 import {getSudokuCollectionDisplayName} from "src/lib/game/collectionNames";
+import {deriveBoardData} from "src/lib/game/deriveBoardData";
 
 const GameWonOverlay = React.lazy(() =>
   import("./Game/GameWonOverlay").then((module) => ({default: module.GameWonOverlay})),
@@ -68,6 +69,17 @@ const GameInner: React.FC<{
 }) => {
   const canUndo = sudokuState.historyIndex < sudokuState.history.length - 1;
   const sudoku = sudokuState.current;
+  const activeCellX = game.activeCellCoordinates?.x;
+  const activeCellY = game.activeCellCoordinates?.y;
+  const boardData = React.useMemo(() => {
+    const activeCellCoordinates =
+      activeCellX === undefined || activeCellY === undefined ? undefined : {x: activeCellX, y: activeCellY};
+
+    return deriveBoardData(sudoku, activeCellCoordinates);
+  }, [sudoku, activeCellX, activeCellY]);
+  const emptyBoardData = React.useMemo(() => {
+    return deriveBoardData(emptyGrid);
+  }, []);
   const collectionName = React.useMemo(() => {
     return getSudokuCollectionDisplayName(game.sudokuCollectionName);
   }, [game.sudokuCollectionName]);
@@ -102,11 +114,9 @@ const GameInner: React.FC<{
   }, [onVisibilityChange]);
 
   const pausedGame = game.state === GameStateMachine.paused;
-  const activeCell = game.activeCellCoordinates
-    ? sudoku.find((s) => {
-        return s.x === game.activeCellCoordinates!.x && s.y === game.activeCellCoordinates!.y;
-      })
-    : undefined;
+  const activeCell = boardData.activeCell;
+  const displayedSudoku = pausedGame ? emptyGrid : sudoku;
+  const displayedBoardData = pausedGame ? emptyBoardData : boardData;
 
   return (
     <Container>
@@ -123,6 +133,7 @@ const GameInner: React.FC<{
           setNotes={setNotes}
           undo={undo}
           redo={redo}
+          boardData={boardData}
           sudoku={sudoku}
           activeCell={activeCell}
           notesMode={game.notesMode}
@@ -143,18 +154,18 @@ const GameInner: React.FC<{
         <div className="flex justify-center">
           <main className="mt-4 w-full max-w-3xl">
             <Sudoku
+              boardData={displayedBoardData}
               showWrongEntries={userPreferencesState.showWrongEntries && game.state === GameStateMachine.running}
               showConflicts={userPreferencesState.showConflicts && game.state === GameStateMachine.running}
               notesMode={game.notesMode}
               shouldShowMenu={
                 game.showMenu && userPreferencesState.showCircleMenu && game.state === GameStateMachine.running
               }
-              sudoku={game.state === GameStateMachine.paused ? emptyGrid : sudoku}
+              sudoku={displayedSudoku}
               showMenu={showMenu}
               hideMenu={hideMenu}
               selectCell={selectCell}
               showHints={userPreferencesState.showHints && game.state === GameStateMachine.running}
-              activeCell={game.state === GameStateMachine.running ? activeCell : undefined}
               setNumber={setNumber}
               setNotes={setNotes}
               clearNumber={clearCell}
@@ -174,7 +185,7 @@ const GameInner: React.FC<{
                 disabled={pausedGame}
                 showOccurrences={userPreferencesState.showOccurrences}
                 activeCell={game.activeCellCoordinates}
-                sudoku={sudokuState.current}
+                boardData={boardData}
                 showHints={userPreferencesState.showHints}
                 setNumber={setNumber}
                 setNotes={setNotes}

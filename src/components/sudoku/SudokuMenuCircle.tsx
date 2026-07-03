@@ -2,7 +2,6 @@ import * as React from "react";
 import {SUDOKU_NUMBERS} from "src/lib/engine/utility";
 import {Cell} from "src/lib/engine/types";
 import {Bounds} from "src/components/sudoku/types";
-import SudokuGame from "src/lib/game/SudokuGame";
 import colors from "tailwindcss/colors";
 
 export const MenuContainer = ({bounds, children}: {bounds: Bounds; children: React.ReactNode}) => (
@@ -119,8 +118,8 @@ const MenuCircle: React.FC<{
   setNotes: (cell: Cell, notes: number[]) => void;
   showMenu: () => void;
   clearNumber: (cell: Cell) => void;
-  sudoku: Cell[];
-}> = ({cell, notesMode, showHints, setNumber, setNotes, clearNumber, sudoku, showMenu}) => {
+  notePossibilities: number[];
+}> = ({cell, notesMode, showHints, setNumber, setNotes, clearNumber, notePossibilities, showMenu}) => {
   if (cell === null) {
     return null;
   }
@@ -132,6 +131,9 @@ const MenuCircle: React.FC<{
   const usedRad = Math.abs(maxRad - minRad);
   const circumCircle = TAU * circleRadius;
   const radPerStep = usedRad / SUDOKU_NUMBERS.length;
+  const userNotes = cell.notes;
+  const autoNotes = showHints ? notePossibilities : [];
+  const notesToUse = userNotes.length === 0 && autoNotes.length > 0 ? autoNotes : userNotes;
 
   return (
     <svg
@@ -162,12 +164,6 @@ const MenuCircle: React.FC<{
         const currentMinRad = minRad + radPerStep * (i + 1);
         const currentMaxRad = currentMinRad + radPerStep;
         let isActive = number === cell.number;
-
-        const conflicting = SudokuGame.conflictingFields(sudoku);
-        const userNotes = sudoku[cell.y * 9 + cell.x].notes;
-        const conflictingCell = conflicting[cell.y * 9 + cell.x];
-        const autoNotes = showHints ? conflictingCell.possibilities : [];
-        const notesToUse = userNotes.length === 0 && autoNotes.length > 0 ? autoNotes : userNotes;
 
         if (notesMode) {
           isActive = notesToUse.includes(number);
