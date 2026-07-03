@@ -24,7 +24,11 @@
       "pnpm run test:e2e": "allow",
       "pnpm run test:e2e *": "allow",
       "pnpm run typecheck": "allow",
-      "pnpm test": "allow"
+      "pnpm test": "allow",
+      "gh label create *": "allow",
+      "du -h": "allow",
+      "du -h *": "allow",
+      "pnpm build": "allow"
     }
   }
 }
