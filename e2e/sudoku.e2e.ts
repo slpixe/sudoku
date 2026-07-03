@@ -1,6 +1,7 @@
 import {expect, Page, test} from "@playwright/test";
 
 const FIRST_PUZZLE = "534920700060007309900000010008700000496803002721594806000200940800046100003000000";
+const SECOND_PUZZLE = "009043005867002003040060027002086050930420000058397040300270900001000002724059030";
 const FIRST_SOLUTION = "534921768162487359987635214358762491496813572721594836615278943879346125243159687";
 const ONE_EMPTY_CELL_PUZZLE = `${FIRST_SOLUTION.slice(0, -1)}0`;
 const SHORTCUT_MODIFIER = "Control";
@@ -33,6 +34,29 @@ async function openGame(page: Page, sudoku = FIRST_PUZZLE, sudokuIndex = 1, coll
   await expect(page.getByTestId("sudoku-board")).toBeVisible();
   await continueIfPaused(page);
   await expect(cellValue(page, 5, 0)).toHaveText(sudoku[5] === "0" ? "" : sudoku[5]);
+}
+
+async function expectGameSearch(page: Page, sudoku: string, sudokuIndex: number, sudokuCollectionName: string) {
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const search = window.location.hash.includes("?")
+          ? window.location.hash.split("?")[1]
+          : window.location.search.replace(/^\?/, "");
+        const params = new URLSearchParams(search);
+
+        return {
+          sudoku: params.get("sudoku"),
+          sudokuIndex: params.get("sudokuIndex"),
+          sudokuCollectionName: params.get("sudokuCollectionName"),
+        };
+      }),
+    )
+    .toEqual({
+      sudoku,
+      sudokuIndex: String(sudokuIndex),
+      sudokuCollectionName,
+    });
 }
 
 async function continueIfPaused(page: Page) {
@@ -217,7 +241,33 @@ test("solves a sudoku and starts the next game from the win screen", async ({pag
 
   await expect(page.getByTestId("current-game-label")).toHaveText("Easy #2");
   await expect(page.getByText(/Congrats, you won/)).toHaveCount(0);
-  await expect(page).toHaveURL(/sudokuCollectionName=easy/);
+  await expect(cellValue(page, 2, 0)).toHaveText("9");
+  await expectGameSearch(page, SECOND_PUZZLE, 2, "easy");
+});
+
+test("clears the current game only after confirmation", async ({page}) => {
+  await openGame(page);
+
+  await selectCell(page, 5, 0);
+  await page.getByRole("button", {name: "Set 1"}).click();
+  await expect(cellValue(page, 5, 0)).toHaveText("1");
+
+  page.once("dialog", async (dialog) => {
+    expect(dialog.message()).toBe("Are you sure you want to restart this game? Your progress will be lost.");
+    await dialog.dismiss();
+  });
+  await page.getByRole("button", {name: "Clear"}).click();
+  await expect(page.getByRole("button", {name: "Pause"})).toBeVisible();
+  await expect(cellValue(page, 5, 0)).toHaveText("1");
+
+  page.once("dialog", async (dialog) => {
+    expect(dialog.message()).toBe("Are you sure you want to restart this game? Your progress will be lost.");
+    await dialog.accept();
+  });
+  await page.getByRole("button", {name: "Clear"}).click();
+  await expect(page.getByRole("button", {name: "Pause"})).toBeVisible();
+  await expect(cellValue(page, 5, 0)).toHaveText("");
+  await expectGameSearch(page, FIRST_PUZZLE, 1, "easy");
 });
 
 test("changes games through the selection screen", async ({page}) => {

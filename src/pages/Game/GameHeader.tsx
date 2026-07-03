@@ -35,22 +35,30 @@ const ClearGameButton: React.FC<{
   clearGame: () => void;
   pauseGame: () => void;
   continueGame: () => void;
+  paused: boolean;
   disabled: boolean;
-}> = ({clearGame, pauseGame, continueGame, disabled}) => {
+}> = ({clearGame, pauseGame, continueGame, paused, disabled}) => {
   const {t} = useTranslation();
-  const clearGameLocal = async () => {
-    pauseGame();
-    // Wait briefly so the confirm dialog opens over the paused board.
-    await new Promise((resolve) => setTimeout(resolve, 30));
+  const [confirmingClear, setConfirmingClear] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!confirmingClear || !paused) {
+      return;
+    }
+
+    setConfirmingClear(false);
     const areYouSure = confirm(t("confirm_clear"));
     if (!areYouSure) {
       continueGame();
       return;
     }
+
     clearGame();
-    // Wait until the timer update has had a chance to flush.
-    await new Promise((resolve) => setTimeout(resolve, 100));
-    continueGame();
+  }, [clearGame, confirmingClear, continueGame, paused, t]);
+
+  const clearGameLocal = () => {
+    pauseGame();
+    setConfirmingClear(true);
   };
 
   return (
@@ -120,6 +128,7 @@ export const GameHeader: React.FC<{
             <ClearGameButton
               pauseGame={pauseGame}
               continueGame={continueGame}
+              paused={game.state === GameStateMachine.paused}
               disabled={game.won || game.state === GameStateMachine.paused}
               clearGame={clearGame}
             />

@@ -14,6 +14,20 @@ import {appPersistence} from "src/lib/persistence/appPersistence";
 
 const throttledSave = throttle(appPersistence.currentGame.save, 2000);
 
+type RouteSudokuSearch = {
+  sudokuIndex: number;
+  sudoku: string;
+  sudokuCollectionName: string;
+};
+
+type RouteSudokuParams = RouteSudokuSearch & {
+  key: string;
+};
+
+function createRouteSudokuKey(params: RouteSudokuSearch) {
+  return JSON.stringify([params.sudokuCollectionName, params.sudokuIndex, params.sudoku]);
+}
+
 function stripWrappingQuotes(value: string) {
   if (value.startsWith('"') && value.endsWith('"')) {
     return value.slice(1, -1);
@@ -94,7 +108,6 @@ export function useGameRouteSync({
   const navigate = useNavigate();
   const {t} = useTranslation();
   const [initialized, setInitialized] = React.useState(false);
-  const [disableAutoSync, setDisableAutoSync] = React.useState(false);
 
   const currentPath = location.pathname;
   const search = location.search as Record<string, unknown>;
@@ -102,77 +115,134 @@ export function useGameRouteSync({
   const sudoku = getSearchString(search, "sudoku");
   const sudokuCollectionName = getSearchString(search, "sudokuCollectionName");
 
-  React.useEffect(() => {
-    if (gameState && sudokuState && initialized && currentPath === "/" && !disableAutoSync) {
-      throttledSave(gameState, sudokuState);
-      const stringifiedSudoku = stringifySudoku(cellsToSimpleSudoku(sudokuState.current));
-      const shouldUpdateUrl = stringifiedSudoku !== sudoku;
-      if (shouldUpdateUrl) {
-        navigate({
-          replace: true,
-          to: "/",
-          search: {
-            sudokuIndex: gameState.sudokuIndex + 1,
-            sudoku: stringifiedSudoku,
-            sudokuCollectionName: gameState.sudokuCollectionName,
-          },
-        });
-      }
-    }
-  }, [gameState, sudokuState, initialized, currentPath, sudoku, navigate, disableAutoSync]);
-
-  React.useEffect(() => {
+  const routeSudoku = React.useMemo<RouteSudokuParams | null>(() => {
     if (sudokuIndex === undefined || sudoku === undefined || sudokuCollectionName === undefined) {
+      return null;
+    }
+
+    const params = {sudokuIndex, sudoku, sudokuCollectionName};
+    return {...params, key: createRouteSudokuKey(params)};
+  }, [sudokuIndex, sudoku, sudokuCollectionName]);
+
+  const syncedRouteKeyRef = React.useRef<string | null>(null);
+  const latestStateRef = React.useRef({gameState, sudokuState, userPreferencesState, t});
+
+  React.useEffect(() => {
+    latestStateRef.current = {gameState, sudokuState, userPreferencesState, t};
+  }, [gameState, sudokuState, userPreferencesState, t]);
+
+  const replaceRouteWithGameState = React.useCallback(
+    (currentGameState: GameState, currentSudokuState: SudokuState) => {
+      const currentSudoku = stringifySudoku(cellsToSimpleSudoku(currentSudokuState.current));
+      const nextSearch = {
+        sudokuIndex: currentGameState.sudokuIndex + 1,
+        sudoku: currentSudoku,
+        sudokuCollectionName: currentGameState.sudokuCollectionName,
+      };
+      syncedRouteKeyRef.current = createRouteSudokuKey(nextSearch);
+      navigate({
+        replace: true,
+        to: "/",
+        search: nextSearch,
+      });
+    },
+    [navigate],
+  );
+
+  React.useEffect(() => {
+    if (!initialized || currentPath !== "/") {
+      return;
+    }
+
+    if (routeSudoku && routeSudoku.key !== syncedRouteKeyRef.current) {
+      return;
+    }
+
+    throttledSave(gameState, sudokuState);
+    const stringifiedSudoku = stringifySudoku(cellsToSimpleSudoku(sudokuState.current));
+    const nextSearch = {
+      sudokuIndex: gameState.sudokuIndex + 1,
+      sudoku: stringifiedSudoku,
+      sudokuCollectionName: gameState.sudokuCollectionName,
+    };
+    const nextRouteKey = createRouteSudokuKey(nextSearch);
+
+    if (nextRouteKey !== routeSudoku?.key) {
+      syncedRouteKeyRef.current = nextRouteKey;
+      navigate({
+        replace: true,
+        to: "/",
+        search: nextSearch,
+      });
+    }
+  }, [gameState, sudokuState, initialized, currentPath, routeSudoku, navigate]);
+
+  React.useEffect(() => {
+    if (currentPath !== "/") {
+      return;
+    }
+
+    if (!routeSudoku) {
       setInitialized(true);
       return;
     }
 
-    const currentSudoku = cellsToSimpleSudoku(sudokuState.current);
-    if (stringifySudoku(currentSudoku) === sudoku) {
+    const {
+      gameState: currentGameState,
+      sudokuState: currentSudokuState,
+      userPreferencesState: currentUserPreferencesState,
+      t: translate,
+    } = latestStateRef.current;
+    const currentSudoku = cellsToSimpleSudoku(currentSudokuState.current);
+    if (stringifySudoku(currentSudoku) === routeSudoku.sudoku) {
+      syncedRouteKeyRef.current = routeSudoku.key;
       setInitialized(true);
       return;
     }
 
-    console.info("Loading sudoku from URL", sudokuIndex, sudoku, sudokuCollectionName);
-    if (gameState.secondsPlayed > 5 && !gameState.won) {
+    console.info("Loading sudoku from URL", routeSudoku.sudokuIndex, routeSudoku.sudoku, routeSudoku.sudokuCollectionName);
+    if (currentGameState.secondsPlayed > 5 && !currentGameState.won) {
       const areYouSure = confirm(
-        t("confirm_new_game", {
-          currentCollectionName: translateCollectionName(gameState.sudokuCollectionName),
-          currentIndex: gameState.sudokuIndex + 1,
-          newCollectionName: translateCollectionName(sudokuCollectionName),
-          newIndex: sudokuIndex,
+        translate("confirm_new_game", {
+          currentCollectionName: translateCollectionName(currentGameState.sudokuCollectionName),
+          currentIndex: currentGameState.sudokuIndex + 1,
+          newCollectionName: translateCollectionName(routeSudoku.sudokuCollectionName),
+          newIndex: routeSudoku.sudokuIndex,
         }),
       );
       if (!areYouSure) {
         setInitialized(true);
+        replaceRouteWithGameState(currentGameState, currentSudokuState);
         return;
       }
     }
 
     try {
-      const parsedSudoku = parseSudoku(sudoku);
+      const parsedSudoku = parseSudoku(routeSudoku.sudoku);
       const solvedSudoku = solve(parsedSudoku);
       if (solvedSudoku.sudoku) {
         setSudoku(parsedSudoku, solvedSudoku.sudoku);
       } else {
-        alert(t("invalid_sudoku_url"));
+        alert(translate("invalid_sudoku_url"));
         setInitialized(true);
+        replaceRouteWithGameState(currentGameState, currentSudokuState);
         return;
       }
     } catch (error) {
-      alert(t("invalid_sudoku_url"));
+      alert(translate("invalid_sudoku_url"));
       setInitialized(true);
       console.error(error);
+      replaceRouteWithGameState(currentGameState, currentSudokuState);
       return;
     }
 
-    const storedSudoku = appPersistence.playedSudokus.load(sudoku);
+    const storedSudoku = appPersistence.playedSudokus.load(routeSudoku.sudoku);
     newGame(
-      sudokuIndex - 1,
-      sudokuCollectionName,
+      routeSudoku.sudokuIndex - 1,
+      routeSudoku.sudokuCollectionName,
       storedSudoku?.game.timesSolved ?? 0,
       storedSudoku?.game.previousTimes ?? [],
-      userPreferencesState,
+      currentUserPreferencesState,
     );
 
     if (storedSudoku && !storedSudoku.game.won) {
@@ -183,28 +253,17 @@ export function useGameRouteSync({
         historyIndex: 0,
       });
     }
+    syncedRouteKeyRef.current = routeSudoku.key;
     setInitialized(true);
     continueGame();
   }, [
-    sudokuIndex,
-    sudoku,
-    sudokuCollectionName,
+    currentPath,
+    routeSudoku,
     setGameState,
     setSudokuState,
-    setInitialized,
     continueGame,
-    sudokuState,
-    gameState.secondsPlayed,
-    gameState.won,
-    gameState.sudokuCollectionName,
-    gameState.sudokuIndex,
     newGame,
     setSudoku,
-    userPreferencesState,
-    t,
+    replaceRouteWithGameState,
   ]);
-
-  return React.useCallback((disabled: boolean) => {
-    setDisableAutoSync(disabled);
-  }, []);
 }

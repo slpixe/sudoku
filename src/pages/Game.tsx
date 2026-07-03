@@ -43,7 +43,6 @@ const GameInner: React.FC<{
   hideMenu: () => void;
   resetGame: () => void;
   deactivateNotesMode: () => void;
-  setDisableAutoSync: (disabled: boolean) => void;
   copyNotes: (notes: number[]) => void;
 }> = ({
   sudokuState,
@@ -65,7 +64,6 @@ const GameInner: React.FC<{
   hideMenu,
   resetGame,
   deactivateNotesMode,
-  setDisableAutoSync,
   copyNotes,
 }) => {
   const canUndo = sudokuState.historyIndex < sudokuState.history.length - 1;
@@ -163,7 +161,7 @@ const GameInner: React.FC<{
             >
               {game.won && (
                 <React.Suspense fallback={null}>
-                  <GameWonOverlay game={game} setDisableAutoSync={setDisableAutoSync} />
+                  <GameWonOverlay game={game} />
                 </React.Suspense>
               )}
 
@@ -228,7 +226,7 @@ const GameWithRouteManagement = () => {
     undo,
     redo,
   } = useSudoku();
-  const setDisableAutoSync = useGameRouteSync({
+  useGameRouteSync({
     gameState,
     sudokuState,
     setGameState,
@@ -260,7 +258,6 @@ const GameWithRouteManagement = () => {
       hideMenu={hideMenu}
       resetGame={resetGame}
       deactivateNotesMode={deactivateNotesMode}
-      setDisableAutoSync={setDisableAutoSync}
       copyNotes={copyNotes}
     />
   );

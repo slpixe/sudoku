@@ -9,10 +9,7 @@ import {stringifySudoku} from "src/lib/engine/utility";
 import {getSudokusPaginated, useSudokuCollections} from "src/lib/game/sudokus";
 import {formatDuration} from "src/utils/format";
 
-const NextSudokuButton: React.FC<{gameState: GameState; setDisableAutoSync: (disabled: boolean) => void}> = ({
-  gameState,
-  setDisableAutoSync,
-}) => {
+const NextSudokuButton: React.FC<{gameState: GameState}> = ({gameState}) => {
   const {t} = useTranslation();
   const {getCollection} = useSudokuCollections();
   const collection = React.useMemo(() => {
@@ -63,16 +60,8 @@ const NextSudokuButton: React.FC<{gameState: GameState; setDisableAutoSync: (dis
     );
   }
 
-  const handleClick = () => {
-    // URL auto-sync is paused while the next puzzle navigation settles.
-    setDisableAutoSync(true);
-    setTimeout(() => {
-      setDisableAutoSync(false);
-    }, 2000);
-  };
-
   return (
-    <Link to="/" search={nextSudokuParams} className="w-full" onClick={handleClick}>
+    <Link to="/" search={nextSudokuParams} className="w-full">
       <Button className="bg-teal-700 text-white w-full">
         {t("select_next_sudoku", {
           collection: collectionName,
@@ -83,10 +72,7 @@ const NextSudokuButton: React.FC<{gameState: GameState; setDisableAutoSync: (dis
   );
 };
 
-export const GameWonOverlay: React.FC<{game: GameState; setDisableAutoSync: (disabled: boolean) => void}> = ({
-  game,
-  setDisableAutoSync,
-}) => {
+export const GameWonOverlay: React.FC<{game: GameState}> = ({game}) => {
   const {t} = useTranslation();
 
   return (
@@ -108,7 +94,7 @@ export const GameWonOverlay: React.FC<{game: GameState; setDisableAutoSync: (dis
             </div>
           </div>
         </div>
-        <NextSudokuButton gameState={game} setDisableAutoSync={setDisableAutoSync} />
+        <NextSudokuButton gameState={game} />
       </div>
     </div>
   );
