@@ -1,18 +1,12 @@
 import * as React from "react";
 import {useEffect, useState} from "react";
-
-const STORAGE_KEY_DARK_MODE = "sudoku-dark-mode";
+import {appPersistence} from "src/lib/persistence/appPersistence";
 
 export const DarkModeButton = () => {
   const [darkMode, setDarkMode] = useState(() => {
-    if (typeof window !== "undefined" && typeof localStorage !== "undefined") {
-      const savedMode = localStorage.getItem(STORAGE_KEY_DARK_MODE);
-      if (savedMode !== null) {
-        return JSON.parse(savedMode);
-      }
-      return window.matchMedia("(prefers-color-scheme: dark)").matches;
-    }
-    return false;
+    return (
+      appPersistence.appearance.loadDarkModePreference() ?? appPersistence.appearance.getSystemDarkModePreference()
+    );
   });
 
   useEffect(() => {
@@ -23,19 +17,13 @@ export const DarkModeButton = () => {
       document.documentElement.classList.remove("dark");
       document.body.classList.remove("dark");
     }
-    if (typeof localStorage !== "undefined") {
-      localStorage.setItem(STORAGE_KEY_DARK_MODE, JSON.stringify(darkMode));
-    }
+    appPersistence.appearance.saveDarkModePreference(darkMode);
   }, [darkMode]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
     const handleChange = (e: MediaQueryListEvent) => {
-      const newMode = e.matches;
-      setDarkMode(newMode);
-      if (typeof localStorage !== "undefined") {
-        localStorage.setItem(STORAGE_KEY_DARK_MODE, JSON.stringify(newMode));
-      }
+      setDarkMode(e.matches);
     };
     mediaQuery.addEventListener("change", handleChange);
     return () => mediaQuery.removeEventListener("change", handleChange);
@@ -43,11 +31,7 @@ export const DarkModeButton = () => {
 
   const toggleDarkMode = () => {
     setDarkMode((prevMode: boolean) => {
-      const newMode = !prevMode;
-      if (typeof localStorage !== "undefined") {
-        localStorage.setItem(STORAGE_KEY_DARK_MODE, JSON.stringify(newMode));
-      }
-      return newMode;
+      return !prevMode;
     });
   };
 

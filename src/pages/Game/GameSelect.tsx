@@ -8,9 +8,9 @@ import Button from "src/components/Button";
 import {stringifySudoku} from "src/lib/engine/utility";
 import {useElementWidth} from "src/utils/hooks";
 import {useNavigate} from "@tanstack/react-router";
-import {localStoragePlayedSudokuRepository, StoredPlayedSudokuState} from "src/lib/database/playedSudokus";
 import {Collection, translateCollectionName} from "src/lib/database/collections";
 import {useTranslation} from "react-i18next";
+import {appPersistence, StoredPlayedSudokuState} from "src/lib/persistence/appPersistence";
 
 const TabItem = ({active, children, ...props}: React.ButtonHTMLAttributes<HTMLButtonElement> & {active: boolean}) => (
   <button
@@ -198,7 +198,7 @@ const GameIndex = ({
         {pageSudokus.map((sudoku, index) => {
           const globalIndex = pageStart + index;
           const sudokuKey = stringifySudoku(sudoku.sudoku);
-          const storedSudoku = localStoragePlayedSudokuRepository.getSudokuState(sudokuKey);
+          const storedSudoku = appPersistence.playedSudokus.load(sudokuKey);
 
           return (
             <SudokuToSelect

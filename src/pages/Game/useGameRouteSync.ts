@@ -6,13 +6,13 @@ import {useTranslation} from "react-i18next";
 import {GameState} from "src/context/GameContext";
 import {SudokuState} from "src/context/SudokuContext";
 import {translateCollectionName} from "src/lib/database/collections";
-import {localStoragePlayedSudokuRepository} from "src/lib/database/playedSudokus";
 import type {UserPreferences} from "src/lib/database/userPreferences";
 import {SimpleSudoku} from "src/lib/engine/types";
 import {cellsToSimpleSudoku, parseSudoku, stringifySudoku} from "src/lib/engine/utility";
 import {solve} from "src/lib/engine/solverAC3";
+import {appPersistence} from "src/lib/persistence/appPersistence";
 
-const throttledSave = throttle(localStoragePlayedSudokuRepository.saveSudokuState, 2000);
+const throttledSave = throttle(appPersistence.currentGame.save, 2000);
 
 function stripWrappingQuotes(value: string) {
   if (value.startsWith('"') && value.endsWith('"')) {
@@ -166,7 +166,7 @@ export function useGameRouteSync({
       return;
     }
 
-    const storedSudoku = localStoragePlayedSudokuRepository.getSudokuState(sudoku);
+    const storedSudoku = appPersistence.playedSudokus.load(sudoku);
     newGame(
       sudokuIndex - 1,
       sudokuCollectionName,

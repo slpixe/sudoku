@@ -4,7 +4,7 @@ import {GameProvider, GameState, INITIAL_GAME_STATE} from "src/context/GameConte
 import {INITIAL_SUDOKU_STATE, SudokuProvider, SudokuState} from "src/context/SudokuContext";
 import {TimerProvider} from "src/context/TimerContext";
 import {UserPreferencesProvider} from "src/context/UserPrefencesContext";
-import {localStoragePlayedSudokuRepository} from "src/lib/database/playedSudokus";
+import {appPersistence} from "src/lib/persistence/appPersistence";
 
 type InitialGameData = {
   initialGameState: GameState;
@@ -12,10 +12,7 @@ type InitialGameData = {
 };
 
 function loadInitialGameData(): InitialGameData {
-  const currentSudokuKey = localStoragePlayedSudokuRepository.getCurrentSudokuKey();
-  const currentSudoku = currentSudokuKey
-    ? localStoragePlayedSudokuRepository.getSudokuState(currentSudokuKey)
-    : undefined;
+  const currentSudoku = appPersistence.currentGame.load();
 
   if (!currentSudoku) {
     return {

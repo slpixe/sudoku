@@ -1,12 +1,9 @@
 import React, {createContext, useContext, useReducer, useCallback, ReactNode, useEffect} from "react";
-import {
-  DEFAULT_USER_PREFERENCES,
-  localStorageUserPreferencesRepository,
-  UserPreferences,
-} from "src/lib/database/userPreferences";
+import {DEFAULT_USER_PREFERENCES, UserPreferences} from "src/lib/database/userPreferences";
+import {appPersistence} from "src/lib/persistence/appPersistence";
 
 function getInitialUserPreferencesState(): UserPreferences {
-  return localStorageUserPreferencesRepository.getPreferences();
+  return appPersistence.userPreferences.load();
 }
 
 export const INITIAL_USER_PREFERENCES_STATE: UserPreferences = DEFAULT_USER_PREFERENCES;
@@ -77,10 +74,7 @@ interface UserPreferencesProviderProps {
   initialState?: UserPreferences;
 }
 
-export function UserPreferencesProvider({
-  children,
-  initialState,
-}: UserPreferencesProviderProps) {
+export function UserPreferencesProvider({children, initialState}: UserPreferencesProviderProps) {
   const [state, dispatch] = useReducer(
     userPreferencesReducer,
     initialState,
@@ -88,7 +82,7 @@ export function UserPreferencesProvider({
   );
 
   useEffect(() => {
-    localStorageUserPreferencesRepository.savePreferences(state);
+    appPersistence.userPreferences.save(state);
   }, [state]);
 
   const toggleShowHints = useCallback(() => {

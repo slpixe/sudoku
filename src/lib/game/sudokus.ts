@@ -8,7 +8,8 @@ import evilSudokus from "../../../sudokus/evil.txt?raw";
 import {parseSudoku} from "src/lib/engine/utility";
 import {solve} from "src/lib/engine/solverAC3";
 import {useCallback, useState} from "react";
-import {BaseCollection, Collection, localStorageCollectionRepository} from "../database/collections";
+import {BaseCollection, Collection} from "../database/collections";
+import {appPersistence} from "src/lib/persistence/appPersistence";
 
 export interface SudokuRaw {
   iterations: number;
@@ -86,7 +87,7 @@ export const START_SUDOKU = getSudokusPaginated(START_SUDOKU_COLLECTION, START_S
 
 export function getCollections() {
   const baseCollections = Object.keys(BASE_SUDOKU_COLLECTIONS);
-  const collections = localStorageCollectionRepository.getCollections();
+  const collections = appPersistence.collections.loadIndex();
   return [...baseCollections.map((collection) => ({id: collection, name: collection})), ...collections];
 }
 
@@ -107,7 +108,7 @@ export function useSudokuCollections() {
           sudokusRaw: BASE_SUDOKU_COLLECTIONS[collectionId as BaseCollection],
         };
       }
-      return localStorageCollectionRepository.getCollection(collectionId);
+      return appPersistence.collections.load(collectionId);
     },
     [isBaseCollection],
   );
