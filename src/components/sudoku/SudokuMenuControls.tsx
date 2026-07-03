@@ -4,13 +4,15 @@ import clsx from "clsx";
 import {CellCoordinates} from "src/lib/engine/types";
 import {useTranslation} from "react-i18next";
 
+const controlButtonClass = "flex min-h-11 items-center justify-center sm:min-h-12";
+
 export const UndoButton: React.FC<{
   canUndo: boolean;
   undo: () => void;
 }> = ({canUndo, undo}) => {
   const {t} = useTranslation();
   return (
-    <Button disabled={!canUndo} onClick={undo}>
+    <Button disabled={!canUndo} onClick={undo} className={controlButtonClass}>
       {t("undo_btn")}
     </Button>
   );
@@ -21,7 +23,11 @@ export const EraseButton: React.FC<{
   clearCell: (cellCoordinates: CellCoordinates) => void;
 }> = ({activeCellCoordinates, clearCell}) => {
   const {t} = useTranslation();
-  return <Button onClick={() => activeCellCoordinates && clearCell(activeCellCoordinates)}>{t("erase_btn")}</Button>;
+  return (
+    <Button className={controlButtonClass} onClick={() => activeCellCoordinates && clearCell(activeCellCoordinates)}>
+      {t("erase_btn")}
+    </Button>
+  );
 };
 
 const NotesButton: React.FC<{
@@ -31,14 +37,17 @@ const NotesButton: React.FC<{
 }> = ({notesMode, activateNotesMode, deactivateNotesMode}) => {
   const {t} = useTranslation();
   return (
-    <Button onClick={() => (notesMode ? deactivateNotesMode() : activateNotesMode())} className={"relative"}>
+    <Button
+      onClick={() => (notesMode ? deactivateNotesMode() : activateNotesMode())}
+      className={`${controlButtonClass} flex-col gap-0.5 py-1 md:py-1`}
+    >
+      <div className="leading-4">{t("note_btn")}</div>
       <div
-        className={clsx("absolute -bottom-4 left-1/2 -translate-x-1/2 rounded-full px-2 text-sm md:text-base", {
+        className={clsx("rounded-full px-2 text-[0.625rem] font-bold leading-3 sm:text-xs sm:leading-4", {
           "bg-teal-700 text-white": !notesMode,
           "bg-sky-700 text-white": notesMode,
         })}
       >{`${notesMode ? "ON" : "OFF"}`}</div>
-      <div>{t("note_btn")}</div>
     </Button>
   );
 };
@@ -48,7 +57,11 @@ const HintButton: React.FC<{
   getHint: (cellCoordinates: CellCoordinates) => void;
 }> = ({activeCellCoordinates, getHint}) => {
   const {t} = useTranslation();
-  return <Button onClick={() => activeCellCoordinates && getHint(activeCellCoordinates)}>{t("hint_btn")}</Button>;
+  return (
+    <Button className={controlButtonClass} onClick={() => activeCellCoordinates && getHint(activeCellCoordinates)}>
+      {t("hint_btn")}
+    </Button>
+  );
 };
 
 const SudokuMenuControls: React.FC<{
