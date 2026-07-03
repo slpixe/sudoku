@@ -1,10 +1,12 @@
 import * as React from "react";
 import {useEffect, useState} from "react";
 
+const STORAGE_KEY_DARK_MODE = "sudoku-dark-mode";
+
 export const DarkModeButton = () => {
   const [darkMode, setDarkMode] = useState(() => {
     if (typeof window !== "undefined" && typeof localStorage !== "undefined") {
-      const savedMode = localStorage.getItem("darkMode");
+      const savedMode = localStorage.getItem(STORAGE_KEY_DARK_MODE);
       if (savedMode !== null) {
         return JSON.parse(savedMode);
       }
@@ -22,7 +24,7 @@ export const DarkModeButton = () => {
       document.body.classList.remove("dark");
     }
     if (typeof localStorage !== "undefined") {
-      localStorage.setItem("darkMode", JSON.stringify(darkMode));
+      localStorage.setItem(STORAGE_KEY_DARK_MODE, JSON.stringify(darkMode));
     }
   }, [darkMode]);
 
@@ -32,7 +34,7 @@ export const DarkModeButton = () => {
       const newMode = e.matches;
       setDarkMode(newMode);
       if (typeof localStorage !== "undefined") {
-        localStorage.setItem("darkMode", JSON.stringify(newMode));
+        localStorage.setItem(STORAGE_KEY_DARK_MODE, JSON.stringify(newMode));
       }
     };
     mediaQuery.addEventListener("change", handleChange);
@@ -43,7 +45,7 @@ export const DarkModeButton = () => {
     setDarkMode((prevMode: boolean) => {
       const newMode = !prevMode;
       if (typeof localStorage !== "undefined") {
-        localStorage.setItem("darkMode", JSON.stringify(newMode));
+        localStorage.setItem(STORAGE_KEY_DARK_MODE, JSON.stringify(newMode));
       }
       return newMode;
     });

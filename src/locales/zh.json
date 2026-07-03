@@ -35,7 +35,7 @@
   "select_next_sudoku": "选择下一题数独：{{collection}} #{{sudokuIndex}}",
   "select_new_sudoku": "选择新数独",
   "collection_finished": "恭喜！你已完成合集“{{collection}}”。请选择新的数独继续。",
-  "super_sudoku": "Sudoku",
+  "sudoku": "Sudoku",
   "erase_btn": "擦除",
   "undo_btn": "撤销",
   "note_btn": "笔记",

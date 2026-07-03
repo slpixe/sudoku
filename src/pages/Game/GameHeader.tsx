@@ -112,7 +112,7 @@ export const GameHeader: React.FC<{
         <div className="hidden sm:block">{"|"}</div>
         <GameTimer />
       </div>
-      <div className="text-white text-lg sm:text-2xl font-bold flex items-center gap-2">{t("super_sudoku")}</div>
+      <div className="text-white text-lg sm:text-2xl font-bold flex items-center gap-2">{t("sudoku")}</div>
       <div className="flex">
         <div className="flex gap-2 flex-col justify-end items-end sm:flex-row">
           <div className="flex gap-2">

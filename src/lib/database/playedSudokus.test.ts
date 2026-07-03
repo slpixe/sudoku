@@ -27,7 +27,7 @@ function createLocalStorageMock(initialValues: Record<string, string> = {}): Sto
 }
 
 const sudokuKey = stringifySudoku(cellsToSimpleSudoku(INITIAL_SUDOKU_STATE.current));
-const storageKey = `super_sudoku_1_6_${sudokuKey}`;
+const storageKey = `sudoku-played-${sudokuKey}`;
 
 describe("localStoragePlayedSudokuRepository", () => {
   afterEach(() => {

@@ -1,4 +1,4 @@
-# Super Sudoku 🧩
+# Sudoku 🧩
 
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://sudoku.tn1ck.com)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -10,7 +10,7 @@
 
 ![Screenshot of the sudoku app](./docs/screenshot-app-2025-06-24.png)
 
-## ✨ Why Super Sudoku?
+## ✨ Why Sudoku?
 
 Born from a simple request - my Grandma wanted to play Sudoku, but I wasn't satisfied with the available options. This project aims to create an open-source Sudoku experience that matches or exceeds commercial applications, making quality puzzle gaming accessible to everyone.
 
@@ -56,8 +56,8 @@ Born from a simple request - my Grandma wanted to play Sudoku, but I wasn't sati
 ### Quick Start
 ```bash
 # Clone the repository
-git clone https://github.com/tn1ck/super-sudoku.git
-cd super-sudoku
+git clone https://github.com/slpixe/sudoku.git
+cd sudoku
 
 # Enable pnpm through Corepack
 corepack enable
@@ -82,18 +82,18 @@ Generated files will be in the `dist` directory.
 ### Quick Docker Setup
 ```bash
 # Build the image
-docker build -t super-sudoku:latest .
+docker build -t sudoku:latest .
 
 # Run the container (map to your preferred port)
-docker run -p 8081:80 super-sudoku:latest
+docker run -p 8081:80 sudoku:latest
 ```
 
 ### Pre-built Images
-Ready-to-use images are available at [GitHub Container Registry](https://github.com/tn1ck/super-sudoku/pkgs/container/super-sudoku).
+Ready-to-use images are available at [GitHub Container Registry](https://github.com/slpixe/sudoku/pkgs/container/sudoku).
 
 ## 🧩 Puzzle Generation
 
-Super Sudoku includes a sophisticated puzzle generation system based on research from "Rating and Generating Sudoku Puzzles Based On Constraint Satisfaction Problems."
+Sudoku includes a sophisticated puzzle generation system based on research from "Rating and Generating Sudoku Puzzles Based On Constraint Satisfaction Problems."
 
 ### Generation Tools
 - **`generate_sudokus.ts`**: Generate new puzzles by difficulty level
@@ -133,4 +133,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Missing a feature?** [Open an issue](https://github.com/tn1ck/super-sudoku/issues) and let us know!
+**Missing a feature?** [Open an issue](https://github.com/slpixe/sudoku/issues) and let us know!

@@ -52,7 +52,7 @@ async function expectStoredPreferences(page: Page, preferences: Record<string, b
   await expect
     .poll(() =>
       page.evaluate(() => {
-        const rawPreferences = localStorage.getItem("super-sudoku-user-preferences");
+        const rawPreferences = localStorage.getItem("sudoku-user-preferences");
         return rawPreferences ? JSON.parse(rawPreferences) : null;
       }),
     )
@@ -125,7 +125,7 @@ test("supports number entry, erase, undo, redo, notes, hints, and keyboard short
 test("uses fixed game preferences and dark mode", async ({page}) => {
   await page.addInitScript(() => {
     localStorage.setItem(
-      "super-sudoku-user-preferences",
+      "sudoku-user-preferences",
       JSON.stringify({
         showHints: true,
         showWrongEntries: true,
@@ -186,7 +186,7 @@ test("uses fixed game preferences and dark mode", async ({page}) => {
 
   await page.getByRole("button", {name: "Toggle dark mode"}).click();
   await expect(page.locator("body")).toHaveClass(/dark/);
-  await expect.poll(() => page.evaluate(() => localStorage.getItem("darkMode"))).toBe("true");
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("sudoku-dark-mode"))).toBe("true");
   await expect(page.getByLabel("Select language")).toHaveCount(0);
 
   await page.reload();
@@ -195,7 +195,6 @@ test("uses fixed game preferences and dark mode", async ({page}) => {
 
 test("uses browser language automatically", async ({page}) => {
   await page.addInitScript(() => {
-    localStorage.setItem("language", "fr");
     Object.defineProperty(navigator, "language", {value: "es-ES", configurable: true});
     Object.defineProperty(navigator, "languages", {value: ["es-ES", "es", "en-US"], configurable: true});
   });

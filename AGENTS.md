@@ -1,6 +1,6 @@
 # Project Notes
 
-This project is a React, TypeScript, Vite, and Tailwind Sudoku web app based on `TN1ck/super-sudoku`. It includes a Sudoku game UI, puzzle collections, solver/generator logic, local progress persistence, internationalization, PWA support, unit tests, and Playwright e2e coverage.
+This project is a React, TypeScript, Vite, and Tailwind Sudoku web app based on an upstream Sudoku app by TN1ck. It includes a Sudoku game UI, puzzle collections, solver/generator logic, local progress persistence, internationalization, PWA support, unit tests, and Playwright e2e coverage.
 
 # Current Goals
 

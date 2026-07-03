@@ -35,7 +35,7 @@
   "select_next_sudoku": "Selecionar próximo sudoku: {{collection}} #{{sudokuIndex}}",
   "select_new_sudoku": "Selecionar novo sudoku",
   "collection_finished": "Parabéns! Você chegou ao final da coleção \"{{collection}}\". Selecione um novo sudoku para jogar.",
-  "super_sudoku": "Sudoku",
+  "sudoku": "Sudoku",
   "erase_btn": "Apagar",
   "undo_btn": "Desfazer",
   "note_btn": "Notas",

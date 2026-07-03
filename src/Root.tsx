@@ -69,7 +69,7 @@ const ErrorBoundary: React.FC<{children: React.ReactNode}> = ({children}) => {
           </p>
           <div className="space-y-3">
             <a
-              href={`https://github.com/TN1ck/super-sudoku/issues/new?title=Bug%20report%20from%20sudoku.tn1ck.com&body=error%20details%3A%0A%0A${error?.toString()}`}
+              href={`https://github.com/slpixe/sudoku/issues/new?title=Bug%20report%20from%20sudoku.tn1ck.com&body=error%20details%3A%0A%0A${error?.toString()}`}
               target="_blank"
               rel="noopener noreferrer"
               className="block w-full bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-800 transition-colors"

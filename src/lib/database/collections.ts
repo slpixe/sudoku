@@ -41,8 +41,8 @@ interface CollectionRepository {
 // The collections have an id, name and a list of sudokus.
 // We do not want to parse the whole sudokus, just to show an index of the sudokus.
 // That's why we save the name and and sudokus in different local storage keys.
-const STORAGE_COLLECTION_SUDOKUS_PREFIX = "super_sudoku_collections_sudokus_";
-const STORAGE_COLLECTION_NAMES_PREFIX = "super_sudoku_collections_names_";
+const STORAGE_COLLECTION_SUDOKUS_PREFIX = "sudoku-collection-sudokus-";
+const STORAGE_COLLECTION_NAMES_PREFIX = "sudoku-collection-names-";
 
 function createCollectionSudokusKey(collectionId: string) {
   return STORAGE_COLLECTION_SUDOKUS_PREFIX + collectionId;

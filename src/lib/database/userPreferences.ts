@@ -1,4 +1,4 @@
-const STORAGE_KEY_USER_PREFERENCES = "super-sudoku-user-preferences";
+const STORAGE_KEY_USER_PREFERENCES = "sudoku-user-preferences";
 
 export interface UserPreferences {
   showHints: boolean;
