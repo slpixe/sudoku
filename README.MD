@@ -2,7 +2,7 @@
 
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://sudoku.tn1ck.com)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Node.js](https://img.shields.io/badge/node-%3E%3D20-brightgreen.svg)](https://nodejs.org/)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D24-brightgreen.svg)](https://nodejs.org/)
 
 **A feature-rich, open-source Sudoku game that rivals commercial applications**
 
@@ -17,7 +17,7 @@ Born from a simple request - my Grandma wanted to play Sudoku, but I wasn't sati
 ## 🚀 Key Features
 
 ### 🎮 **Core Gameplay**
-- **3000 Puzzles**: Carefully created puzzles across 5 difficulty levels
+- **Over 3,000 Puzzles**: Carefully created puzzles across 5 difficulty levels
 - **Smart Hints**: Get help when you're stuck without spoiling the challenge
 - **Undo/Redo**: Full history tracking with CMD/CTRL + Z & Y shortcuts
 - **Progress Saving**: Never lose your place - automatic save functionality
@@ -50,7 +50,7 @@ Born from a simple request - my Grandma wanted to play Sudoku, but I wasn't sati
 ## 🛠️ Development Setup
 
 ### Prerequisites
-- **Node.js** (version 20 or higher) - [Download here](https://nodejs.org/en/download/package-manager/)
+- **Node.js** (version 24 or higher) - [Download here](https://nodejs.org/en/download/package-manager/)
 - **pnpm** (Corepack uses the version pinned in `package.json`)
 
 ### Quick Start

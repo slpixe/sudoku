@@ -29,7 +29,7 @@ export default defineConfig(() => ({
       manifest: {
         name: "Sudoku",
         short_name: "Sudoku",
-        description: "Play over 500 Sudoku puzzles ranging from easy to evil",
+        description: "Play over 3,000 Sudoku puzzles from easy to evil. Open source and free with no tracking.",
         theme_color: "#1F2937",
         background_color: "#1F2937",
         display: "standalone",

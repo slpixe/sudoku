@@ -1,6 +1,7 @@
 {
     "name": "Sudoku",
     "short_name": "Sudoku",
+    "description": "Play over 3,000 Sudoku puzzles from easy to evil. Open source and free with no tracking.",
     "start_url": "/",
     "scope": "/",
     "icons": [

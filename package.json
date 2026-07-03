@@ -2,10 +2,12 @@
   "name": "sudoku",
   "version": "0.1.0",
   "type": "module",
-  "description": "Sudoku",
+  "description": "Play over 3,000 Sudoku puzzles from easy to evil. Open source and free with no tracking.",
   "license": "MIT",
   "packageManager": "pnpm@11.9.0",
-  "node": "24.3.1",
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "build": "vite build",
     "preview": "vite preview",
