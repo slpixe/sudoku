@@ -40,6 +40,7 @@
   "undo_btn": "Annulla",
   "note_btn": "Note",
   "hint_btn": "Suggerimento",
+  "hint_btn_target": "Cella attiva",
   "language": "Lingua",
   "difficulty_easy": "Facile",
   "difficulty_medium": "Medio",

@@ -40,6 +40,7 @@
   "undo_btn": "Undo",
   "note_btn": "Notes",
   "hint_btn": "Hint",
+  "hint_btn_target": "Active cell",
   "language": "Language",
   "difficulty_easy": "Easy",
   "difficulty_medium": "Medium",

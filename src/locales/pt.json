@@ -40,6 +40,7 @@
   "undo_btn": "Desfazer",
   "note_btn": "Notas",
   "hint_btn": "Dica",
+  "hint_btn_target": "Célula ativa",
   "language": "Idioma",
   "difficulty_easy": "Fácil",
   "difficulty_medium": "Médio",

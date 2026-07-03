@@ -40,6 +40,7 @@
   "undo_btn": "Rückgängig",
   "note_btn": "Notizen",
   "hint_btn": "Hinweis",
+  "hint_btn_target": "Aktive Zelle",
   "language": "Sprache",
   "difficulty_easy": "Einfach",
   "difficulty_medium": "Mittel",

@@ -466,7 +466,7 @@ const GameInner: React.FC<{
               />
               <SudokuMenuControls
                 notesMode={game.notesMode}
-                activeCellCoordinates={game.activeCellCoordinates ?? {x: 0, y: 0}}
+                activeCellCoordinates={game.activeCellCoordinates}
                 disabled={pausedGame}
                 clearCell={clearCell}
                 activateNotesMode={activateNotesMode}

@@ -40,6 +40,7 @@
   "undo_btn": "撤销",
   "note_btn": "笔记",
   "hint_btn": "提示",
+  "hint_btn_target": "当前格",
   "language": "语言",
   "difficulty_easy": "简单",
   "difficulty_medium": "中等",

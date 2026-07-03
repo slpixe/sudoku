@@ -39,6 +39,7 @@
   "undo_btn": "Annuler",
   "note_btn": "Notes",
   "hint_btn": "Indice",
+  "hint_btn_target": "Cellule active",
   "language": "Langue",
   "difficulty_easy": "Facile",
   "difficulty_medium": "Moyen",

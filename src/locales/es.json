@@ -40,6 +40,7 @@
   "undo_btn": "Deshacer",
   "note_btn": "Notas",
   "hint_btn": "Pista",
+  "hint_btn_target": "Celda activa",
   "language": "Idioma",
   "difficulty_easy": "Fácil",
   "difficulty_medium": "Medio",

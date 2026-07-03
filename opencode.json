@@ -1,0 +1,30 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "permission": {
+    "bash": {
+      "git status": "allow",
+      "git status *": "allow",
+      "git diff": "allow",
+      "git diff *": "allow",
+      "git log": "allow",
+      "git log *": "allow",
+      "git remote -v": "allow",
+      "git branch --show-current": "allow",
+      "git add": "ask",
+      "git add *": "ask",
+      "git commit": "ask",
+      "git commit *": "ask",
+      "git push": "ask",
+      "git push *": "ask",
+      "gh run watch *": "allow",
+      "pnpm exec prettier --check *": "allow",
+      "pnpm exec prettier --write *": "allow",
+      "pnpm run build": "allow",
+      "pnpm run lint": "allow",
+      "pnpm run test:e2e": "allow",
+      "pnpm run test:e2e *": "allow",
+      "pnpm run typecheck": "allow",
+      "pnpm test": "allow"
+    }
+  }
+}
