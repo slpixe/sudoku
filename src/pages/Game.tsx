@@ -456,6 +456,7 @@ const GameInner: React.FC<{
               <SudokuMenuNumbers
                 layout="row"
                 notesMode={game.notesMode}
+                disabled={pausedGame}
                 showOccurrences={userPreferencesState.showOccurrences}
                 activeCell={game.activeCellCoordinates}
                 sudoku={sudokuState.current}
@@ -466,6 +467,7 @@ const GameInner: React.FC<{
               <SudokuMenuControls
                 notesMode={game.notesMode}
                 activeCellCoordinates={game.activeCellCoordinates ?? {x: 0, y: 0}}
+                disabled={pausedGame}
                 clearCell={clearCell}
                 activateNotesMode={activateNotesMode}
                 deactivateNotesMode={deactivateNotesMode}

@@ -8,11 +8,12 @@ const controlButtonClass = "flex min-h-11 items-center justify-center sm:min-h-1
 
 export const UndoButton: React.FC<{
   canUndo: boolean;
+  disabled?: boolean;
   undo: () => void;
-}> = ({canUndo, undo}) => {
+}> = ({canUndo, disabled = false, undo}) => {
   const {t} = useTranslation();
   return (
-    <Button disabled={!canUndo} onClick={undo} className={controlButtonClass}>
+    <Button disabled={disabled || !canUndo} onClick={undo} className={controlButtonClass}>
       {t("undo_btn")}
     </Button>
   );
@@ -20,11 +21,16 @@ export const UndoButton: React.FC<{
 
 export const EraseButton: React.FC<{
   activeCellCoordinates: CellCoordinates | undefined;
+  disabled?: boolean;
   clearCell: (cellCoordinates: CellCoordinates) => void;
-}> = ({activeCellCoordinates, clearCell}) => {
+}> = ({activeCellCoordinates, disabled = false, clearCell}) => {
   const {t} = useTranslation();
   return (
-    <Button className={controlButtonClass} onClick={() => activeCellCoordinates && clearCell(activeCellCoordinates)}>
+    <Button
+      disabled={disabled}
+      className={controlButtonClass}
+      onClick={() => activeCellCoordinates && clearCell(activeCellCoordinates)}
+    >
       {t("erase_btn")}
     </Button>
   );
@@ -32,12 +38,14 @@ export const EraseButton: React.FC<{
 
 const NotesButton: React.FC<{
   notesMode: boolean;
+  disabled?: boolean;
   activateNotesMode: () => void;
   deactivateNotesMode: () => void;
-}> = ({notesMode, activateNotesMode, deactivateNotesMode}) => {
+}> = ({notesMode, disabled = false, activateNotesMode, deactivateNotesMode}) => {
   const {t} = useTranslation();
   return (
     <Button
+      disabled={disabled}
       onClick={() => (notesMode ? deactivateNotesMode() : activateNotesMode())}
       className={`${controlButtonClass} flex-col gap-0.5 py-1 md:py-1`}
     >
@@ -54,11 +62,16 @@ const NotesButton: React.FC<{
 
 const HintButton: React.FC<{
   activeCellCoordinates: CellCoordinates;
+  disabled?: boolean;
   getHint: (cellCoordinates: CellCoordinates) => void;
-}> = ({activeCellCoordinates, getHint}) => {
+}> = ({activeCellCoordinates, disabled = false, getHint}) => {
   const {t} = useTranslation();
   return (
-    <Button className={controlButtonClass} onClick={() => activeCellCoordinates && getHint(activeCellCoordinates)}>
+    <Button
+      disabled={disabled}
+      className={controlButtonClass}
+      onClick={() => activeCellCoordinates && getHint(activeCellCoordinates)}
+    >
       {t("hint_btn")}
     </Button>
   );
@@ -67,6 +80,7 @@ const HintButton: React.FC<{
 const SudokuMenuControls: React.FC<{
   notesMode: boolean;
   activeCellCoordinates: CellCoordinates;
+  disabled?: boolean;
   clearCell: (cellCoordinates: CellCoordinates) => void;
   activateNotesMode: () => void;
   deactivateNotesMode: () => void;
@@ -76,6 +90,7 @@ const SudokuMenuControls: React.FC<{
 }> = ({
   notesMode,
   activeCellCoordinates,
+  disabled = false,
   clearCell,
   activateNotesMode,
   deactivateNotesMode,
@@ -85,14 +100,15 @@ const SudokuMenuControls: React.FC<{
 }) => {
   return (
     <div className="grid w-full grid-cols-4 gap-2">
-      <UndoButton canUndo={canUndo} undo={undo} />
-      <EraseButton activeCellCoordinates={activeCellCoordinates} clearCell={clearCell} />
+      <UndoButton canUndo={canUndo} disabled={disabled} undo={undo} />
+      <EraseButton activeCellCoordinates={activeCellCoordinates} disabled={disabled} clearCell={clearCell} />
       <NotesButton
         notesMode={notesMode}
+        disabled={disabled}
         activateNotesMode={activateNotesMode}
         deactivateNotesMode={deactivateNotesMode}
       />
-      <HintButton activeCellCoordinates={activeCellCoordinates} getHint={getHint} />
+      <HintButton activeCellCoordinates={activeCellCoordinates} disabled={disabled} getHint={getHint} />
     </div>
   );
 };

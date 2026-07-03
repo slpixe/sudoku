@@ -8,6 +8,7 @@ import SudokuGame from "src/lib/game/SudokuGame";
 export interface SudokuMenuNumbersProps {
   notesMode: boolean;
   activeCell?: CellCoordinates;
+  disabled?: boolean;
   showOccurrences: boolean;
   sudoku: Cell[];
   showHints: boolean;
@@ -19,6 +20,7 @@ export interface SudokuMenuNumbersProps {
 const SudokuMenuNumbers: React.FC<SudokuMenuNumbersProps> = ({
   notesMode,
   activeCell,
+  disabled = false,
   showOccurrences,
   sudoku,
   showHints,
@@ -75,6 +77,7 @@ const SudokuMenuNumbers: React.FC<SudokuMenuNumbersProps> = ({
                 activeCellData?.number === 0,
             })}
             data-testid={`sudoku-number-${n}`}
+            disabled={disabled}
             onClick={setNumberOrNote}
             key={n}
           >
