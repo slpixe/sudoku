@@ -173,7 +173,12 @@ export function AppDialogProvider({children}: {children: React.ReactNode}) {
             </p>
             <div className="mt-6 flex justify-end gap-2">
               {dialog.type === "confirm" ? (
-                <Button onClick={() => closeDialog(false)}>{dialog.options.cancelLabel ?? t("dialog_cancel")}</Button>
+                <Button
+                  className="bg-gray-100 text-black border border-gray-300 hover:bg-gray-200 dark:bg-gray-500 dark:border-gray-400 dark:text-white dark:hover:bg-gray-400"
+                  onClick={() => closeDialog(false)}
+                >
+                  {dialog.options.cancelLabel ?? t("dialog_cancel")}
+                </Button>
               ) : null}
               <Button autoFocus className="bg-teal-600 text-white dark:bg-teal-600" onClick={() => closeDialog(true)}>
                 {confirmLabel}

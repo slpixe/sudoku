@@ -139,6 +139,35 @@ async function seedSelectGameStates(page: Page) {
   );
 }
 
+test("shows restart confirmation dialog for finished games on select screen", async ({page}) => {
+  await seedSelectGameStates(page);
+  await page.goto("/#/select-game");
+
+  const finishedCard = previewCard(page, 2);
+  const dialog = page.getByRole("dialog");
+  const cancelButton = dialog.getByRole("button", {name: "Cancel"});
+  const confirmButton = dialog.getByRole("button", {name: "OK"});
+
+  await finishedCard.click();
+  await expect(dialog).toBeVisible();
+  await expect(page.getByText("Are you sure? This will restart the sudoku and reset the timer.")).toBeVisible();
+  await expect(cancelButton).toBeVisible();
+  await expect(cancelButton).toHaveClass(/bg-gray-100/);
+  await expect(cancelButton).toHaveClass(/border-gray-300/);
+  await expect(cancelButton).toHaveClass(/border/);
+
+  await cancelButton.click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page).toHaveURL(/#\/select-game/);
+  await expect(page.getByRole("heading", {name: "Select Game"})).toBeVisible();
+
+  await finishedCard.click();
+  await expect(dialog).toBeVisible();
+  await confirmButton.click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByTestId("current-game-label")).toHaveText("Easy #2");
+});
+
 for (const viewport of selectGameViewports) {
   test(`shows saved Select Game states in ${viewport.name}`, async ({page}, testInfo) => {
     await page.setViewportSize({width: viewport.width, height: viewport.height});
