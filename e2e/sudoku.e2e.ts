@@ -497,20 +497,95 @@ test("uses browser language automatically", async ({page}) => {
   await expect(page.getByLabel("Select language")).toHaveCount(0);
 });
 
-test("solves a sudoku and starts the next game from the win screen", async ({page}) => {
+test("solves a sudoku and starts the next game from the completion panel", async ({page}) => {
   await openGame(page, ONE_EMPTY_CELL_PUZZLE);
 
   await selectCell(page, 8, 8);
   await page.getByRole("button", {name: "Set 7"}).click();
 
-  await expect(page.getByText(/Congrats, you won/)).toBeVisible();
-  await page.getByRole("button", {name: "Select next sudoku: Easy #2"}).click();
+  const completionPanel = page.getByTestId("sudoku-completion-panel");
+  await expect(completionPanel).toBeVisible();
+  await expect(completionPanel.getByRole("heading", {name: "Solved"})).toBeVisible();
+  await expect(page.getByText(/Congrats, you won/)).toHaveCount(0);
+  await expect(page.getByTestId("sudoku-board")).toBeVisible();
+  await expect(cellValue(page, 8, 8)).toHaveText("7");
+  await expect(page.getByRole("button", {name: "Set 7"})).toHaveCount(0);
+  await expect(page.getByTestId("sudoku-toggle-occurrences")).toHaveCount(0);
+  await expect(page.getByTestId("sudoku-completion-next")).toBeFocused();
+
+  await page.getByTestId("sudoku-completion-next").click();
 
   await expect(page.getByTestId("current-game-label")).toHaveText("Easy #2");
-  await expect(page.getByText(/Congrats, you won/)).toHaveCount(0);
+  await expect(page.getByTestId("sudoku-completion-panel")).toHaveCount(0);
   await expect(cellValue(page, 2, 0)).toHaveText("9");
   await expectGameSearch(page, SECOND_PUZZLE, 2, "easy");
 });
+
+test("opens game selection from the completion panel", async ({page}) => {
+  await openGame(page, ONE_EMPTY_CELL_PUZZLE);
+
+  await selectCell(page, 8, 8);
+  await page.getByRole("button", {name: "Set 7"}).click();
+
+  await expect(page.getByTestId("sudoku-completion-panel")).toBeVisible();
+  await page.getByTestId("sudoku-completion-new-game").click();
+
+  await expect(page.getByRole("heading", {name: "Select Game"})).toBeVisible();
+  await expect(page.getByText("Select a new sudoku to play or continue with an already started game.")).toBeVisible();
+});
+
+const completionViewports = [
+  {name: "mobile portrait", width: 390, height: 844, landscape: false},
+  {name: "mobile landscape", width: 844, height: 390, landscape: true},
+  {name: "tablet portrait", width: 768, height: 1024, landscape: false},
+  {name: "tablet landscape", width: 1024, height: 768, landscape: true},
+  {name: "desktop portrait", width: 900, height: 1200, landscape: false},
+  {name: "desktop landscape", width: 1280, height: 800, landscape: true},
+];
+
+for (const viewport of completionViewports) {
+  test(`shows the completion screen in ${viewport.name}`, async ({page}, testInfo) => {
+    await page.setViewportSize({width: viewport.width, height: viewport.height});
+    await openGame(page, ONE_EMPTY_CELL_PUZZLE);
+
+    const board = page.getByTestId("sudoku-board");
+    const boardBefore = await board.boundingBox();
+    if (!boardBefore) {
+      throw new Error(`${viewport.name} board must be visible before solving`);
+    }
+
+    await selectCell(page, 8, 8);
+    await page.getByRole("button", {name: "Set 7"}).click();
+
+    const completionPanel = page.getByTestId("sudoku-completion-panel");
+    await expect(completionPanel).toBeVisible();
+    await expect(completionPanel.getByRole("heading", {name: "Solved"})).toBeVisible();
+    await expectWithinViewport(page, board, `${viewport.name} completed board`);
+    await expectWithinViewport(page, completionPanel, `${viewport.name} completion panel`);
+    await expect(page.getByRole("button", {name: "Set 7"})).toHaveCount(0);
+    await expect(page.getByTestId("sudoku-toggle-occurrences")).toHaveCount(0);
+
+    const boardAfter = await board.boundingBox();
+    if (!boardAfter) {
+      throw new Error(`${viewport.name} board must be visible after solving`);
+    }
+
+    expect(Math.abs(boardAfter.x - boardBefore.x), `${viewport.name} completed board x shift`).toBeLessThanOrEqual(1);
+    expect(Math.abs(boardAfter.y - boardBefore.y), `${viewport.name} completed board y shift`).toBeLessThanOrEqual(1);
+    expect(Math.abs(boardAfter.width - boardBefore.width), `${viewport.name} completed board width shift`).toBeLessThanOrEqual(1);
+    expect(Math.abs(boardAfter.height - boardBefore.height), `${viewport.name} completed board height shift`).toBeLessThanOrEqual(1);
+
+    if (viewport.landscape) {
+      await expectLeftToRight([board, completionPanel], `${viewport.name} completion layout`);
+      await expect(page.locator(".sudoku-completion-copy")).toHaveCSS("text-align", "center");
+    }
+
+    await testInfo.attach(`completion-${viewport.name.replaceAll(" ", "-")}`, {
+      body: await page.screenshot({fullPage: true}),
+      contentType: "image/png",
+    });
+  });
+}
 
 test("clears the current game only after confirmation", async ({page}) => {
   await openGame(page);

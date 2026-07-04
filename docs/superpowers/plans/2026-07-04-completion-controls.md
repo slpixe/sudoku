@@ -30,7 +30,7 @@
 - `src/pages/Game/GameWonOverlay.tsx`: delete after its next-puzzle logic is replaced by `GameCompletionPanel`.
 - `src/main.css`: adds completed-state landscape grid rules and centered completion-copy styling.
 - `src/locales/*.json`: adds `completion_solved` and `completion_next_sudoku` keys to every locale.
-- `e2e/sudoku.e2e.ts`: updates the win-flow test and adds compact landscape coverage for the completed controls panel.
+- `e2e/sudoku.e2e.ts`: updates the win-flow test and adds completion-screen viewport coverage for mobile, tablet, and desktop in portrait and landscape.
 
 ---
 
@@ -392,7 +392,7 @@ Expected: one commit containing passing completion-panel behavior, the game-scre
 
 ---
 
-### Task 2: Responsive Completed Layout And Full Verification
+### Task 2: Completion Viewport Coverage And Full Verification
 
 **Files:**
 
@@ -402,56 +402,76 @@ Expected: one commit containing passing completion-panel behavior, the game-scre
 **Interfaces:**
 
 - Consumes: `sudoku-game-layout-complete`, `sudoku-completion-pad`, `sudoku-completion-panel`, `sudoku-completion-copy`, and `sudoku-completion-actions` classes produced by Task 1.
-- Produces: compact landscape layout where the board stays in the board grid area and the completion panel replaces the control column with centered copy.
+- Produces: completed-state viewport coverage where mobile, tablet, and desktop portrait/landscape tests end on the completion screen and attach screenshots to the Playwright report.
 
-- [ ] **Step 1: Add compact landscape e2e coverage**
+- [ ] **Step 1: Add completion-screen viewport e2e coverage**
 
 Add this test after the completion panel action tests in `e2e/sudoku.e2e.ts`:
 
 ```ts
-test("keeps the completed board visible in compact landscape", async ({page}) => {
-  await page.setViewportSize({width: 844, height: 390});
-  await openGame(page, ONE_EMPTY_CELL_PUZZLE);
+const completionViewports = [
+  {name: "mobile portrait", width: 390, height: 844, landscape: false},
+  {name: "mobile landscape", width: 844, height: 390, landscape: true},
+  {name: "tablet portrait", width: 768, height: 1024, landscape: false},
+  {name: "tablet landscape", width: 1024, height: 768, landscape: true},
+  {name: "desktop portrait", width: 900, height: 1200, landscape: false},
+  {name: "desktop landscape", width: 1280, height: 800, landscape: true},
+];
 
-  const board = page.getByTestId("sudoku-board");
-  const boardBefore = await board.boundingBox();
-  if (!boardBefore) {
-    throw new Error("compact landscape board must be visible before solving");
-  }
+for (const viewport of completionViewports) {
+  test(`shows the completion screen in ${viewport.name}`, async ({page}, testInfo) => {
+    await page.setViewportSize({width: viewport.width, height: viewport.height});
+    await openGame(page, ONE_EMPTY_CELL_PUZZLE);
 
-  await selectCell(page, 8, 8);
-  await page.getByRole("button", {name: "Set 7"}).click();
+    const board = page.getByTestId("sudoku-board");
+    const boardBefore = await board.boundingBox();
+    if (!boardBefore) {
+      throw new Error(`${viewport.name} board must be visible before solving`);
+    }
 
-  const completionPanel = page.getByTestId("sudoku-completion-panel");
-  await expect(completionPanel).toBeVisible();
-  await expectWithinViewport(page, board, "compact landscape completed board");
-  await expectWithinViewport(page, completionPanel, "compact landscape completion panel");
-  await expectLeftToRight([board, completionPanel], "compact landscape completion layout");
-  await expect(page.locator(".sudoku-completion-copy")).toHaveCSS("text-align", "center");
+    await selectCell(page, 8, 8);
+    await page.getByRole("button", {name: "Set 7"}).click();
 
-  const boardAfter = await board.boundingBox();
-  if (!boardAfter) {
-    throw new Error("compact landscape board must be visible after solving");
-  }
+    const completionPanel = page.getByTestId("sudoku-completion-panel");
+    await expect(completionPanel).toBeVisible();
+    await expect(completionPanel.getByRole("heading", {name: "Solved"})).toBeVisible();
+    await expectWithinViewport(page, board, `${viewport.name} completed board`);
+    await expectWithinViewport(page, completionPanel, `${viewport.name} completion panel`);
+    await expect(page.getByRole("button", {name: "Set 7"})).toHaveCount(0);
+    await expect(page.getByTestId("sudoku-toggle-occurrences")).toHaveCount(0);
 
-  expect(Math.abs(boardAfter.x - boardBefore.x), "completed board x shift").toBeLessThanOrEqual(1);
-  expect(Math.abs(boardAfter.y - boardBefore.y), "completed board y shift").toBeLessThanOrEqual(1);
-  expect(Math.abs(boardAfter.width - boardBefore.width), "completed board width shift").toBeLessThanOrEqual(1);
-  expect(Math.abs(boardAfter.height - boardBefore.height), "completed board height shift").toBeLessThanOrEqual(1);
-  await expect(page.getByRole("button", {name: "Set 7"})).toHaveCount(0);
-  await expect(page.getByTestId("sudoku-toggle-occurrences")).toHaveCount(0);
-});
+    const boardAfter = await board.boundingBox();
+    if (!boardAfter) {
+      throw new Error(`${viewport.name} board must be visible after solving`);
+    }
+
+    expect(Math.abs(boardAfter.x - boardBefore.x), `${viewport.name} completed board x shift`).toBeLessThanOrEqual(1);
+    expect(Math.abs(boardAfter.y - boardBefore.y), `${viewport.name} completed board y shift`).toBeLessThanOrEqual(1);
+    expect(Math.abs(boardAfter.width - boardBefore.width), `${viewport.name} completed board width shift`).toBeLessThanOrEqual(1);
+    expect(Math.abs(boardAfter.height - boardBefore.height), `${viewport.name} completed board height shift`).toBeLessThanOrEqual(1);
+
+    if (viewport.landscape) {
+      await expectLeftToRight([board, completionPanel], `${viewport.name} completion layout`);
+      await expect(page.locator(".sudoku-completion-copy")).toHaveCSS("text-align", "center");
+    }
+
+    await testInfo.attach(`completion-${viewport.name.replaceAll(" ", "-")}`, {
+      body: await page.screenshot({fullPage: true}),
+      contentType: "image/png",
+    });
+  });
+}
 ```
 
-- [ ] **Step 2: Run the new responsive test and verify the expected failure**
+- [ ] **Step 2: Run the new viewport tests and verify the expected failure**
 
 Run:
 
 ```bash
-pnpm exec playwright test e2e/sudoku.e2e.ts --grep "compact landscape"
+pnpm exec playwright test e2e/sudoku.e2e.ts --grep "completion screen"
 ```
 
-Expected: the test fails because the completed panel has not been assigned to the landscape control column and `.sudoku-completion-copy` is not centered.
+Expected: the landscape viewport tests fail because the completed panel has not been assigned to the landscape control column and `.sudoku-completion-copy` is not centered.
 
 - [ ] **Step 3: Add completed-state grid CSS**
 
@@ -508,10 +528,10 @@ Add this narrow portrait rule outside the compact landscape media block:
 Run:
 
 ```bash
-pnpm exec playwright test e2e/sudoku.e2e.ts --grep "compact landscape|completion panel|starts the next game"
+pnpm exec playwright test e2e/sudoku.e2e.ts --grep "completion screen|completion panel|starts the next game"
 ```
 
-Expected: all completion-related e2e tests pass.
+Expected: all completion-related e2e tests pass. The Playwright report includes attached completion-screen screenshots for mobile portrait, mobile landscape, tablet portrait, tablet landscape, desktop portrait, and desktop landscape.
 
 - [ ] **Step 5: Run full verification**
 
@@ -536,7 +556,7 @@ git add src/main.css e2e/sudoku.e2e.ts
 git commit -m "test: verify completion panel layout"
 ```
 
-Expected: one commit containing the responsive CSS and compact landscape test.
+Expected: one commit containing the responsive CSS and six completion-screen viewport tests with screenshot attachments.
 
 - [ ] **Step 7: Update issue #16**
 
@@ -548,7 +568,7 @@ Implemented the completion panel design:
 - kept the solved board visible after completion
 - added primary Next and secondary New game actions
 - centered the completion copy in compact landscape/tablet layout
-- updated Playwright coverage for completion actions and landscape visibility
+- updated Playwright coverage for completion actions and completion-screen screenshots across mobile, tablet, and desktop portrait/landscape viewports
 
 Checks run:
 - pnpm run typecheck

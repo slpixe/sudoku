@@ -20,8 +20,8 @@ import {useGameRouteSync} from "./Game/useGameRouteSync";
 import {getSudokuCollectionDisplayName} from "src/lib/game/collectionNames";
 import {deriveBoardData} from "src/lib/game/deriveBoardData";
 
-const GameWonOverlay = React.lazy(() =>
-  import("./Game/GameWonOverlay").then((module) => ({default: module.GameWonOverlay})),
+const GameCompletionPanel = React.lazy(() =>
+  import("./Game/GameCompletionPanel").then((module) => ({default: module.GameCompletionPanel})),
 );
 
 const GameInner: React.FC<{
@@ -121,8 +121,9 @@ const GameInner: React.FC<{
 
   const pausedGame = game.state === GameStateMachine.paused;
   const activeCell = boardData.activeCell;
-  const displayedSudoku = pausedGame ? emptyGrid : sudoku;
-  const displayedBoardData = pausedGame ? emptyBoardData : boardData;
+  const hideBoardForPause = pausedGame && !game.won;
+  const displayedSudoku = hideBoardForPause ? emptyGrid : sudoku;
+  const displayedBoardData = hideBoardForPause ? emptyBoardData : boardData;
 
   return (
     <Container>
@@ -149,7 +150,7 @@ const GameInner: React.FC<{
           copyNotes={copyNotes}
         />
         <div className="flex justify-center">
-          <main className="sudoku-game-layout mt-3 grid w-full gap-3">
+          <main className={`sudoku-game-layout${game.won ? " sudoku-game-layout-complete" : ""} mt-3 grid w-full gap-3`}>
             <GameHeader
               game={game}
               sudokuState={sudokuState}
@@ -180,47 +181,51 @@ const GameInner: React.FC<{
                 setNotes={setNotes}
                 clearNumber={clearCell}
               >
-                {game.won && (
-                  <React.Suspense fallback={null}>
-                    <GameWonOverlay game={game} />
-                  </React.Suspense>
-                )}
-
                 <ContinueOverlay visible={pausedGame && !game.won} onClick={continueGame} />
               </Sudoku>
             </div>
-            <div className="sudoku-number-pad min-w-0">
-              <SudokuMenuNumbers
-                layout="row"
-                notesMode={game.notesMode}
-                disabled={pausedGame}
-                showOccurrences={userPreferencesState.showOccurrences}
-                activeCell={game.activeCellCoordinates}
-                boardData={boardData}
-                showHints={userPreferencesState.showHints}
-                setNumber={setNumber}
-                setNotes={setNotes}
-              />
-            </div>
-            <div className="sudoku-control-pad min-w-0">
-              <SudokuMenuControls
-                notesMode={game.notesMode}
-                activeCellCoordinates={game.activeCellCoordinates}
-                disabled={pausedGame}
-                showConflicts={userPreferencesState.showConflicts}
-                showOccurrences={userPreferencesState.showOccurrences}
-                showMatchingNumbers={userPreferencesState.showMatchingNumbers}
-                clearCell={clearCell}
-                activateNotesMode={activateNotesMode}
-                deactivateNotesMode={deactivateNotesMode}
-                toggleShowConflicts={toggleShowConflicts}
-                toggleShowOccurrences={toggleShowOccurrences}
-                toggleShowMatchingNumbers={toggleShowMatchingNumbers}
-                getHint={getHint}
-                canUndo={canUndo}
-                undo={undo}
-              />
-            </div>
+            {game.won ? (
+              <div className="sudoku-completion-pad min-w-0">
+                <React.Suspense fallback={null}>
+                  <GameCompletionPanel game={game} />
+                </React.Suspense>
+              </div>
+            ) : (
+              <>
+                <div className="sudoku-number-pad min-w-0">
+                  <SudokuMenuNumbers
+                    layout="row"
+                    notesMode={game.notesMode}
+                    disabled={pausedGame}
+                    showOccurrences={userPreferencesState.showOccurrences}
+                    activeCell={game.activeCellCoordinates}
+                    boardData={boardData}
+                    showHints={userPreferencesState.showHints}
+                    setNumber={setNumber}
+                    setNotes={setNotes}
+                  />
+                </div>
+                <div className="sudoku-control-pad min-w-0">
+                  <SudokuMenuControls
+                    notesMode={game.notesMode}
+                    activeCellCoordinates={game.activeCellCoordinates}
+                    disabled={pausedGame}
+                    showConflicts={userPreferencesState.showConflicts}
+                    showOccurrences={userPreferencesState.showOccurrences}
+                    showMatchingNumbers={userPreferencesState.showMatchingNumbers}
+                    clearCell={clearCell}
+                    activateNotesMode={activateNotesMode}
+                    deactivateNotesMode={deactivateNotesMode}
+                    toggleShowConflicts={toggleShowConflicts}
+                    toggleShowOccurrences={toggleShowOccurrences}
+                    toggleShowMatchingNumbers={toggleShowMatchingNumbers}
+                    getHint={getHint}
+                    canUndo={canUndo}
+                    undo={undo}
+                  />
+                </div>
+              </>
+            )}
           </main>
         </div>
       </div>
