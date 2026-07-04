@@ -1,6 +1,26 @@
 import {defineConfig, devices} from "@playwright/test";
 
-const e2ePort = 4179;
+const defaultE2ePort = 4179;
+const e2ePortRangeSize = 200;
+
+function getE2ePort() {
+  const overridePort =
+    typeof process.env.PLAYWRIGHT_PORT === "string" && /^\d+$/.test(process.env.PLAYWRIGHT_PORT.trim())
+      ? Number(process.env.PLAYWRIGHT_PORT.trim())
+      : null;
+
+  if (overridePort && overridePort > 1024 && overridePort < 65535) {
+    return overridePort;
+  }
+
+  const pathHash = [...process.cwd()].reduce((hash, char) => {
+    return (hash * 31 + char.charCodeAt(0)) >>> 0;
+  }, 0);
+
+  return defaultE2ePort + (pathHash % e2ePortRangeSize);
+}
+
+const e2ePort = getE2ePort();
 const e2eBaseURL = `http://127.0.0.1:${e2ePort}`;
 
 export default defineConfig({
@@ -32,7 +52,7 @@ export default defineConfig({
   ],
   webServer: {
     command: `pnpm run build && pnpm exec vite preview --host 127.0.0.1 --port ${e2ePort}`,
-    reuseExistingServer: false,
+    reuseExistingServer: process.env.CI ? false : true,
     timeout: 120_000,
     url: e2eBaseURL,
   },
