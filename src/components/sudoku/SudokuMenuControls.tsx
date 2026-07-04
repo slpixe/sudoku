@@ -7,6 +7,8 @@ import {useTranslation} from "react-i18next";
 const controlButtonClass =
   "flex min-h-11 min-w-0 items-center justify-center px-1 text-[0.65rem] sm:min-h-12 sm:px-2 sm:text-xs md:px-3 md:text-sm";
 const toggleStatusClass = "rounded-full px-2 text-[0.625rem] font-bold leading-3 sm:text-xs sm:leading-4";
+const toggleStatusOnClass = "bg-teal-700 text-white dark:bg-teal-600";
+const toggleStatusOffClass = "bg-gray-700 text-white dark:bg-gray-600";
 
 export const UndoButton: React.FC<{
   canUndo: boolean;
@@ -54,9 +56,9 @@ const NotesButton: React.FC<{
     >
       <div className="leading-4">{t("note_btn")}</div>
       <div
-        className={clsx("rounded-full px-2 text-[0.625rem] font-bold leading-3 sm:text-xs sm:leading-4", {
-          "bg-teal-700 text-white": !notesMode,
-          "bg-sky-700 text-white": notesMode,
+        className={clsx(toggleStatusClass, {
+          [toggleStatusOffClass]: !notesMode,
+          [toggleStatusOnClass]: notesMode,
         })}
       >{`${notesMode ? "ON" : "OFF"}`}</div>
     </Button>
@@ -93,9 +95,7 @@ const PreferenceToggleButton: React.FC<{
   return (
     <Button
       aria-pressed={pressed}
-      className={clsx(`${controlButtonClass} flex-col gap-0.5 py-1 md:py-1`, {
-        "bg-sky-700 text-white dark:bg-sky-700": pressed,
-      })}
+      className={`${controlButtonClass} flex-col gap-0.5 py-1 md:py-1`}
       data-testid={testId}
       disabled={disabled}
       onClick={toggle}
@@ -103,8 +103,8 @@ const PreferenceToggleButton: React.FC<{
       <div className="leading-4">{label}</div>
       <div
         className={clsx(toggleStatusClass, {
-          "bg-white/20 text-white": pressed,
-          "bg-teal-700 text-white": !pressed,
+          [toggleStatusOnClass]: pressed,
+          [toggleStatusOffClass]: !pressed,
         })}
       >{`${pressed ? "ON" : "OFF"}`}</div>
     </Button>
