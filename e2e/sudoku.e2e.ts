@@ -542,9 +542,19 @@ test("uses visible game preference toggles and dark mode", async ({page}) => {
   await expect(page.getByTestId("sudoku-number-occurrences-5")).toBeVisible();
   await expect(page.getByTestId("sudoku-menu-circle")).toHaveCount(0);
 
+  const wasDarkMode = await page.evaluate(() => {
+    return document.documentElement.classList.contains("dark") || document.body.classList.contains("dark");
+  });
+
   await page.getByRole("button", {name: "Toggle dark mode"}).click();
-  await expect(page.locator("body")).toHaveClass(/dark/);
-  await expect.poll(() => page.evaluate(() => localStorage.getItem("sudoku-dark-mode"))).toBe("true");
+  await expect
+    .poll(() => {
+      return page.evaluate(() => {
+        return document.documentElement.classList.contains("dark") || document.body.classList.contains("dark");
+      });
+    })
+    .toBe(!wasDarkMode);
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("sudoku-dark-mode"))).toBe(String(!wasDarkMode));
   await expect(page.getByLabel("Select language")).toHaveCount(0);
 
   await page.reload();

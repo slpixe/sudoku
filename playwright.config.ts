@@ -38,7 +38,6 @@ export default defineConfig({
     : "list",
   use: {
     baseURL: e2eBaseURL,
-    colorScheme: "light",
     locale: "en-US",
     screenshot: "only-on-failure",
     trace: process.env.CI ? "on" : "retain-on-failure",
@@ -46,8 +45,12 @@ export default defineConfig({
   },
   projects: [
     {
-      name: "chromium",
-      use: {...devices["Desktop Chrome"]},
+      name: "chromium-light",
+      use: {...devices["Desktop Chrome"], colorScheme: "light"},
+    },
+    {
+      name: "chromium-dark",
+      use: {...devices["Desktop Chrome"], colorScheme: "dark"},
     },
   ],
   webServer: {
