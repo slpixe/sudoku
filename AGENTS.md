@@ -42,6 +42,8 @@ This project is a React, TypeScript, Vite, and Tailwind Sudoku web app based on 
 - Playwright e2e is run with `pnpm run test:e2e` and starts the app through `pnpm exec vite preview` on isolated port `4179`.
 - Keep Playwright `reuseExistingServer` disabled so tests do not accidentally run against another local app.
 - Run `pnpm run test:e2e` after changes that affect routing, game interactions, persistence, puzzle selection, sharing, or other user-visible app flows.
+- Local artifact directories such as `.worktrees/` and `.pnpm-store/` can affect repo-wide commands. If `pnpm run lint` or `pnpm test` reports failures from those paths, first check tool ignore/discovery config before treating the output as a feature regression.
+- `eslint.config.js` ignores `.worktrees/**` and `.pnpm-store/**`; keep that coverage if lint config is refactored. Vitest may still discover tests in those local artifact paths, so use or add explicit test exclude config if duplicate local test execution becomes noisy or slow.
 
 # Sudoku Data Notes
 
