@@ -13,13 +13,12 @@ This project is a React, TypeScript, Vite, and Tailwind Sudoku web app based on 
 # GitHub Issue Workflow
 
 - GitHub Issues are the source of truth for the current improvement backlog; Beads is not used for this project right now.
-- The tracking issue is `#1` (`Codebase improvement backlog`) in `slpixe/sudoku`.
-- At the start of a new OpenCode session focused on backlog work, run `gh issue view 1 --comments` and `gh issue list --state open --limit 20` to inspect available work.
+- At the start of a new OpenCode session focused on backlog work, run `gh issue list --state open --limit 30` and inspect any relevant issue details with `gh issue view <number> --comments`.
 - Ask the user which issue to work on before making changes. Do not silently choose an issue unless the user explicitly asks you to pick.
 - Once the user chooses an issue, comment on that issue with `Claiming this for the current OpenCode session.` and focus only on that issue unless the user expands scope.
-- If the selected issue affects `src/pages/Game.tsx`, avoid working concurrently with other Game-page refactor issues unless the user confirms coordination.
+- If a selected issue is broad, ambiguous, or likely to collide with active work, clarify scope and coordination with the user before editing.
 - When follow-up work is discovered, create or suggest a new GitHub issue linked to the selected issue instead of expanding scope unexpectedly.
-- Current suggested order: `#4` split `Game.tsx`, `#2` persistence boundaries, `#3` URL/timer hacks, `#7` reducer/persistence tests, `#10` board derivation performance, `#5` bundle size, `#9` accessibility/touch polish, `#8` CI checks, `#6` docs/metadata drift.
+- When issue work is complete, comment with the implementation summary, commit reference if available, and checks run; close the issue when the acceptance criteria are satisfied.
 
 # Package Manager Notes
 
