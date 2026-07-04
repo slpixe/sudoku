@@ -44,6 +44,7 @@
   "hint_btn_target": "Celda activa",
   "conflicts_btn": "Choque",
   "counts_btn": "Conteo",
+  "matching_btn": "Igual",
   "language": "Idioma",
   "difficulty_easy": "Fácil",
   "difficulty_medium": "Medio",

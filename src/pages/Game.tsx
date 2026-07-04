@@ -47,6 +47,7 @@ const GameInner: React.FC<{
   copyNotes: (notes: number[]) => void;
   toggleShowConflicts: () => void;
   toggleShowOccurrences: () => void;
+  toggleShowMatchingNumbers: () => void;
 }> = ({
   sudokuState,
   setSudoku,
@@ -70,6 +71,7 @@ const GameInner: React.FC<{
   copyNotes,
   toggleShowConflicts,
   toggleShowOccurrences,
+  toggleShowMatchingNumbers,
 }) => {
   const canUndo = sudokuState.historyIndex < sudokuState.history.length - 1;
   const sudoku = sudokuState.current;
@@ -161,6 +163,7 @@ const GameInner: React.FC<{
               boardData={displayedBoardData}
               showWrongEntries={userPreferencesState.showWrongEntries && game.state === GameStateMachine.running}
               showConflicts={userPreferencesState.showConflicts && game.state === GameStateMachine.running}
+              showMatchingNumbers={userPreferencesState.showMatchingNumbers && game.state === GameStateMachine.running}
               notesMode={game.notesMode}
               shouldShowMenu={
                 game.showMenu && userPreferencesState.showCircleMenu && game.state === GameStateMachine.running
@@ -199,11 +202,13 @@ const GameInner: React.FC<{
               disabled={pausedGame}
               showConflicts={userPreferencesState.showConflicts}
               showOccurrences={userPreferencesState.showOccurrences}
+              showMatchingNumbers={userPreferencesState.showMatchingNumbers}
               clearCell={clearCell}
               activateNotesMode={activateNotesMode}
               deactivateNotesMode={deactivateNotesMode}
               toggleShowConflicts={toggleShowConflicts}
               toggleShowOccurrences={toggleShowOccurrences}
+              toggleShowMatchingNumbers={toggleShowMatchingNumbers}
               getHint={getHint}
               canUndo={canUndo}
               undo={undo}
@@ -231,7 +236,8 @@ const GameWithRouteManagement = () => {
     hideMenu,
     copyNotes,
   } = useGame();
-  const {state: userPreferencesState, toggleShowConflicts, toggleShowOccurrences} = useUserPreferences();
+  const {state: userPreferencesState, toggleShowConflicts, toggleShowOccurrences, toggleShowMatchingNumbers} =
+    useUserPreferences();
   const {
     setSudokuState,
     state: sudokuState,
@@ -278,6 +284,7 @@ const GameWithRouteManagement = () => {
       copyNotes={copyNotes}
       toggleShowConflicts={toggleShowConflicts}
       toggleShowOccurrences={toggleShowOccurrences}
+      toggleShowMatchingNumbers={toggleShowMatchingNumbers}
     />
   );
 };

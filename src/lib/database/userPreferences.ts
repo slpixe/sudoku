@@ -6,6 +6,7 @@ export interface UserPreferences {
   showConflicts: boolean;
   showCircleMenu: boolean;
   showOccurrences: boolean;
+  showMatchingNumbers: boolean;
 }
 
 export const DEFAULT_USER_PREFERENCES: UserPreferences = {
@@ -14,6 +15,7 @@ export const DEFAULT_USER_PREFERENCES: UserPreferences = {
   showConflicts: true,
   showCircleMenu: false,
   showOccurrences: true,
+  showMatchingNumbers: true,
 };
 
 function fixedUserPreferences(preferences: unknown = {}): UserPreferences {
@@ -30,6 +32,10 @@ function fixedUserPreferences(preferences: unknown = {}): UserPreferences {
       typeof storedPreferences?.showOccurrences === "boolean"
         ? storedPreferences.showOccurrences
         : DEFAULT_USER_PREFERENCES.showOccurrences,
+    showMatchingNumbers:
+      typeof storedPreferences?.showMatchingNumbers === "boolean"
+        ? storedPreferences.showMatchingNumbers
+        : DEFAULT_USER_PREFERENCES.showMatchingNumbers,
   };
 }
 

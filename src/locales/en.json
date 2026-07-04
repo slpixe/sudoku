@@ -44,6 +44,7 @@
   "hint_btn_target": "Active cell",
   "conflicts_btn": "Clash",
   "counts_btn": "Count",
+  "matching_btn": "Match",
   "language": "Language",
   "difficulty_easy": "Easy",
   "difficulty_medium": "Medium",

@@ -31,6 +31,7 @@ const nonDefaultPreferences: UserPreferences = {
   showConflicts: false,
   showCircleMenu: true,
   showOccurrences: false,
+  showMatchingNumbers: false,
 };
 
 describe("localStorageUserPreferencesRepository", () => {
@@ -59,6 +60,7 @@ describe("localStorageUserPreferencesRepository", () => {
       ...DEFAULT_USER_PREFERENCES,
       showConflicts: false,
       showOccurrences: false,
+      showMatchingNumbers: false,
     });
 
     vi.stubGlobal(
@@ -89,6 +91,7 @@ describe("localStorageUserPreferencesRepository", () => {
         ...DEFAULT_USER_PREFERENCES,
         showConflicts: false,
         showOccurrences: false,
+        showMatchingNumbers: false,
       }),
     );
   });

@@ -134,6 +134,7 @@ export const GridCell = ({
         data-cell-active={active ? "true" : "false"}
         data-cell-conflict={conflict ? "true" : "false"}
         data-cell-initial={initial ? "true" : "false"}
+        data-cell-matching-number={highlightNumber ? "true" : "false"}
         data-cell-notes-mode={notesMode ? "true" : "false"}
         data-cell-value={number === 0 ? "" : number}
         data-testid={testId}

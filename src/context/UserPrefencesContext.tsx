@@ -10,10 +10,12 @@ export const INITIAL_USER_PREFERENCES_STATE: UserPreferences = DEFAULT_USER_PREF
 
 const TOGGLE_SHOW_OCCURRENCES = "user_preferences/TOGGLE_SHOW_OCCURRENCES";
 const TOGGLE_SHOW_CONFLICTS = "user_preferences/TOGGLE_SHOW_CONFLICTS";
+const TOGGLE_SHOW_MATCHING_NUMBERS = "user_preferences/TOGGLE_SHOW_MATCHING_NUMBERS";
 
 type UserPreferencesAction =
   | {type: typeof TOGGLE_SHOW_OCCURRENCES}
-  | {type: typeof TOGGLE_SHOW_CONFLICTS};
+  | {type: typeof TOGGLE_SHOW_CONFLICTS}
+  | {type: typeof TOGGLE_SHOW_MATCHING_NUMBERS};
 
 export function userPreferencesReducer(state: UserPreferences, action: UserPreferencesAction): UserPreferences {
   switch (action.type) {
@@ -29,6 +31,12 @@ export function userPreferencesReducer(state: UserPreferences, action: UserPrefe
         showConflicts: !state.showConflicts,
       };
       return newStateConflicts;
+    case TOGGLE_SHOW_MATCHING_NUMBERS:
+      const newStateMatchingNumbers = {
+        ...state,
+        showMatchingNumbers: !state.showMatchingNumbers,
+      };
+      return newStateMatchingNumbers;
     default:
       return state;
   }
@@ -38,6 +46,7 @@ interface UserPreferencesContextType {
   state: UserPreferences;
   toggleShowOccurrences: () => void;
   toggleShowConflicts: () => void;
+  toggleShowMatchingNumbers: () => void;
 }
 
 const UserPreferencesContext = createContext<UserPreferencesContextType | undefined>(undefined);
@@ -66,10 +75,15 @@ export function UserPreferencesProvider({children, initialState}: UserPreference
     dispatch({type: TOGGLE_SHOW_CONFLICTS});
   }, []);
 
+  const toggleShowMatchingNumbers = useCallback(() => {
+    dispatch({type: TOGGLE_SHOW_MATCHING_NUMBERS});
+  }, []);
+
   const value = {
     state,
     toggleShowOccurrences,
     toggleShowConflicts,
+    toggleShowMatchingNumbers,
   };
 
   return <UserPreferencesContext.Provider value={value}>{children}</UserPreferencesContext.Provider>;

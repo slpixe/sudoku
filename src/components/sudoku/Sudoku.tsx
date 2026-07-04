@@ -128,6 +128,7 @@ interface SudokuProps {
   showHints: boolean;
   showWrongEntries: boolean;
   showConflicts: boolean;
+  showMatchingNumbers: boolean;
   shouldShowMenu: boolean;
   notesMode: boolean;
   showMenu: (showNotes?: boolean) => void;
@@ -151,6 +152,7 @@ export const Sudoku: React.FC<SudokuProps> = ({
   clearNumber,
   children,
   showConflicts,
+  showMatchingNumbers,
   showWrongEntries,
   notesMode,
   shouldShowMenu,
@@ -218,7 +220,7 @@ export const Sudoku: React.FC<SudokuProps> = ({
           const isActive = activeCell ? c.x === activeCell.x && c.y === activeCell.y : false;
           const highlight = boardData.friendCellIndexes.has(cellIndex);
           const isWrong = showWrongEntries && (c.number === 0 ? false : c.solution !== c.number);
-          const highlightNumber = activeCell && c.number !== 0 ? activeCell.number === c.number : false;
+          const highlightNumber = showMatchingNumbers && activeCell && c.number !== 0 ? activeCell.number === c.number : false;
 
           return (
             <SudokuCell

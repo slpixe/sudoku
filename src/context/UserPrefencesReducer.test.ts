@@ -13,5 +13,9 @@ describe("userPreferencesReducer", () => {
       ...DEFAULT_USER_PREFERENCES,
       showConflicts: false,
     });
+    expect(userPreferencesReducer(DEFAULT_USER_PREFERENCES, {type: "user_preferences/TOGGLE_SHOW_MATCHING_NUMBERS"})).toEqual({
+      ...DEFAULT_USER_PREFERENCES,
+      showMatchingNumbers: false,
+    });
   });
 });

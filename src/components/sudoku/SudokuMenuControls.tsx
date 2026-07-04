@@ -116,11 +116,13 @@ const SudokuMenuControls: React.FC<{
   disabled?: boolean;
   showConflicts: boolean;
   showOccurrences: boolean;
+  showMatchingNumbers: boolean;
   clearCell: (cellCoordinates: CellCoordinates) => void;
   activateNotesMode: () => void;
   deactivateNotesMode: () => void;
   toggleShowConflicts: () => void;
   toggleShowOccurrences: () => void;
+  toggleShowMatchingNumbers: () => void;
   getHint: (cellCoordinates: CellCoordinates) => void;
   canUndo: boolean;
   undo: () => void;
@@ -130,11 +132,13 @@ const SudokuMenuControls: React.FC<{
   disabled = false,
   showConflicts,
   showOccurrences,
+  showMatchingNumbers,
   clearCell,
   activateNotesMode,
   deactivateNotesMode,
   toggleShowConflicts,
   toggleShowOccurrences,
+  toggleShowMatchingNumbers,
   getHint,
   canUndo,
   undo,
@@ -142,7 +146,7 @@ const SudokuMenuControls: React.FC<{
   const {t} = useTranslation();
 
   return (
-    <div className="grid w-full grid-cols-6 gap-1 sm:gap-2">
+    <div className="grid w-full grid-cols-7 gap-1 sm:gap-2">
       <UndoButton canUndo={canUndo} disabled={disabled} undo={undo} />
       <EraseButton
         activeCellCoordinates={activeCellCoordinates}
@@ -169,6 +173,13 @@ const SudokuMenuControls: React.FC<{
         disabled={disabled}
         testId="sudoku-toggle-occurrences"
         toggle={toggleShowOccurrences}
+      />
+      <PreferenceToggleButton
+        label={t("matching_btn")}
+        pressed={showMatchingNumbers}
+        disabled={disabled}
+        testId="sudoku-toggle-matching-numbers"
+        toggle={toggleShowMatchingNumbers}
       />
     </div>
   );

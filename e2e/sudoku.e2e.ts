@@ -249,6 +249,7 @@ test("keeps the vertical game layout visible in constrained viewports", async ({
         showConflicts: true,
         showCircleMenu: false,
         showOccurrences: true,
+        showMatchingNumbers: true,
       }),
     );
   });
@@ -279,6 +280,11 @@ test("keeps the vertical game layout visible in constrained viewports", async ({
       page.getByTestId("sudoku-toggle-occurrences"),
       `${viewport.name} count toggle`,
     );
+    await expectWithinViewport(
+      page,
+      page.getByTestId("sudoku-toggle-matching-numbers"),
+      `${viewport.name} matching toggle`,
+    );
   }
 });
 
@@ -296,6 +302,7 @@ test("uses visible game preference toggles and dark mode", async ({page}) => {
         showConflicts: false,
         showCircleMenu: true,
         showOccurrences: false,
+        showMatchingNumbers: true,
       }),
     );
     sessionStorage.setItem("seeded-user-preferences", "true");
@@ -316,6 +323,7 @@ test("uses visible game preference toggles and dark mode", async ({page}) => {
   await expect(cellNotes(page, 5, 0)).toHaveText("");
   await expect(page.getByTestId("sudoku-toggle-conflicts")).toHaveAttribute("aria-pressed", "false");
   await expect(page.getByTestId("sudoku-toggle-occurrences")).toHaveAttribute("aria-pressed", "false");
+  await expect(page.getByTestId("sudoku-toggle-matching-numbers")).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByTestId("sudoku-number-occurrences-5")).toHaveCount(0);
 
   const boardBox = await page.getByTestId("sudoku-board").boundingBox();
@@ -335,6 +343,15 @@ test("uses visible game preference toggles and dark mode", async ({page}) => {
   await selectCell(page, 5, 0);
   await page.getByRole("button", {name: "Set 2"}).click();
   await expect(cell(page, 5, 0)).toHaveAttribute("data-cell-conflict", "false");
+  await expect(cell(page, 4, 0)).toHaveAttribute("data-cell-matching-number", "true");
+
+  await page.getByRole("button", {name: /Match\s+ON/}).click();
+  await expect(page.getByTestId("sudoku-toggle-matching-numbers")).toHaveAttribute("aria-pressed", "false");
+  await expect(cell(page, 4, 0)).toHaveAttribute("data-cell-matching-number", "false");
+
+  await page.getByRole("button", {name: /Match\s+OFF/}).click();
+  await expect(page.getByTestId("sudoku-toggle-matching-numbers")).toHaveAttribute("aria-pressed", "true");
+  await expect(cell(page, 4, 0)).toHaveAttribute("data-cell-matching-number", "true");
 
   await page.getByRole("button", {name: /Clash\s+OFF/}).click();
   await expect(cell(page, 5, 0)).toHaveAttribute("data-cell-conflict", "true");
@@ -353,11 +370,13 @@ test("uses visible game preference toggles and dark mode", async ({page}) => {
     showConflicts: true,
     showCircleMenu: false,
     showOccurrences: true,
+    showMatchingNumbers: true,
   });
 
   await page.reload();
   await expect(page.getByTestId("sudoku-toggle-conflicts")).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByTestId("sudoku-toggle-occurrences")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByTestId("sudoku-toggle-matching-numbers")).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByTestId("sudoku-number-occurrences-5")).toBeVisible();
   await expect(page.getByTestId("sudoku-menu-circle")).toHaveCount(0);
 

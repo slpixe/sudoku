@@ -44,6 +44,7 @@
   "hint_btn_target": "当前格",
   "conflicts_btn": "冲突",
   "counts_btn": "计数",
+  "matching_btn": "匹配",
   "language": "语言",
   "difficulty_easy": "简单",
   "difficulty_medium": "中等",
