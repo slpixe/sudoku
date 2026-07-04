@@ -12,7 +12,9 @@ body,
 
 .sudoku-game-layout {
   /* The number row tracks board width, so reserve fixed header/control space and give the board roughly 90% of the rest. */
-  max-width: min(48rem, max(18rem, calc((100dvh - 10rem) * 0.9)));
+  --sudoku-board-size: min(48rem, max(18rem, calc((100dvh - 10rem) * 0.9)));
+
+  max-width: var(--sudoku-board-size);
 }
 
 .sudoku-board-surface {
@@ -43,7 +45,7 @@ body,
 
 @supports (height: 100svh) {
   .sudoku-game-layout {
-    max-width: min(48rem, max(18rem, calc((100svh - 10rem) * 0.9)));
+    --sudoku-board-size: min(48rem, max(18rem, calc((100svh - 10rem) * 0.9)));
   }
 }
 
@@ -164,6 +166,87 @@ body,
 
   .sudoku-control-pad button {
     min-height: 2rem;
+  }
+
+  .sudoku-game-layout-complete {
+    grid-template-areas:
+      "board header"
+      "board completion";
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .sudoku-completion-pad {
+    grid-area: completion;
+    min-height: 0;
+  }
+
+  .sudoku-game-layout-complete .sudoku-completion-panel {
+    height: 100%;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+
+  .sudoku-game-layout-complete .sudoku-completion-copy {
+    display: grid;
+    min-height: 0;
+    align-content: center;
+    justify-items: center;
+    text-align: center;
+  }
+
+  .sudoku-game-layout-complete .sudoku-completion-actions {
+    align-self: end;
+  }
+}
+
+@media (max-width: 420px) {
+  .sudoku-completion-panel {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sudoku-completion-actions {
+    grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  }
+}
+
+@media (orientation: landscape) and (min-height: 521px), (orientation: landscape) and (min-width: 901px) {
+  .sudoku-game-layout-complete {
+    grid-template-areas:
+      "header header"
+      "board completion";
+    grid-template-columns: var(--sudoku-board-size) minmax(0, calc((100vw - var(--sudoku-board-size)) / 2 - 0.75rem));
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .sudoku-game-layout-complete .sudoku-game-header {
+    grid-area: header;
+  }
+
+  .sudoku-game-layout-complete .sudoku-board-panel {
+    grid-area: board;
+  }
+
+  .sudoku-completion-pad {
+    grid-area: completion;
+    min-height: 0;
+  }
+
+  .sudoku-game-layout-complete .sudoku-completion-panel {
+    height: 100%;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+
+  .sudoku-game-layout-complete .sudoku-completion-copy {
+    display: grid;
+    min-height: 0;
+    align-content: center;
+    justify-items: center;
+    text-align: center;
+  }
+
+  .sudoku-game-layout-complete .sudoku-completion-actions {
+    align-self: end;
   }
 }
 
