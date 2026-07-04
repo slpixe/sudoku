@@ -10,12 +10,13 @@ const toggleStatusClass = "rounded-full px-2 text-[0.625rem] font-bold leading-3
 
 export const UndoButton: React.FC<{
   canUndo: boolean;
+  className?: string;
   disabled?: boolean;
   undo: () => void;
-}> = ({canUndo, disabled = false, undo}) => {
+}> = ({canUndo, className, disabled = false, undo}) => {
   const {t} = useTranslation();
   return (
-    <Button disabled={disabled || !canUndo} onClick={undo} className={controlButtonClass}>
+    <Button disabled={disabled || !canUndo} onClick={undo} className={clsx(controlButtonClass, className)}>
       {t("undo_btn")}
     </Button>
   );
@@ -147,7 +148,7 @@ const SudokuMenuControls: React.FC<{
 
   return (
     <div className="grid w-full grid-cols-7 gap-1 sm:gap-2">
-      <UndoButton canUndo={canUndo} disabled={disabled} undo={undo} />
+      <UndoButton canUndo={canUndo} className="sudoku-bottom-undo" disabled={disabled} undo={undo} />
       <EraseButton
         activeCellCoordinates={activeCellCoordinates}
         disabled={disabled || !activeCellCoordinates}

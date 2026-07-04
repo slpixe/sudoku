@@ -106,6 +106,60 @@ async function expectWithinViewport(page: Page, locator: Locator, name: string) 
   expect(box.y + box.height, `${name} bottom edge`).toBeLessThanOrEqual(viewport.height + 1);
 }
 
+async function expectInsideElement(inner: Locator, outer: Locator, name: string) {
+  const innerBox = await inner.boundingBox();
+  const outerBox = await outer.boundingBox();
+
+  if (!innerBox || !outerBox) {
+    throw new Error(`${name} must have visible boxes`);
+  }
+
+  expect(innerBox.x, `${name} left edge`).toBeGreaterThanOrEqual(outerBox.x - 1);
+  expect(innerBox.y, `${name} top edge`).toBeGreaterThanOrEqual(outerBox.y - 1);
+  expect(innerBox.x + innerBox.width, `${name} right edge`).toBeLessThanOrEqual(outerBox.x + outerBox.width + 1);
+  expect(innerBox.y + innerBox.height, `${name} bottom edge`).toBeLessThanOrEqual(outerBox.y + outerBox.height + 1);
+}
+
+async function expectLeftToRight(locators: Locator[], name: string) {
+  const boxes = await Promise.all(locators.map((locator) => locator.boundingBox()));
+
+  if (boxes.some((box) => !box)) {
+    throw new Error(`${name} must have visible boxes`);
+  }
+
+  for (let i = 1; i < boxes.length; i += 1) {
+    const previous = boxes[i - 1];
+    const current = boxes[i];
+
+    if (!previous || !current) {
+      throw new Error(`${name} must have visible boxes`);
+    }
+
+    expect(current.x, `${name} order`).toBeGreaterThan(previous.x + previous.width - 1);
+  }
+}
+
+async function expectSameRow(locators: Locator[], name: string) {
+  const boxes = await Promise.all(locators.map((locator) => locator.boundingBox()));
+
+  if (boxes.some((box) => !box)) {
+    throw new Error(`${name} must have visible boxes`);
+  }
+
+  const first = boxes[0];
+  if (!first) {
+    throw new Error(`${name} must have visible boxes`);
+  }
+
+  for (const box of boxes.slice(1)) {
+    if (!box) {
+      throw new Error(`${name} must have visible boxes`);
+    }
+
+    expect(Math.abs(box.y - first.y), `${name} row alignment`).toBeLessThanOrEqual(1);
+  }
+}
+
 async function expectCompactHeader(page: Page, name: string) {
   const headerBox = await page.locator("header").boundingBox();
 
@@ -113,7 +167,8 @@ async function expectCompactHeader(page: Page, name: string) {
     throw new Error(`${name} header must have a visible box`);
   }
 
-  expect(headerBox.height, `${name} header height`).toBeLessThanOrEqual(56);
+  const maxHeaderHeight = name.includes("landscape") ? 64 : 56;
+  expect(headerBox.height, `${name} header height`).toBeLessThanOrEqual(maxHeaderHeight);
 }
 
 async function expectOccurrenceBadgeWithinButton(page: Page, number: number, name: string) {
@@ -239,7 +294,7 @@ test("supports number entry, erase, undo, redo, notes, hints, and keyboard short
   await expect(page.getByRole("button", {name: "Pause"})).toBeVisible();
 });
 
-test("keeps the vertical game layout visible in constrained viewports", async ({page}) => {
+test("keeps the game layout visible in constrained viewports", async ({page}) => {
   await page.addInitScript(() => {
     localStorage.setItem(
       "sudoku-user-preferences",
@@ -256,6 +311,8 @@ test("keeps the vertical game layout visible in constrained viewports", async ({
 
   const viewports = [
     {name: "phone portrait", width: 390, height: 667},
+    {name: "phone landscape", width: 667, height: 390},
+    {name: "wide phone landscape", width: 844, height: 390},
     {name: "tablet constrained", width: 768, height: 700},
     {name: "desktop", width: 1280, height: 800},
   ];
@@ -272,6 +329,7 @@ test("keeps the vertical game layout visible in constrained viewports", async ({
     await expectWithinViewport(page, page.getByRole("button", {name: "Pause"}), `${viewport.name} pause button`);
     await expectWithinViewport(page, page.getByRole("button", {name: "New game"}), `${viewport.name} new game button`);
     await expectWithinViewport(page, page.getByTestId("sudoku-board"), `${viewport.name} board`);
+    await expectInsideElement(cellValue(page, 0, 0), cell(page, 0, 0), `${viewport.name} board digit`);
     await expectWithinViewport(page, page.getByRole("button", {name: "Set 5"}), `${viewport.name} number button`);
     await expectOccurrenceBadgeWithinButton(page, 5, viewport.name);
     await expectWithinViewport(page, page.getByRole("button", {name: "Undo"}), `${viewport.name} undo button`);
@@ -285,6 +343,43 @@ test("keeps the vertical game layout visible in constrained viewports", async ({
       page.getByTestId("sudoku-toggle-matching-numbers"),
       `${viewport.name} matching toggle`,
     );
+
+    if (viewport.name.includes("landscape")) {
+      await expectLeftToRight(
+        [
+          page.getByRole("button", {name: "Toggle dark mode"}),
+          page.getByRole("button", {name: "Undo"}),
+          page.getByRole("button", {name: "Clear"}),
+        ],
+        `${viewport.name} header actions`,
+      );
+    }
+
+    if (viewport.name === "wide phone landscape") {
+      await expectSameRow(
+        [
+          page.getByRole("button", {name: "Erase"}),
+          page.getByRole("button", {name: /Notes\s+(ON|OFF)/}),
+          page.getByRole("button", {name: /Hint\s+Active cell/}),
+          page.getByTestId("sudoku-toggle-conflicts"),
+          page.getByTestId("sudoku-toggle-occurrences"),
+          page.getByTestId("sudoku-toggle-matching-numbers"),
+        ],
+        `${viewport.name} lower controls`,
+      );
+    }
+
+    if (viewport.name === "phone landscape") {
+      await selectCell(page, 5, 0);
+      await page.getByRole("button", {name: /Notes\s+OFF/}).click();
+      await page.getByRole("button", {name: "Set 3"}).click();
+      await page.getByRole("button", {name: "Set 4"}).click();
+      await expectInsideElement(
+        cellNotes(page, 5, 0).getByText("3", {exact: true}),
+        cell(page, 5, 0),
+        `${viewport.name} note digit`,
+      );
+    }
   }
 });
 

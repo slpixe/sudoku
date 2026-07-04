@@ -148,71 +148,79 @@ const GameInner: React.FC<{
           clipboardNotes={game.clipboardNotes}
           copyNotes={copyNotes}
         />
-        <GameHeader
-          game={game}
-          sudokuState={sudokuState}
-          collectionName={collectionName}
-          pauseGame={pauseGame}
-          continueGame={continueGame}
-          setSudoku={setSudoku}
-          resetGame={resetGame}
-        />
         <div className="flex justify-center">
           <main className="sudoku-game-layout mt-3 grid w-full gap-3">
-            <Sudoku
-              boardData={displayedBoardData}
-              showWrongEntries={userPreferencesState.showWrongEntries && game.state === GameStateMachine.running}
-              showConflicts={userPreferencesState.showConflicts && game.state === GameStateMachine.running}
-              showMatchingNumbers={userPreferencesState.showMatchingNumbers && game.state === GameStateMachine.running}
-              notesMode={game.notesMode}
-              shouldShowMenu={
-                game.showMenu && userPreferencesState.showCircleMenu && game.state === GameStateMachine.running
-              }
-              sudoku={displayedSudoku}
-              showMenu={showMenu}
-              hideMenu={hideMenu}
-              selectCell={selectCell}
-              showHints={userPreferencesState.showHints && game.state === GameStateMachine.running}
-              setNumber={setNumber}
-              setNotes={setNotes}
-              clearNumber={clearCell}
-            >
-              {game.won && (
-                <React.Suspense fallback={null}>
-                  <GameWonOverlay game={game} />
-                </React.Suspense>
-              )}
-
-              <ContinueOverlay visible={pausedGame && !game.won} onClick={continueGame} />
-            </Sudoku>
-            <SudokuMenuNumbers
-              layout="row"
-              notesMode={game.notesMode}
-              disabled={pausedGame}
-              showOccurrences={userPreferencesState.showOccurrences}
-              activeCell={game.activeCellCoordinates}
-              boardData={boardData}
-              showHints={userPreferencesState.showHints}
-              setNumber={setNumber}
-              setNotes={setNotes}
-            />
-            <SudokuMenuControls
-              notesMode={game.notesMode}
-              activeCellCoordinates={game.activeCellCoordinates}
-              disabled={pausedGame}
-              showConflicts={userPreferencesState.showConflicts}
-              showOccurrences={userPreferencesState.showOccurrences}
-              showMatchingNumbers={userPreferencesState.showMatchingNumbers}
-              clearCell={clearCell}
-              activateNotesMode={activateNotesMode}
-              deactivateNotesMode={deactivateNotesMode}
-              toggleShowConflicts={toggleShowConflicts}
-              toggleShowOccurrences={toggleShowOccurrences}
-              toggleShowMatchingNumbers={toggleShowMatchingNumbers}
-              getHint={getHint}
+            <GameHeader
+              game={game}
+              sudokuState={sudokuState}
+              collectionName={collectionName}
+              pauseGame={pauseGame}
+              continueGame={continueGame}
+              setSudoku={setSudoku}
+              resetGame={resetGame}
               canUndo={canUndo}
               undo={undo}
             />
+            <div className="sudoku-board-panel min-w-0">
+              <Sudoku
+                boardData={displayedBoardData}
+                showWrongEntries={userPreferencesState.showWrongEntries && game.state === GameStateMachine.running}
+                showConflicts={userPreferencesState.showConflicts && game.state === GameStateMachine.running}
+                showMatchingNumbers={userPreferencesState.showMatchingNumbers && game.state === GameStateMachine.running}
+                notesMode={game.notesMode}
+                shouldShowMenu={
+                  game.showMenu && userPreferencesState.showCircleMenu && game.state === GameStateMachine.running
+                }
+                sudoku={displayedSudoku}
+                showMenu={showMenu}
+                hideMenu={hideMenu}
+                selectCell={selectCell}
+                showHints={userPreferencesState.showHints && game.state === GameStateMachine.running}
+                setNumber={setNumber}
+                setNotes={setNotes}
+                clearNumber={clearCell}
+              >
+                {game.won && (
+                  <React.Suspense fallback={null}>
+                    <GameWonOverlay game={game} />
+                  </React.Suspense>
+                )}
+
+                <ContinueOverlay visible={pausedGame && !game.won} onClick={continueGame} />
+              </Sudoku>
+            </div>
+            <div className="sudoku-number-pad min-w-0">
+              <SudokuMenuNumbers
+                layout="row"
+                notesMode={game.notesMode}
+                disabled={pausedGame}
+                showOccurrences={userPreferencesState.showOccurrences}
+                activeCell={game.activeCellCoordinates}
+                boardData={boardData}
+                showHints={userPreferencesState.showHints}
+                setNumber={setNumber}
+                setNotes={setNotes}
+              />
+            </div>
+            <div className="sudoku-control-pad min-w-0">
+              <SudokuMenuControls
+                notesMode={game.notesMode}
+                activeCellCoordinates={game.activeCellCoordinates}
+                disabled={pausedGame}
+                showConflicts={userPreferencesState.showConflicts}
+                showOccurrences={userPreferencesState.showOccurrences}
+                showMatchingNumbers={userPreferencesState.showMatchingNumbers}
+                clearCell={clearCell}
+                activateNotesMode={activateNotesMode}
+                deactivateNotesMode={deactivateNotesMode}
+                toggleShowConflicts={toggleShowConflicts}
+                toggleShowOccurrences={toggleShowOccurrences}
+                toggleShowMatchingNumbers={toggleShowMatchingNumbers}
+                getHint={getHint}
+                canUndo={canUndo}
+                undo={undo}
+              />
+            </div>
           </main>
         </div>
       </div>

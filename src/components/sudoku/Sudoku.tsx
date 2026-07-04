@@ -186,7 +186,12 @@ export const Sudoku: React.FC<SudokuProps> = ({
   }, [activeCell, hideMenu]);
 
   return (
-    <div className="relative" data-testid="sudoku-board" ref={sudokuContainerRef} style={{height: containerWidth}}>
+    <div
+      className="sudoku-board-surface relative"
+      data-testid="sudoku-board"
+      ref={sudokuContainerRef}
+      style={{height: containerWidth}}
+    >
       {children}
       <div className="absolute h-full w-full rounded-sm">
         <SudokuGrid width={width} height={height} hideLeftRight />

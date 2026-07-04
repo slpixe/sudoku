@@ -38,7 +38,7 @@ export const CellNote = ({left, top, children}: {left: number; top: number; chil
   return (
     <div
       style={{top: `${top}%`, left: `${left}%`}}
-      className="absolute -translate-x-1/2 -translate-y-1/2 text-[clamp(0.75rem,2.8vw,1.125rem)] leading-none text-sky-400"
+      className="sudoku-cell-note absolute -translate-x-1/2 -translate-y-1/2 leading-none text-sky-400"
     >
       {children}
     </div>
@@ -185,7 +185,7 @@ export const GridCellNumber = ({
         top: `${top}%`,
       }}
       className={clsx(
-        "pointer-events-none absolute z-20 -translate-x-1/2 -translate-y-1/2 text-[clamp(1.5rem,7vw,3rem)] font-bold leading-none",
+        "sudoku-cell-number pointer-events-none absolute z-20 -translate-x-1/2 -translate-y-1/2 font-bold leading-none",
         {
           "text-black dark:text-white": initial,
           "text-amber-600": highlight && !conflict,

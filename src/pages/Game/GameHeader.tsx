@@ -5,6 +5,7 @@ import {useTranslation} from "react-i18next";
 import {useAppDialog} from "src/components/AppDialog";
 import Button from "src/components/Button";
 import {DarkModeButton} from "src/components/DarkModeButton";
+import {UndoButton} from "src/components/sudoku/SudokuMenuControls";
 import {GameState, GameStateMachine} from "src/context/GameContext";
 import {SudokuState} from "src/context/SudokuContext";
 import {SimpleSudoku} from "src/lib/engine/types";
@@ -91,7 +92,9 @@ export const GameHeader: React.FC<{
   continueGame: () => void;
   setSudoku: (sudoku: SimpleSudoku, solvedSudoku: SimpleSudoku) => void;
   resetGame: () => void;
-}> = ({game, sudokuState, collectionName, pauseGame, continueGame, setSudoku, resetGame}) => {
+  canUndo: boolean;
+  undo: () => void;
+}> = ({game, sudokuState, collectionName, pauseGame, continueGame, setSudoku, resetGame, canUndo, undo}) => {
   const clearGame = () => {
     const simpleSudoku = cellsToSimpleSudoku(sudokuState.current);
     const solved = solve(simpleSudoku);
@@ -102,15 +105,21 @@ export const GameHeader: React.FC<{
   };
 
   return (
-    <header className="flex items-center justify-between gap-2 pt-4 text-sm sm:text-base">
-      <div className="flex min-w-0 items-center gap-2 text-white">
+    <header className="sudoku-game-header flex items-center justify-between gap-2 pt-4 text-sm sm:text-base">
+      <div className="sudoku-header-meta flex min-w-0 items-center gap-2 text-white">
         <DifficultyShow className="truncate text-white capitalize" data-testid="current-game-label">
           {`${collectionName} #${game.sudokuIndex + 1}`}
         </DifficultyShow>
         <GameTimer />
       </div>
-      <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+      <div className="sudoku-header-actions flex shrink-0 items-center gap-1 sm:gap-2">
         <DarkModeButton />
+        <UndoButton
+          canUndo={canUndo}
+          className="sudoku-landscape-header-undo hidden min-h-0 px-2 py-1 text-sm sm:min-h-0 sm:px-2 sm:text-base md:min-h-0 md:px-2 md:py-1 md:text-base"
+          disabled={game.won || game.state === GameStateMachine.paused}
+          undo={undo}
+        />
         <ClearGameButton
           pauseGame={pauseGame}
           continueGame={continueGame}
