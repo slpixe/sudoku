@@ -15,7 +15,18 @@ export function TimerProvider({children}: {children: React.ReactNode}) {
   const [displayTime, setDisplayTime] = useState(secondsPlayed);
   const startTimeRef = useRef<number>(0);
   const lastPersistedRef = useRef<number>(0);
+  const wasRunningRef = useRef(false);
   const isRunning = gameState === GameStateMachine.running;
+
+  useEffect(() => {
+    if (wasRunningRef.current && !isRunning) {
+      const elapsed = (Date.now() - startTimeRef.current) / 1000;
+      setDisplayTime(elapsed);
+      updateTimer(elapsed);
+    }
+
+    wasRunningRef.current = isRunning;
+  }, [isRunning, updateTimer]);
 
   useEffect(() => {
     startTimeRef.current = Date.now() - secondsPlayed * 1000;

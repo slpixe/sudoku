@@ -176,6 +176,9 @@ export function useGameRouteSync({
 
     if (!saveDisabled) {
       throttledSave(gameState, sudokuState);
+      if (gameState.state === GameStateMachine.paused) {
+        throttledSave.flush();
+      }
     }
 
     const stringifiedSudoku = stringifySudoku(cellsToSimpleSudoku(sudokuState.current));
@@ -304,7 +307,6 @@ export function useGameRouteSync({
       }
       syncedRouteKeyRef.current = routeSudoku.key;
       setInitialized(true);
-      continueGame();
     };
 
     void loadRouteSudoku();
@@ -342,10 +344,9 @@ export function useGameRouteSync({
       setGameState({...storedSudoku.game});
       setSudokuState(storedSudokuState);
       replaceRouteWithGameState(storedSudoku.game, storedSudokuState);
-      continueGame();
       return true;
     },
-    [continueGame, replaceRouteWithGameState, setGameState, setSudokuState],
+    [replaceRouteWithGameState, setGameState, setSudokuState],
   );
 
   return {initialized, openStoredSudoku};

@@ -118,22 +118,31 @@ const GameInner: React.FC<{
       wonGame();
     }
   }, [sudoku, wonGame]);
+
+  const autoPausedByVisibilityRef = React.useRef(false);
+  const autoResumeTimeoutRef = React.useRef<number | undefined>(undefined);
   const onVisibilityChange = React.useCallback(() => {
     if (document.visibilityState === "hidden") {
-      pauseGame();
-    } else {
-      if (lockedGame) {
+      if (game.state === GameStateMachine.running && !lockedGameRef.current) {
+        autoPausedByVisibilityRef.current = true;
+        pauseGame();
+      }
+      return;
+    }
+
+    if (autoPausedByVisibilityRef.current) {
+      autoPausedByVisibilityRef.current = false;
+      if (lockedGameRef.current) {
         return;
       }
-      // So the user knows that it was paused, we wait a bit before continuing.
-      setTimeout(() => {
+      autoResumeTimeoutRef.current = window.setTimeout(() => {
         if (lockedGameRef.current) {
           return;
         }
         continueGame();
       }, 200);
     }
-  }, [lockedGame, pauseGame, continueGame]);
+  }, [game.state, pauseGame, continueGame]);
 
   React.useEffect(() => {
     if (typeof document !== "undefined") {
@@ -143,6 +152,9 @@ const GameInner: React.FC<{
     return () => {
       if (typeof document !== "undefined") {
         document.removeEventListener("visibilitychange", onVisibilityChange, false);
+      }
+      if (autoResumeTimeoutRef.current !== undefined) {
+        window.clearTimeout(autoResumeTimeoutRef.current);
       }
     };
   }, [onVisibilityChange]);

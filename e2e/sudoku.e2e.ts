@@ -1,6 +1,7 @@
 import {expect, type Locator, type Page, test} from "@playwright/test";
 
 const FIRST_PUZZLE = "534920700060007309900000010008700000496803002721594806000200940800046100003000000";
+const FIRST_SOLUTION = "534921768162487359987635214358712496496853172721594836675218943849346125213769587";
 const MEDIUM_FIRST_PUZZLE = "502000000003400000000005093700006002000003608008021070870032504106080020400070300";
 const SECOND_PUZZLE = "009043005867002003040060027002086050930420000058397040300270900001000002724059030";
 const SHORTCUT_MODIFIER = "Control";
@@ -67,6 +68,38 @@ async function expectGameSearch(page: Page, sudoku: string, sudokuIndex: number,
       sudokuIndex: String(sudokuIndex),
       sudokuCollectionName,
     });
+}
+
+async function getTimerSeconds(page: Page) {
+  const timerText = await page.getByTestId("sudoku-game-header").evaluate((header) => {
+    const match = header.textContent?.match(/(\d{2}):(\d{2})\s*min/);
+    return match ? match.slice(1, 3) : null;
+  });
+
+  if (!timerText) {
+    throw new Error("Could not find visible game timer");
+  }
+
+  const [minutes, seconds] = timerText.map(Number);
+  return minutes * 60 + seconds;
+}
+
+async function setDocumentVisibility(page: Page, visibilityState: "hidden" | "visible") {
+  await page.evaluate((nextVisibilityState) => {
+    Object.defineProperty(document, "visibilityState", {configurable: true, get: () => nextVisibilityState});
+    document.dispatchEvent(new Event("visibilitychange"));
+  }, visibilityState);
+}
+
+async function expectStoredGame(page: Page, sudoku: string, expected: {state?: string; secondsPlayed?: number}) {
+  await expect
+    .poll(() =>
+      page.evaluate((sudokuKey) => {
+        const stored = localStorage.getItem(`sudoku-played-${sudokuKey}`);
+        return stored ? JSON.parse(stored).game : null;
+      }, sudoku),
+    )
+    .toMatchObject(expected);
 }
 
 async function continueIfPaused(page: Page) {
@@ -240,6 +273,74 @@ async function expectNumberPadLabelLayout(page: Page, number: number, compact: b
   }
 }
 
+async function seedStoredSudoku(
+  page: Page,
+  {
+    sudoku,
+    solution,
+    sudokuIndex,
+    collection = "easy",
+    state = "PAUSED",
+    secondsPlayed = 0,
+    current = false,
+  }: {
+    sudoku: string;
+    solution?: string;
+    sudokuIndex: number;
+    collection?: string;
+    state?: "PAUSED" | "RUNNING";
+    secondsPlayed?: number;
+    current?: boolean;
+  },
+) {
+  await page.addInitScript(
+    ({collection, current, secondsPlayed, solution, state, sudoku, sudokuIndex}) => {
+      const cells = sudoku.split("").map((value, index) => ({
+        x: index % 9,
+        y: Math.floor(index / 9),
+        number: Number(value),
+        initial: value !== "0",
+        notes: [],
+        solution: Number(solution[index] || value),
+      }));
+
+      localStorage.setItem(
+        `sudoku-played-${sudoku}`,
+        JSON.stringify({
+          game: {
+            activeCellCoordinates: undefined,
+            sudokuCollectionName: collection,
+            notesMode: false,
+            showNotes: false,
+            showMenu: false,
+            state,
+            sudokuIndex: sudokuIndex - 1,
+            won: false,
+            timesSolved: 0,
+            previousTimes: [],
+            secondsPlayed,
+            clipboardNotes: null,
+          },
+          sudoku: cells,
+        }),
+      );
+
+      if (current) {
+        localStorage.setItem("sudoku-currently-playing-sudoku", sudoku);
+      }
+    },
+    {
+      collection,
+      current,
+      secondsPlayed,
+      solution: solution ?? sudoku,
+      state,
+      sudoku,
+      sudokuIndex,
+    },
+  );
+}
+
 async function seedFinishedSudoku(page: Page, sudoku: string, sudokuIndex: number, collection: string) {
   await page.addInitScript(
     ({collection, sudoku, sudokuIndex}) => {
@@ -276,6 +377,87 @@ async function seedFinishedSudoku(page: Page, sudoku: string, sudokuIndex: numbe
     {collection, sudoku, sudokuIndex},
   );
 }
+
+test("keeps a manually paused game paused through visibility changes", async ({page}) => {
+  await openGame(page);
+  await expect.poll(() => getTimerSeconds(page)).toBeGreaterThanOrEqual(1);
+
+  await page.getByTestId("sudoku-action-pause").click();
+  await expect(page.getByTestId("sudoku-action-pause")).toHaveAttribute("aria-label", "Continue");
+  const pausedSeconds = await getTimerSeconds(page);
+
+  await setDocumentVisibility(page, "hidden");
+  await setDocumentVisibility(page, "visible");
+
+  await page.waitForTimeout(1500);
+
+  await expect(page.getByTestId("sudoku-action-pause")).toHaveAttribute("aria-label", "Continue");
+  expect(await getTimerSeconds(page)).toBe(pausedSeconds);
+});
+
+test("keeps a paused current game paused across reloads", async ({page}) => {
+  await openGame(page);
+  await expect.poll(() => getTimerSeconds(page)).toBeGreaterThanOrEqual(1);
+
+  await page.getByTestId("sudoku-action-pause").click();
+  await expect(page.getByTestId("sudoku-action-pause")).toHaveAttribute("aria-label", "Continue");
+  const pausedSeconds = await getTimerSeconds(page);
+  await expectStoredGame(page, FIRST_PUZZLE, {state: "PAUSED"});
+
+  await page.reload();
+  await expect(page.getByTestId("sudoku-action-pause")).toHaveAttribute("aria-label", "Continue");
+  expect(await getTimerSeconds(page)).toBe(pausedSeconds);
+
+  await page.waitForTimeout(1500);
+
+  await expect(page.getByTestId("sudoku-action-pause")).toHaveAttribute("aria-label", "Continue");
+  expect(await getTimerSeconds(page)).toBe(pausedSeconds);
+});
+
+test("auto-pauses a running hidden game without counting hidden time", async ({page}) => {
+  await openGame(page);
+  await expect.poll(() => getTimerSeconds(page)).toBeGreaterThanOrEqual(1);
+
+  await setDocumentVisibility(page, "hidden");
+  await expect(page.getByTestId("sudoku-action-pause")).toHaveAttribute("aria-label", "Continue");
+  const hiddenSeconds = await getTimerSeconds(page);
+
+  await page.waitForTimeout(1500);
+
+  await expect(page.getByTestId("sudoku-action-pause")).toHaveAttribute("aria-label", "Continue");
+  expect(await getTimerSeconds(page)).toBe(hiddenSeconds);
+
+  await setDocumentVisibility(page, "visible");
+  await expect(page.getByTestId("sudoku-action-pause")).toHaveAttribute("aria-label", "Pause");
+});
+
+test("keeps a stored paused game paused when loaded from the URL", async ({page}) => {
+  await seedStoredSudoku(page, {
+    sudoku: FIRST_PUZZLE,
+    solution: FIRST_SOLUTION,
+    sudokuIndex: 1,
+    state: "PAUSED",
+    secondsPlayed: 10,
+  });
+  await seedStoredSudoku(page, {
+    sudoku: SECOND_PUZZLE,
+    sudokuIndex: 2,
+    state: "PAUSED",
+    secondsPlayed: 0,
+    current: true,
+  });
+
+  await page.goto(gameUrl(FIRST_PUZZLE));
+  await expect(page.getByTestId("current-game-label")).toHaveText("Easy #1");
+  await expect(page.getByTestId("sudoku-action-pause")).toHaveAttribute("aria-label", "Continue");
+  expect(await getTimerSeconds(page)).toBe(10);
+
+  await page.waitForTimeout(1500);
+
+  await expect(page.getByTestId("sudoku-action-pause")).toHaveAttribute("aria-label", "Continue");
+  expect(await getTimerSeconds(page)).toBe(10);
+  await expectStoredGame(page, FIRST_PUZZLE, {state: "PAUSED", secondsPlayed: 10});
+});
 
 test("supports number entry, erase, undo, redo, notes, hints, and keyboard shortcuts", async ({page}) => {
   await openGame(page);
