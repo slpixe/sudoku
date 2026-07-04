@@ -190,6 +190,37 @@ async function expectOccurrenceBadgeWithinButton(page: Page, number: number, nam
   expect(badgeBox.height, `${name} occurrence badge height`).toBeGreaterThanOrEqual(16);
 }
 
+async function expectNumberPadLabelLayout(page: Page, number: number, compact: boolean, name: string) {
+  const button = page.getByTestId(`sudoku-number-${number}`);
+  const label = page.getByTestId(`sudoku-number-label-${number}`);
+  const badge = page.getByTestId(`sudoku-number-occurrences-${number}`);
+  const buttonBox = await button.boundingBox();
+  const labelBox = await label.boundingBox();
+  const badgeBox = await badge.boundingBox();
+
+  if (!buttonBox || !labelBox || !badgeBox) {
+    throw new Error(`${name} number pad label must have visible button, label, and badge boxes`);
+  }
+
+  const fontSize = await label.evaluate((element) => Number.parseFloat(window.getComputedStyle(element).fontSize));
+  const buttonCenterX = buttonBox.x + buttonBox.width / 2;
+  const buttonCenterY = buttonBox.y + buttonBox.height / 2;
+  const labelCenterX = labelBox.x + labelBox.width / 2;
+  const labelCenterY = labelBox.y + labelBox.height / 2;
+
+  if (compact) {
+    expect(fontSize, `${name} compact number label font size`).toBeGreaterThanOrEqual(20);
+    expect(labelCenterX, `${name} compact number label x position`).toBeLessThan(buttonCenterX);
+    expect(labelCenterY, `${name} compact number label y position`).toBeLessThan(buttonCenterY);
+    expect(labelBox.x + labelBox.width, `${name} compact label clears occurrence badge horizontally`).toBeLessThanOrEqual(
+      badgeBox.x + 1,
+    );
+  } else {
+    expect(Math.abs(labelCenterX - buttonCenterX), `${name} number label centered horizontally`).toBeLessThanOrEqual(6);
+    expect(Math.abs(labelCenterY - buttonCenterY), `${name} number label centered vertically`).toBeLessThanOrEqual(6);
+  }
+}
+
 async function seedFinishedSudoku(page: Page, sudoku: string, sudokuIndex: number, collection: string) {
   await page.addInitScript(
     ({collection, sudoku, sudokuIndex}) => {
@@ -382,6 +413,44 @@ test("keeps the game layout visible in constrained viewports", async ({page}) =>
     }
   }
 });
+
+const numberPadLayoutViewports = [
+  {name: "mobile portrait", width: 360, height: 640, compact: true},
+  {name: "mobile landscape", width: 640, height: 360, compact: false},
+  {name: "tablet portrait", width: 768, height: 1024, compact: false},
+  {name: "tablet landscape", width: 1024, height: 768, compact: false},
+  {name: "desktop portrait", width: 900, height: 1200, compact: false},
+  {name: "desktop landscape", width: 1280, height: 800, compact: false},
+];
+
+for (const viewport of numberPadLayoutViewports) {
+  test(`keeps number pad labels readable in ${viewport.name}`, async ({page}, testInfo) => {
+    await page.addInitScript(() => {
+      localStorage.setItem(
+        "sudoku-user-preferences",
+        JSON.stringify({
+          showHints: false,
+          showWrongEntries: false,
+          showConflicts: true,
+          showCircleMenu: false,
+          showOccurrences: true,
+          showMatchingNumbers: true,
+        }),
+      );
+    });
+
+    await page.setViewportSize({width: viewport.width, height: viewport.height});
+    await openGame(page);
+    await expectOccurrenceBadgeWithinButton(page, 5, viewport.name);
+
+    await testInfo.attach(`number-pad-${viewport.name.replaceAll(" ", "-")}`, {
+      body: await page.screenshot({fullPage: true}),
+      contentType: "image/png",
+    });
+
+    await expectNumberPadLabelLayout(page, 5, viewport.compact, viewport.name);
+  });
+}
 
 test("uses visible game preference toggles and dark mode", async ({page}) => {
   await page.addInitScript(() => {

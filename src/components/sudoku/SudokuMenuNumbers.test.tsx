@@ -58,4 +58,14 @@ describe("SudokuMenuNumbers", () => {
     expect(numberButton.attr("class")).not.toContain("bg-gray-300");
     expect(numberButton.attr("class")).not.toContain("opacity-70");
   });
+
+  it("renders each digit with a responsive label hook", () => {
+    const $ = renderNumberPad();
+    const numberButton = $('[data-testid="sudoku-number-5"]');
+    const numberLabel = $('[data-testid="sudoku-number-label-5"]');
+
+    expect(numberLabel.text()).toBe("5");
+    expect(numberLabel.attr("class")).toContain("sudoku-number-label");
+    expect(numberButton.text()).toBe("50");
+  });
 });
