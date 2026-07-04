@@ -3,7 +3,6 @@ import * as React from "react";
 import {createHashHistory, createRootRoute, createRoute, createRouter, RouterProvider} from "@tanstack/react-router";
 
 import {AppDialogProvider} from "./components/AppDialog";
-import {OfflineIndicator} from "./components/OfflineIndicator";
 
 const LazyGame = React.lazy(() => import("./pages/Game"));
 const LazySelectGame = React.lazy(() => import("./pages/SelectGame"));
@@ -110,7 +109,6 @@ const App = () => {
   return (
     <ErrorBoundary>
       <AppDialogProvider>
-        <OfflineIndicator />
         <React.Suspense fallback={routeFallback}>
           <RouterProvider router={router} />
         </React.Suspense>
