@@ -121,13 +121,15 @@ const SudokuToSelect = ({
         return;
       }
     }
+    const nextSearch = {
+      sudokuIndex: index + 1,
+      sudoku: stringifySudoku(sudoku.sudoku),
+      sudokuCollectionName: sudokuCollectionName,
+      ...(finished ? {restart: "1"} : {}),
+    };
     navigate({
       to: "/",
-      search: {
-        sudokuIndex: index + 1,
-        sudoku: stringifySudoku(sudoku.sudoku),
-        sudokuCollectionName: sudokuCollectionName,
-      },
+      search: nextSearch,
     });
   };
 

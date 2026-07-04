@@ -80,6 +80,11 @@ function getSearchNumber(search: Record<string, unknown>, name: string) {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
+function getSearchBoolean(search: Record<string, unknown>, name: string) {
+  const value = getSearchString(search, name);
+  return value === "1" || value?.toLowerCase() === "true" || value?.toLowerCase() === "yes";
+}
+
 export function useGameRouteSync({
   gameState,
   sudokuState,
@@ -116,6 +121,7 @@ export function useGameRouteSync({
   const sudokuIndex = getSearchNumber(search, "sudokuIndex");
   const sudoku = getSearchString(search, "sudoku");
   const sudokuCollectionName = getSearchString(search, "sudokuCollectionName");
+  const forceRestart = getSearchBoolean(search, "restart");
 
   const routeSudoku = React.useMemo<RouteSudokuParams | null>(() => {
     if (sudokuIndex === undefined || sudoku === undefined || sudokuCollectionName === undefined) {
@@ -199,7 +205,7 @@ export function useGameRouteSync({
         t: translate,
       } = latestStateRef.current;
       const currentSudoku = cellsToSimpleSudoku(currentSudokuState.current);
-      if (stringifySudoku(currentSudoku) === routeSudoku.sudoku) {
+      if (stringifySudoku(currentSudoku) === routeSudoku.sudoku && !forceRestart) {
         syncedRouteKeyRef.current = routeSudoku.key;
         setInitialized(true);
         return;
@@ -280,6 +286,7 @@ export function useGameRouteSync({
   }, [
     currentPath,
     routeSudoku,
+    forceRestart,
     dialog,
     setGameState,
     setSudokuState,

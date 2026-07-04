@@ -121,6 +121,50 @@ async function expectSingleLine(locator: Locator, name: string) {
   expect(box.height, `${name} line count`).toBeLessThanOrEqual(lineHeight + 1);
 }
 
+async function seedFinishedCurrentSudoku(
+  page: Page,
+  sudoku: string,
+  solution: string,
+  sudokuIndex: number,
+  collection: string,
+) {
+  await page.addInitScript(
+    (seeded) => {
+      const cells = seeded.sudoku.split("").map((value, index) => ({
+        x: index % 9,
+        y: Math.floor(index / 9),
+        number: Number(seeded.solution[index]),
+        initial: value !== "0",
+        notes: [],
+        solution: Number(seeded.solution[index]),
+      }));
+
+      localStorage.setItem("sudoku-currently-playing-sudoku", seeded.sudoku);
+      localStorage.setItem(
+        `sudoku-played-${seeded.sudoku}`,
+        JSON.stringify({
+          game: {
+            activeCellCoordinates: undefined,
+            sudokuCollectionName: seeded.collection,
+            notesMode: false,
+            showNotes: false,
+            showMenu: false,
+            state: "PAUSED",
+            sudokuIndex: seeded.sudokuIndex - 1,
+            won: true,
+            timesSolved: 1,
+            previousTimes: [123],
+            secondsPlayed: 123,
+            clipboardNotes: null,
+          },
+          sudoku: cells,
+        }),
+      );
+    },
+    {collection, sudoku, solution, sudokuIndex},
+  );
+}
+
 async function expectGameSearch(page: Page, sudoku: string, sudokuIndex: number, sudokuCollectionName: string) {
   await expect
     .poll(() =>
@@ -179,6 +223,24 @@ test("opens game selection from the completion panel", async ({page}) => {
 
   await expect(page.getByRole("heading", {name: "Select Game"})).toBeVisible();
   await expect(page.getByText("Select a new sudoku to play or continue with an already started game.")).toBeVisible();
+});
+
+test("restarts the current completed puzzle when selecting it from completion new-game flow", async ({page}) => {
+  await seedFinishedCurrentSudoku(page, FIRST_PUZZLE, FIRST_SOLUTION, 1, "easy");
+  await page.goto(gameUrl(FIRST_PUZZLE, 1, "easy"));
+
+  await expect(page.getByRole("heading", {name: "Solved"})).toBeVisible();
+  await page.getByTestId("sudoku-completion-new-game").click();
+  await expect(page.getByRole("heading", {name: "Select Game"})).toBeVisible();
+
+  await page.getByRole("button", {name: "Select sudoku 1", exact: true}).click();
+  await expect(page.getByRole("dialog")).toContainText("This will restart the sudoku and reset the timer");
+  await page.getByRole("dialog").getByRole("button", {name: "OK"}).click();
+
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.getByTestId("sudoku-completion-panel")).toHaveCount(0);
+  await expect(page.getByRole("heading", {name: "Solved"})).toHaveCount(0);
+  await expect(cellValue(page, 5, 0)).toHaveText("");
 });
 
 const completionViewports = [
