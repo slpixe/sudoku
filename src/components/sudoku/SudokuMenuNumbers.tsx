@@ -82,7 +82,7 @@ const SudokuMenuNumbers: React.FC<SudokuMenuNumbersProps> = ({
           >
             {showOccurrences && (
               <div
-                className="absolute right-0 bottom-0 h-3 w-3 rounded-xl bg-teal-700 text-xxs text-white opacity-70 sm:right-1 sm:bottom-1 sm:h-4 sm:w-4 sm:text-xs "
+                className="absolute right-0 bottom-0 flex h-4 w-4 items-center justify-center rounded-tl-md rounded-br-sm bg-teal-700 text-[0.625rem] leading-none text-white opacity-85 sm:right-1 sm:bottom-1 sm:h-4 sm:w-4 sm:rounded-full sm:text-xs"
                 data-testid={`sudoku-number-occurrences-${n}`}
               >
                 {occurrences}

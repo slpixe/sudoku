@@ -156,7 +156,7 @@ const GameInner: React.FC<{
           resetGame={resetGame}
         />
         <div className="flex justify-center">
-          <main className="mt-4 w-full max-w-3xl">
+          <main className="sudoku-game-layout mt-3 grid w-full gap-3">
             <Sudoku
               boardData={displayedBoardData}
               showWrongEntries={userPreferencesState.showWrongEntries && game.state === GameStateMachine.running}
@@ -182,34 +182,32 @@ const GameInner: React.FC<{
 
               <ContinueOverlay visible={pausedGame && !game.won} onClick={continueGame} />
             </Sudoku>
-            <div className="mt-3 grid gap-3">
-              <SudokuMenuNumbers
-                layout="row"
-                notesMode={game.notesMode}
-                disabled={pausedGame}
-                showOccurrences={userPreferencesState.showOccurrences}
-                activeCell={game.activeCellCoordinates}
-                boardData={boardData}
-                showHints={userPreferencesState.showHints}
-                setNumber={setNumber}
-                setNotes={setNotes}
-              />
-              <SudokuMenuControls
-                notesMode={game.notesMode}
-                activeCellCoordinates={game.activeCellCoordinates}
-                disabled={pausedGame}
-                showConflicts={userPreferencesState.showConflicts}
-                showOccurrences={userPreferencesState.showOccurrences}
-                clearCell={clearCell}
-                activateNotesMode={activateNotesMode}
-                deactivateNotesMode={deactivateNotesMode}
-                toggleShowConflicts={toggleShowConflicts}
-                toggleShowOccurrences={toggleShowOccurrences}
-                getHint={getHint}
-                canUndo={canUndo}
-                undo={undo}
-              />
-            </div>
+            <SudokuMenuNumbers
+              layout="row"
+              notesMode={game.notesMode}
+              disabled={pausedGame}
+              showOccurrences={userPreferencesState.showOccurrences}
+              activeCell={game.activeCellCoordinates}
+              boardData={boardData}
+              showHints={userPreferencesState.showHints}
+              setNumber={setNumber}
+              setNotes={setNotes}
+            />
+            <SudokuMenuControls
+              notesMode={game.notesMode}
+              activeCellCoordinates={game.activeCellCoordinates}
+              disabled={pausedGame}
+              showConflicts={userPreferencesState.showConflicts}
+              showOccurrences={userPreferencesState.showOccurrences}
+              clearCell={clearCell}
+              activateNotesMode={activateNotesMode}
+              deactivateNotesMode={deactivateNotesMode}
+              toggleShowConflicts={toggleShowConflicts}
+              toggleShowOccurrences={toggleShowOccurrences}
+              getHint={getHint}
+              canUndo={canUndo}
+              undo={undo}
+            />
           </main>
         </div>
       </div>

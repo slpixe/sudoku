@@ -1,4 +1,4 @@
-import {expect, Page, test} from "@playwright/test";
+import {expect, type Locator, type Page, test} from "@playwright/test";
 
 const FIRST_PUZZLE = "534920700060007309900000010008700000496803002721594806000200940800046100003000000";
 const SECOND_PUZZLE = "009043005867002003040060027002086050930420000058397040300270900001000002724059030";
@@ -82,6 +82,57 @@ async function expectStoredPreferences(page: Page, preferences: Record<string, b
       }),
     )
     .toMatchObject(preferences);
+}
+
+async function expectNoVerticalDocumentScroll(page: Page, name: string) {
+  const overflow = await page.evaluate(() => {
+    return Math.max(document.body.scrollHeight, document.documentElement.scrollHeight) - document.documentElement.clientHeight;
+  });
+
+  expect(overflow, `${name} vertical overflow`).toBeLessThanOrEqual(1);
+}
+
+async function expectWithinViewport(page: Page, locator: Locator, name: string) {
+  const box = await locator.boundingBox();
+  const viewport = page.viewportSize();
+
+  if (!box || !viewport) {
+    throw new Error(`${name} must have a visible box and viewport`);
+  }
+
+  expect(box.x, `${name} left edge`).toBeGreaterThanOrEqual(0);
+  expect(box.y, `${name} top edge`).toBeGreaterThanOrEqual(0);
+  expect(box.x + box.width, `${name} right edge`).toBeLessThanOrEqual(viewport.width + 1);
+  expect(box.y + box.height, `${name} bottom edge`).toBeLessThanOrEqual(viewport.height + 1);
+}
+
+async function expectCompactHeader(page: Page, name: string) {
+  const headerBox = await page.locator("header").boundingBox();
+
+  if (!headerBox) {
+    throw new Error(`${name} header must have a visible box`);
+  }
+
+  expect(headerBox.height, `${name} header height`).toBeLessThanOrEqual(56);
+}
+
+async function expectOccurrenceBadgeWithinButton(page: Page, number: number, name: string) {
+  const buttonBox = await page.getByTestId(`sudoku-number-${number}`).boundingBox();
+  const badge = page.getByTestId(`sudoku-number-occurrences-${number}`);
+  const badgeBox = await badge.boundingBox();
+
+  if (!buttonBox || !badgeBox) {
+    throw new Error(`${name} occurrence badge must have visible button and badge boxes`);
+  }
+
+  await expect(badge).toHaveText(/\d+/);
+  const rightInset = buttonBox.x + buttonBox.width - (badgeBox.x + badgeBox.width);
+  const bottomInset = buttonBox.y + buttonBox.height - (badgeBox.y + badgeBox.height);
+
+  expect(rightInset, `${name} occurrence badge right edge`).toBeGreaterThanOrEqual(0);
+  expect(bottomInset, `${name} occurrence badge bottom edge`).toBeGreaterThanOrEqual(0);
+  expect(badgeBox.width, `${name} occurrence badge width`).toBeGreaterThanOrEqual(16);
+  expect(badgeBox.height, `${name} occurrence badge height`).toBeGreaterThanOrEqual(16);
 }
 
 async function seedFinishedSudoku(page: Page, sudoku: string, sudokuIndex: number, collection: string) {
@@ -186,6 +237,49 @@ test("supports number entry, erase, undo, redo, notes, hints, and keyboard short
   await page.getByRole("button", {name: "Resume game"}).focus();
   await page.keyboard.press("Enter");
   await expect(page.getByRole("button", {name: "Pause"})).toBeVisible();
+});
+
+test("keeps the vertical game layout visible in constrained viewports", async ({page}) => {
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      "sudoku-user-preferences",
+      JSON.stringify({
+        showHints: false,
+        showWrongEntries: false,
+        showConflicts: true,
+        showCircleMenu: false,
+        showOccurrences: true,
+      }),
+    );
+  });
+
+  const viewports = [
+    {name: "phone portrait", width: 390, height: 667},
+    {name: "tablet constrained", width: 768, height: 700},
+    {name: "desktop", width: 1280, height: 800},
+  ];
+
+  for (const viewport of viewports) {
+    await page.setViewportSize({width: viewport.width, height: viewport.height});
+    await openGame(page);
+
+    await expect(page.getByText("Sudoku", {exact: true})).toHaveCount(0);
+    await expectCompactHeader(page, viewport.name);
+    await expectNoVerticalDocumentScroll(page, viewport.name);
+    await expectWithinViewport(page, page.getByRole("button", {name: "Toggle dark mode"}), `${viewport.name} theme toggle`);
+    await expectWithinViewport(page, page.getByRole("button", {name: "Clear"}), `${viewport.name} clear button`);
+    await expectWithinViewport(page, page.getByRole("button", {name: "Pause"}), `${viewport.name} pause button`);
+    await expectWithinViewport(page, page.getByRole("button", {name: "New game"}), `${viewport.name} new game button`);
+    await expectWithinViewport(page, page.getByTestId("sudoku-board"), `${viewport.name} board`);
+    await expectWithinViewport(page, page.getByRole("button", {name: "Set 5"}), `${viewport.name} number button`);
+    await expectOccurrenceBadgeWithinButton(page, 5, viewport.name);
+    await expectWithinViewport(page, page.getByRole("button", {name: "Undo"}), `${viewport.name} undo button`);
+    await expectWithinViewport(
+      page,
+      page.getByTestId("sudoku-toggle-occurrences"),
+      `${viewport.name} count toggle`,
+    );
+  }
 });
 
 test("uses visible game preference toggles and dark mode", async ({page}) => {

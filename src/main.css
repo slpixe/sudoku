@@ -9,3 +9,14 @@ body,
   min-height: 100dvh;
   @apply bg-gray-800 dark:bg-gray-900;
 }
+
+.sudoku-game-layout {
+  /* The number row tracks board width, so reserve fixed header/control space and give the board roughly 90% of the rest. */
+  max-width: min(48rem, max(18rem, calc((100dvh - 10rem) * 0.9)));
+}
+
+@supports (height: 100svh) {
+  .sudoku-game-layout {
+    max-width: min(48rem, max(18rem, calc((100svh - 10rem) * 0.9)));
+  }
+}

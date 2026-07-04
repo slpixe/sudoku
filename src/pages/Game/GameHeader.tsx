@@ -92,7 +92,6 @@ export const GameHeader: React.FC<{
   setSudoku: (sudoku: SimpleSudoku, solvedSudoku: SimpleSudoku) => void;
   resetGame: () => void;
 }> = ({game, sudokuState, collectionName, pauseGame, continueGame, setSudoku, resetGame}) => {
-  const {t} = useTranslation();
   const clearGame = () => {
     const simpleSudoku = cellsToSimpleSudoku(sudokuState.current);
     const solved = solve(simpleSudoku);
@@ -103,36 +102,28 @@ export const GameHeader: React.FC<{
   };
 
   return (
-    <header className="flex justify-between sm:items-center mt-4">
-      <div className="flex text-white flex-col sm:flex-row sm:justify-end sm:items-center gap-2">
-        <div className="flex gap-2 items-center">
-          <DifficultyShow data-testid="current-game-label">{`${collectionName} #${game.sudokuIndex + 1}`}</DifficultyShow>
-        </div>
-        <div className="hidden sm:block">{"|"}</div>
+    <header className="flex items-center justify-between gap-2 pt-4 text-sm sm:text-base">
+      <div className="flex min-w-0 items-center gap-2 text-white">
+        <DifficultyShow className="truncate text-white capitalize" data-testid="current-game-label">
+          {`${collectionName} #${game.sudokuIndex + 1}`}
+        </DifficultyShow>
         <GameTimer />
       </div>
-      <div className="text-white text-lg sm:text-2xl font-bold flex items-center gap-2">{t("sudoku")}</div>
-      <div className="flex">
-        <div className="flex gap-2 flex-col justify-end items-end sm:flex-row">
-          <div className="flex gap-2">
-            <DarkModeButton />
-            <ClearGameButton
-              pauseGame={pauseGame}
-              continueGame={continueGame}
-              disabled={game.won || game.state === GameStateMachine.paused}
-              clearGame={clearGame}
-            />
-          </div>
-          <div className="flex gap-2">
-            <PauseButton
-              disabled={game.won}
-              paused={game.state === GameStateMachine.paused}
-              continueGame={continueGame}
-              pauseGame={pauseGame}
-            />
-            <NewGameButton pauseGame={pauseGame} />
-          </div>
-        </div>
+      <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+        <DarkModeButton />
+        <ClearGameButton
+          pauseGame={pauseGame}
+          continueGame={continueGame}
+          disabled={game.won || game.state === GameStateMachine.paused}
+          clearGame={clearGame}
+        />
+        <PauseButton
+          disabled={game.won}
+          paused={game.state === GameStateMachine.paused}
+          continueGame={continueGame}
+          pauseGame={pauseGame}
+        />
+        <NewGameButton pauseGame={pauseGame} />
       </div>
     </header>
   );
