@@ -82,8 +82,12 @@ export default class SudokuPreview extends React.PureComponent<{
             lineHeight: 1,
           }}
         >
-          <div className="absolute z-10 top-0 left-0 w-full h-full flex items-center justify-center">
-            <div style={{fontSize: size / 3}} className="font-bold text-black dark:text-white opacity-80">
+          <div className="pointer-events-none absolute left-1/2 top-[19%] z-30 -translate-x-1/2 -translate-y-1/2">
+            <div
+              className="font-bold text-teal-600 dark:text-teal-600"
+              data-testid={`sudoku-preview-number-${id}`}
+              style={{fontSize: size / 3}}
+            >
               {id}
             </div>
           </div>
