@@ -30,6 +30,13 @@ This project is a React, TypeScript, Vite, and Tailwind Sudoku web app based on 
 - Docker uses Node 24 and Corepack. If testing Docker locally, the container engine must be running; this workspace may report Docker through Podman.
 - `pnpm-workspace.yaml` includes targeted security `overrides` for vulnerable transitive dependency ranges; review them during dependency upgrades and remove any that upstream packages no longer need.
 
+# Development Server Notes
+
+- `pnpm start` runs Vite on port `3000` in host mode so devices on the local network can connect.
+- Before starting a dev or preview server for browser/manual checks, check whether the user already has one running, commonly at `http://localhost:3000`, and reuse it when possible.
+- Do not start a second Vite server on `5173` or another fallback port unless the user asks for it or the existing server is unavailable for the task; if a temporary server is necessary, stop it when finished.
+- The exception is `pnpm run test:e2e`, which intentionally starts an isolated preview server on port `4179` through Playwright.
+
 # Testing Notes
 
 - Playwright e2e is run with `pnpm run test:e2e` and starts the app through `pnpm exec vite preview` on isolated port `4179`.
