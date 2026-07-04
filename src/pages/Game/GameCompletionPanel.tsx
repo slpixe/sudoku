@@ -15,6 +15,23 @@ type NextSudokuParams = {
   sudokuCollectionName: string;
 };
 
+type CompletionMetricProps = {
+  label: string;
+  testId: string;
+  value: string;
+};
+
+const CompletionMetric: React.FC<CompletionMetricProps> = ({label, testId, value}) => (
+  <p className="sudoku-completion-metric" data-testid={testId}>
+    <span className="sudoku-completion-metric-label" data-testid={`${testId}-label`}>
+      {label}
+    </span>{" "}
+    <span className="sudoku-completion-metric-value" data-testid={`${testId}-value`}>
+      {value}
+    </span>
+  </p>
+);
+
 function useNextSudoku(gameState: GameState) {
   const {getCollection} = useSudokuCollections();
 
@@ -56,6 +73,8 @@ export const GameCompletionPanel: React.FC<{game: GameState}> = ({game}) => {
   const panelRef = React.useRef<HTMLDivElement>(null);
   const {collectionName, nextSudokuParams} = useNextSudoku(game);
   const bestTime = game.previousTimes.length > 0 ? Math.min(...game.previousTimes) : null;
+  const bestTimeValue = bestTime !== null ? formatDuration(bestTime) : null;
+  const thisTimeValue = formatDuration(game.secondsPlayed);
 
   React.useEffect(() => {
     panelRef.current?.querySelector<HTMLButtonElement>("[data-completion-primary-action='true']")?.focus();
@@ -93,9 +112,25 @@ export const GameCompletionPanel: React.FC<{game: GameState}> = ({game}) => {
           {t("completion_solved")}
         </h2>
         <div className="mt-2 grid gap-1 text-sm leading-5">
-          <p>{t(game.timesSolved === 1 ? "solved_time" : "solved_times", {count: game.timesSolved})}</p>
-          {bestTime !== null ? <p>{t("best_time", {time: formatDuration(bestTime)})}</p> : null}
-          <p>{t("this_time", {time: formatDuration(game.secondsPlayed)})}</p>
+          <CompletionMetric
+            label={t("solved_count_label")}
+            testId="sudoku-completion-solved-count"
+            value={t(game.timesSolved === 1 ? "solved_count_value_one" : "solved_count_value_other", {
+              count: game.timesSolved,
+            })}
+          />
+          {bestTimeValue !== null ? (
+            <CompletionMetric
+              label={t("best_time_label")}
+              testId="sudoku-completion-best-time"
+              value={bestTimeValue}
+            />
+          ) : null}
+          <CompletionMetric
+            label={t("this_time_label")}
+            testId="sudoku-completion-this-time"
+            value={thisTimeValue}
+          />
           {!nextSudokuParams ? <p>{t("collection_finished", {collection: collectionName})}</p> : null}
         </div>
       </div>

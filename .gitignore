@@ -4,6 +4,7 @@ dist
 .vscode
 typings
 node_modules
+.pnpm-store/
 tmp
 artifacts
 playwright-report

@@ -120,6 +120,17 @@ async function expectInsideElement(inner: Locator, outer: Locator, name: string)
   expect(innerBox.y + innerBox.height, `${name} bottom edge`).toBeLessThanOrEqual(outerBox.y + outerBox.height + 1);
 }
 
+async function expectSingleLine(locator: Locator, name: string) {
+  const box = await locator.boundingBox();
+  const lineHeight = await locator.evaluate((element) => parseFloat(getComputedStyle(element).lineHeight));
+
+  if (!box) {
+    throw new Error(`${name} must have a visible box`);
+  }
+
+  expect(box.height, `${name} line count`).toBeLessThanOrEqual(lineHeight + 1);
+}
+
 async function expectLeftToRight(locators: Locator[], name: string) {
   const boxes = await Promise.all(locators.map((locator) => locator.boundingBox()));
 
@@ -136,6 +147,25 @@ async function expectLeftToRight(locators: Locator[], name: string) {
     }
 
     expect(current.x, `${name} order`).toBeGreaterThan(previous.x + previous.width - 1);
+  }
+}
+
+async function expectTopToBottom(locators: Locator[], name: string) {
+  const boxes = await Promise.all(locators.map((locator) => locator.boundingBox()));
+
+  if (boxes.some((box) => !box)) {
+    throw new Error(`${name} must have visible boxes`);
+  }
+
+  for (let i = 1; i < boxes.length; i += 1) {
+    const previous = boxes[i - 1];
+    const current = boxes[i];
+
+    if (!previous || !current) {
+      throw new Error(`${name} must have visible boxes`);
+    }
+
+    expect(current.y, `${name} order`).toBeGreaterThan(previous.y + previous.height - 1);
   }
 }
 
@@ -627,10 +657,14 @@ for (const viewport of completionViewports) {
     await page.getByRole("button", {name: "Set 7"}).click();
 
     const completionPanel = page.getByTestId("sudoku-completion-panel");
+    const completionCopy = page.locator(".sudoku-completion-copy");
+    const completionActions = page.locator(".sudoku-completion-actions");
     await expect(completionPanel).toBeVisible();
     await expect(completionPanel.getByRole("heading", {name: "Solved"})).toBeVisible();
     await expectWithinViewport(page, board, `${viewport.name} completed board`);
     await expectWithinViewport(page, completionPanel, `${viewport.name} completion panel`);
+    await expectInsideElement(completionCopy, completionPanel, `${viewport.name} completion copy`);
+    await expectInsideElement(completionActions, completionPanel, `${viewport.name} completion actions`);
     await expect(page.getByRole("button", {name: "Set 7"})).toHaveCount(0);
     await expect(page.getByTestId("sudoku-toggle-occurrences")).toHaveCount(0);
 
@@ -644,9 +678,22 @@ for (const viewport of completionViewports) {
     expect(Math.abs(boardAfter.width - boardBefore.width), `${viewport.name} completed board width shift`).toBeLessThanOrEqual(1);
     expect(Math.abs(boardAfter.height - boardBefore.height), `${viewport.name} completed board height shift`).toBeLessThanOrEqual(1);
 
-    if (viewport.landscape) {
+    if (viewport.name === "mobile landscape") {
       await expectLeftToRight([board, completionPanel], `${viewport.name} completion layout`);
+    } else {
+      await expectTopToBottom([board, completionPanel], `${viewport.name} completion layout`);
+    }
+
+    if (viewport.landscape) {
       await expect(page.locator(".sudoku-completion-copy")).toHaveCSS("text-align", "center");
+      for (const metricName of ["solved-count", "best-time", "this-time"]) {
+        const metricLabel = page.getByTestId(`sudoku-completion-${metricName}-label`);
+        const metricValue = page.getByTestId(`sudoku-completion-${metricName}-value`);
+
+        await expectTopToBottom([metricLabel, metricValue], `${viewport.name} ${metricName} metric`);
+        await expect(metricValue).toHaveText(metricName === "solved-count" ? "1 time" : "00:00 min");
+        await expectSingleLine(metricValue, `${viewport.name} ${metricName} value`);
+      }
     }
 
     await testInfo.attach(`completion-${viewport.name.replaceAll(" ", "-")}`, {
