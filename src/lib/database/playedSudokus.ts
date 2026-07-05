@@ -1,10 +1,10 @@
 import type {GameState} from "src/context/GameContext";
 import type {SudokuState} from "src/context/SudokuContext";
+import {claimActiveGame, loadActiveGameRecord} from "src/lib/database/activeGame";
 import type {Cell} from "src/lib/engine/types";
 import {stringifySudoku, cellsToSimpleSudoku} from "src/lib/engine/utility";
 
 const STORAGE_PLAYED_SUDOKU_PREFIX = "sudoku-played-";
-const STORAGE_CURRENTLY_PLAYING_SUDOKU_KEY = "sudoku-currently-playing-sudoku";
 
 export interface StoredPlayedSudokuState {
   game: GameState;
@@ -99,15 +99,8 @@ function parseStoredPlayedSudokuState(text: string): StoredPlayedSudokuState | u
 }
 
 export function getCurrentSudokuFromStorage(): StoredPlayedSudokuState | undefined {
-  if (typeof localStorage === "undefined") {
-    return undefined;
-  }
-
-  const sudokuKey = localStorage.getItem(STORAGE_CURRENTLY_PLAYING_SUDOKU_KEY);
-  if (sudokuKey) {
-    return getSudokuFromStorage(sudokuKey);
-  }
-  return undefined;
+  const activeGame = loadActiveGameRecord();
+  return activeGame ? getSudokuFromStorage(activeGame.sudokuKey) : undefined;
 }
 
 function getSudokuFromStorage(sudokuKey: string): StoredPlayedSudokuState | undefined {
@@ -147,9 +140,6 @@ const saveCurrentSudokuToLocalStorage = (game: GameState, sudoku: SudokuState) =
   // Undo history is intentionally omitted to keep saved games small.
   try {
     localStorage.setItem(sudokuKey, JSON.stringify({game, sudoku: sudoku.current}));
-    // TODO: this is problematic with multiple open windows, as the .active gets overwritten.
-    // We should have a tab based storage for that stuff as well, so a reload does not open the other sudoku.
-    localStorage.setItem(STORAGE_CURRENTLY_PLAYING_SUDOKU_KEY, stringifiedSudoku);
   } catch (e) {
     console.error("LocalStorage is not supported! No Saving possible.", e);
   }
@@ -173,18 +163,10 @@ export const localStoragePlayedSudokuRepository: PlayedSudokuRepository = {
     return Object.keys(localStorage).filter((key) => key.startsWith(STORAGE_PLAYED_SUDOKU_PREFIX));
   },
   getCurrentSudokuKey(): string | null {
-    if (typeof localStorage === "undefined") {
-      return null;
-    }
-
-    return localStorage.getItem(STORAGE_CURRENTLY_PLAYING_SUDOKU_KEY);
+    return loadActiveGameRecord()?.sudokuKey ?? null;
   },
   saveCurrentSudokuKey(sudokuKey: string): void {
-    if (typeof localStorage === "undefined") {
-      return;
-    }
-
-    localStorage.setItem(STORAGE_CURRENTLY_PLAYING_SUDOKU_KEY, sudokuKey);
+    claimActiveGame(sudokuKey);
   },
   getSudokuState(sudokuKey: string): StoredPlayedSudokuState | undefined {
     return getSudokuFromStorage(sudokuKey);

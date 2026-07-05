@@ -79,6 +79,31 @@ describe("localStoragePlayedSudokuRepository", () => {
     });
   });
 
+  it("does not claim active ownership when saving per-puzzle progress", () => {
+    vi.stubGlobal("localStorage", createLocalStorageMock());
+
+    localStoragePlayedSudokuRepository.saveSudokuState(INITIAL_GAME_STATE, INITIAL_SUDOKU_STATE);
+
+    expect(localStorage.getItem("sudoku-currently-playing-sudoku")).toBeNull();
+    expect(localStoragePlayedSudokuRepository.getSudokuState(sudokuKey)).toEqual({
+      game: INITIAL_GAME_STATE,
+      sudoku: INITIAL_SUDOKU_STATE.current,
+    });
+  });
+
+  it("delegates current sudoku key compatibility methods to the active-game record", () => {
+    vi.stubGlobal("sessionStorage", createLocalStorageMock({"sudoku-tab-owner-id": "tab-1"}));
+    vi.stubGlobal("localStorage", createLocalStorageMock());
+
+    localStoragePlayedSudokuRepository.saveCurrentSudokuKey(sudokuKey);
+
+    expect(localStoragePlayedSudokuRepository.getCurrentSudokuKey()).toBe(sudokuKey);
+    expect(JSON.parse(localStorage.getItem("sudoku-currently-playing-sudoku") ?? "{}")).toMatchObject({
+      sudokuKey,
+      ownerId: "tab-1",
+    });
+  });
+
   it("returns empty values when played sudoku storage is missing", () => {
     vi.stubGlobal("localStorage", createLocalStorageMock());
 

@@ -1,5 +1,12 @@
 import type {GameState} from "src/context/GameContext";
 import type {SudokuState} from "src/context/SudokuContext";
+import type {ActiveGameRecord} from "src/lib/database/activeGame";
+import {
+  claimActiveGame,
+  getActiveGameOwnerId,
+  loadActiveGameRecord,
+  STORAGE_ACTIVE_GAME_KEY,
+} from "src/lib/database/activeGame";
 import type {Collection, CollectionIndex} from "src/lib/database/collections";
 import {localStorageCollectionRepository} from "src/lib/database/collections";
 import type {StoredPlayedSudokuState} from "src/lib/database/playedSudokus";
@@ -12,6 +19,12 @@ export type {StoredPlayedSudokuState};
 const STORAGE_KEY_DARK_MODE = "sudoku-dark-mode";
 
 export interface AppPersistence {
+  activeGame: {
+    storageKey: string;
+    ownerId(): string;
+    load(): ActiveGameRecord | undefined;
+    claim(sudokuKey: string): ActiveGameRecord | undefined;
+  };
   appearance: {
     loadDarkModePreference(): boolean | undefined;
     saveDarkModePreference(darkMode: boolean): void;
@@ -83,6 +96,18 @@ function getSystemDarkModePreference() {
 }
 
 export const appPersistence: AppPersistence = {
+  activeGame: {
+    storageKey: STORAGE_ACTIVE_GAME_KEY,
+    ownerId(): string {
+      return getActiveGameOwnerId();
+    },
+    load(): ActiveGameRecord | undefined {
+      return loadActiveGameRecord();
+    },
+    claim(sudokuKey: string): ActiveGameRecord | undefined {
+      return claimActiveGame(sudokuKey);
+    },
+  },
   appearance: {
     loadDarkModePreference,
     saveDarkModePreference,
@@ -98,8 +123,8 @@ export const appPersistence: AppPersistence = {
   },
   currentGame: {
     load(): StoredPlayedSudokuState | undefined {
-      const currentSudokuKey = localStoragePlayedSudokuRepository.getCurrentSudokuKey();
-      return currentSudokuKey ? localStoragePlayedSudokuRepository.getSudokuState(currentSudokuKey) : undefined;
+      const activeGame = loadActiveGameRecord();
+      return activeGame ? localStoragePlayedSudokuRepository.getSudokuState(activeGame.sudokuKey) : undefined;
     },
     save(game: GameState, sudoku: SudokuState): void {
       localStoragePlayedSudokuRepository.saveSudokuState(game, sudoku);
