@@ -4,15 +4,30 @@ const FIRST_PUZZLE = "5349207000600073099000000100087000004968030027215948060002
 const FIRST_SOLUTION = "534921768162487359987635214358712496496853172721594836675218943849346125213769587";
 const MEDIUM_FIRST_PUZZLE = "502000000003400000000005093700006002000003608008021070870032504106080020400070300";
 const SECOND_PUZZLE = "009043005867002003040060027002086050930420000058397040300270900001000002724059030";
+const CUSTOM_PUZZLE = "008600700900020000000000800000050046300000010000009000046800000000000900070000000";
 const SHORTCUT_MODIFIER = "Control";
 
-function gameUrl(sudoku = FIRST_PUZZLE, sudokuIndex = 1, sudokuCollectionName = "easy") {
+function gameUrl(sudokuIndex = 1, sudokuCollectionName = "easy") {
+  const params = new URLSearchParams({
+    collection: sudokuCollectionName,
+    puzzle: String(sudokuIndex),
+  });
+
+  return `/#/?${params.toString()}`;
+}
+
+function legacyGameUrl(sudoku = FIRST_PUZZLE, sudokuIndex = 1, sudokuCollectionName = "easy") {
   const params = new URLSearchParams({
     sudokuIndex: String(sudokuIndex),
     sudoku,
     sudokuCollectionName,
   });
 
+  return `/#/?${params.toString()}`;
+}
+
+function payloadGameUrl(sudoku: string) {
+  const params = new URLSearchParams({sudoku});
   return `/#/?${params.toString()}`;
 }
 
@@ -29,14 +44,14 @@ function cellNotes(page: Page, x: number, y: number) {
 }
 
 async function openGame(page: Page, sudoku = FIRST_PUZZLE, sudokuIndex = 1, collection = "easy", label = "Easy") {
-  await page.goto(gameUrl(sudoku, sudokuIndex, collection));
+  await page.goto(gameUrl(sudokuIndex, collection));
   await expect(page.getByTestId("current-game-label")).toHaveText(`${label} #${sudokuIndex}`);
   await expect(page.getByTestId("sudoku-board")).toBeVisible();
   await continueIfPaused(page);
   await expect(cellValue(page, 5, 0)).toHaveText(sudoku[5] === "0" ? "" : sudoku[5]);
 }
 
-async function expectGameSearch(page: Page, sudoku: string, sudokuIndex: number, sudokuCollectionName: string) {
+async function expectGameSearch(page: Page, _sudoku: string, sudokuIndex: number, sudokuCollectionName: string) {
   await expect
     .poll(() =>
       page.evaluate(() => {
@@ -44,29 +59,73 @@ async function expectGameSearch(page: Page, sudoku: string, sudokuIndex: number,
           ? window.location.hash.split("?")[1]
           : window.location.search.replace(/^\?/, "");
         const params = new URLSearchParams(search);
-        const sudokuParam = params.get("sudoku");
-        let normalizedSudokuParam = sudokuParam;
 
-        if (sudokuParam) {
-          try {
-            const parsedSudokuParam: unknown = JSON.parse(sudokuParam);
-            normalizedSudokuParam = typeof parsedSudokuParam === "string" ? parsedSudokuParam : sudokuParam;
-          } catch {
-            normalizedSudokuParam = sudokuParam;
+        const normalizeParam = (value: string | null) => {
+          if (value === null) {
+            return null;
           }
-        }
+          try {
+            const parsedValue: unknown = JSON.parse(value);
+            return typeof parsedValue === "string" || typeof parsedValue === "number" ? String(parsedValue) : value;
+          } catch {
+            return value;
+          }
+        };
 
         return {
-          sudoku: normalizedSudokuParam,
+          collection: normalizeParam(params.get("collection")),
+          puzzle: normalizeParam(params.get("puzzle")),
+          sudoku: normalizeParam(params.get("sudoku")),
           sudokuIndex: params.get("sudokuIndex"),
           sudokuCollectionName: params.get("sudokuCollectionName"),
         };
       }),
     )
     .toEqual({
+      collection: sudokuCollectionName,
+      puzzle: String(sudokuIndex),
+      sudoku: null,
+      sudokuIndex: null,
+      sudokuCollectionName: null,
+    });
+}
+
+async function expectPayloadGameSearch(page: Page, sudoku: string, sudokuIndex = 1, sudokuCollectionName = "custom") {
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const search = window.location.hash.includes("?")
+          ? window.location.hash.split("?")[1]
+          : window.location.search.replace(/^\?/, "");
+        const params = new URLSearchParams(search);
+
+        const normalizeParam = (value: string | null) => {
+          if (value === null) {
+            return null;
+          }
+          try {
+            const parsedValue: unknown = JSON.parse(value);
+            return typeof parsedValue === "string" || typeof parsedValue === "number" ? String(parsedValue) : value;
+          } catch {
+            return value;
+          }
+        };
+
+        return {
+          collection: normalizeParam(params.get("collection")),
+          puzzle: normalizeParam(params.get("puzzle")),
+          sudoku: normalizeParam(params.get("sudoku")),
+          sudokuIndex: params.get("sudokuIndex"),
+          sudokuCollectionName: params.get("sudokuCollectionName"),
+        };
+      }),
+    )
+    .toEqual({
+      collection: sudokuCollectionName,
+      puzzle: String(sudokuIndex),
       sudoku,
-      sudokuIndex: String(sudokuIndex),
-      sudokuCollectionName,
+      sudokuIndex: null,
+      sudokuCollectionName: null,
     });
 }
 
@@ -447,7 +506,7 @@ test("keeps a stored paused game paused when loaded from the URL", async ({page}
     current: true,
   });
 
-  await page.goto(gameUrl(FIRST_PUZZLE));
+  await page.goto(gameUrl());
   await expect(page.getByTestId("current-game-label")).toHaveText("Easy #1");
   await expect(page.getByTestId("sudoku-action-pause")).toHaveAttribute("aria-label", "Continue");
   expect(await getTimerSeconds(page)).toBe(10);
@@ -457,6 +516,23 @@ test("keeps a stored paused game paused when loaded from the URL", async ({page}
   await expect(page.getByTestId("sudoku-action-pause")).toHaveAttribute("aria-label", "Continue");
   expect(await getTimerSeconds(page)).toBe(10);
   await expectStoredGame(page, FIRST_PUZZLE, {state: "PAUSED", secondsPlayed: 10});
+});
+
+test("normalizes legacy built-in full-payload URLs to compact params", async ({page}) => {
+  await page.goto(legacyGameUrl(FIRST_PUZZLE, 1, "easy"));
+
+  await expect(page.getByTestId("current-game-label")).toHaveText("Easy #1");
+  await expect(cellValue(page, 5, 0)).toHaveText("");
+  await expectGameSearch(page, FIRST_PUZZLE, 1, "easy");
+});
+
+test("loads exact payload URLs without collection metadata", async ({page}) => {
+  await page.goto(payloadGameUrl(CUSTOM_PUZZLE));
+
+  await expect(page.getByTestId("current-game-label")).toHaveText("custom #1");
+  await expect(page.getByTestId("sudoku-board")).toBeVisible();
+  await expect(cellValue(page, 2, 0)).toHaveText("8");
+  await expectPayloadGameSearch(page, CUSTOM_PUZZLE);
 });
 
 test("supports number entry, erase, undo, redo, notes, hints, and keyboard shortcuts", async ({page}) => {
@@ -801,7 +877,7 @@ test("pauses the timer while confirming a route puzzle change", async ({page}) =
   await openGame(page);
   await expect(page.getByTestId("game-timer")).toHaveText("00:06 min", {timeout: 7000});
 
-  await page.goto(gameUrl(SECOND_PUZZLE, 2, "easy"));
+  await page.goto(gameUrl(2, "easy"));
   const restartDialog = page.getByTestId("app-dialog");
   await expect(restartDialog).toContainText("do you want to pause it and start Easy #2");
 
@@ -843,7 +919,8 @@ test("changes games through the selection screen", async ({page}) => {
   await page.getByTestId("app-dialog-confirm").click();
 
   await expect(page.getByTestId("current-game-label")).toHaveText("Medium #1");
-  await expect(page).toHaveURL(/sudokuCollectionName=medium/);
+  await expect(page).toHaveURL(/collection=medium/);
+  await expect(page).not.toHaveURL(/sudoku=/);
 });
 
 test("locks older tabs when another tab claims a different active puzzle", async ({context, page}) => {
@@ -862,7 +939,7 @@ test("locks older tabs when another tab claims a different active puzzle", async
   await expect(pageA.getByTestId("current-game-label")).toHaveText("Easy #2");
   await expectGameSearch(pageA, SECOND_PUZZLE, 2, "easy");
 
-  await pageA.goto(gameUrl(FIRST_PUZZLE, 1, "easy"));
+  await pageA.goto(gameUrl(1, "easy"));
   await expect(pageA.getByTestId("current-game-label")).toHaveText("Easy #1");
   await expect(pageB.getByTestId("active-game-lock-overlay")).toBeVisible();
 

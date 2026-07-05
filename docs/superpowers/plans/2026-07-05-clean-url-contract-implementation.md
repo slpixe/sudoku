@@ -286,11 +286,11 @@ git commit -m "feat: use compact game URLs"
 - Consumes compact URL route behavior from Task 2.
 - Produces Playwright coverage for normal compact URLs, legacy URLs, exact payload links, and active-game locking.
 
-- [ ] **Step 1: Update e2e URL helpers**
+- [x] **Step 1: Update e2e URL helpers**
 
 In normal `gameUrl()` helpers, build `/#/?collection=<collection>&puzzle=<index>` by default. Add a separate `legacyGameUrl()` helper where full payload links are still required.
 
-- [ ] **Step 2: Update search assertions**
+- [x] **Step 2: Update search assertions**
 
 Update normal `expectGameSearch()` helpers to assert:
 
@@ -306,7 +306,7 @@ Update normal `expectGameSearch()` helpers to assert:
 
 Add a payload-specific assertion helper for exact-puzzle URLs.
 
-- [ ] **Step 3: Add compatibility tests**
+- [x] **Step 3: Add compatibility tests**
 
 Add Playwright coverage in `e2e/sudoku.e2e.ts`:
 
@@ -314,13 +314,13 @@ Add Playwright coverage in `e2e/sudoku.e2e.ts`:
 - Exact payload URL without metadata loads and keeps `sudoku`.
 - Compact route still works with multi-tab active-game locking.
 
-- [ ] **Step 4: Run targeted Playwright specs**
+- [x] **Step 4: Run targeted Playwright specs**
 
 Run: `pnpm exec playwright test e2e/sudoku.e2e.ts e2e/completion-screen.e2e.ts e2e/select-game.e2e.ts`
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add e2e/sudoku.e2e.ts e2e/completion-screen.e2e.ts e2e/select-game.e2e.ts
@@ -337,7 +337,7 @@ git commit -m "test: cover compact game URLs"
 - Consumes implementation from Tasks 1-3.
 - Produces verified implementation and GitHub issue closeout comment.
 
-- [ ] **Step 1: Run full verification**
+- [x] **Step 1: Run full verification**
 
 Run:
 
@@ -351,7 +351,9 @@ pnpm run test:e2e
 
 Expected: all commands pass.
 
-- [ ] **Step 2: Create follow-up issue for Share action**
+- [x] **Step 2: Create follow-up issue for Share action**
+
+Created follow-up issue: https://github.com/slpixe/sudoku/issues/36
 
 Run:
 
@@ -361,7 +363,7 @@ gh issue create --title "Add explicit share URL action for exact puzzle links" -
 
 Expected: GitHub CLI prints the new issue URL.
 
-- [ ] **Step 3: Comment on and close issue #35**
+- [x] **Step 3: Comment on and close issue #35**
 
 Run:
 

@@ -165,7 +165,7 @@ async function seedFinishedCurrentSudoku(
   );
 }
 
-async function expectGameSearch(page: Page, sudoku: string, sudokuIndex: number, sudokuCollectionName: string) {
+async function expectGameSearch(page: Page, _sudoku: string, sudokuIndex: number, sudokuCollectionName: string) {
   await expect
     .poll(() =>
       page.evaluate(() => {
@@ -174,17 +174,33 @@ async function expectGameSearch(page: Page, sudoku: string, sudokuIndex: number,
           : window.location.search.replace(/^\?/, "");
         const params = new URLSearchParams(search);
 
+        const normalizeParam = (value: string | null) => {
+          if (value === null) {
+            return null;
+          }
+          try {
+            const parsedValue: unknown = JSON.parse(value);
+            return typeof parsedValue === "string" || typeof parsedValue === "number" ? String(parsedValue) : value;
+          } catch {
+            return value;
+          }
+        };
+
         return {
-          sudoku: params.get("sudoku"),
+          collection: normalizeParam(params.get("collection")),
+          puzzle: normalizeParam(params.get("puzzle")),
+          sudoku: normalizeParam(params.get("sudoku")),
           sudokuIndex: params.get("sudokuIndex"),
           sudokuCollectionName: params.get("sudokuCollectionName"),
         };
       }),
     )
     .toEqual({
-      sudoku,
-      sudokuIndex: String(sudokuIndex),
-      sudokuCollectionName,
+      collection: sudokuCollectionName,
+      puzzle: String(sudokuIndex),
+      sudoku: null,
+      sudokuIndex: null,
+      sudokuCollectionName: null,
     });
 }
 

@@ -227,8 +227,17 @@ export function useGameRouteSync({
     }
   }, [routeIntent]);
   const routeLoadFailed = routeIntent.kind === "invalid" || (routeIntent.kind !== "none" && routeSudoku === null);
+  const currentStateRouteKey = React.useMemo(() => {
+    return createGameRouteSudokuKey({
+      collectionId: gameState.sudokuCollectionName,
+      puzzleNumber: gameState.sudokuIndex + 1,
+      sudoku: stringifySudoku(cellsToSimpleSudoku(sudokuState.current)),
+    });
+  }, [gameState.sudokuCollectionName, gameState.sudokuIndex, sudokuState]);
+  const routeStateReady = !routeSudoku || currentStateRouteKey === routeSudoku.key;
 
   const syncedRouteKeyRef = React.useRef<string | null>(null);
+  const pendingRouteKeyRef = React.useRef<string | null>(null);
   const latestStateRef = React.useRef({gameState, sudokuState, userPreferencesState, t});
 
   React.useEffect(() => {
@@ -239,6 +248,7 @@ export function useGameRouteSync({
     (currentGameState: GameState, currentSudokuState: SudokuState) => {
       const nextRoute = createRouteSearchForGameState(currentGameState, currentSudokuState, routeSudoku);
       syncedRouteKeyRef.current = nextRoute.key;
+      pendingRouteKeyRef.current = nextRoute.key;
       navigate({
         replace: true,
         to: "/",
@@ -249,7 +259,7 @@ export function useGameRouteSync({
   );
 
   React.useEffect(() => {
-    if (!initialized || currentPath !== "/") {
+    if (!initialized || currentPath !== "/" || !routeStateReady) {
       return;
     }
 
@@ -270,6 +280,10 @@ export function useGameRouteSync({
 
     const nextRoute = createRouteSearchForGameState(gameState, sudokuState, routeSudoku);
 
+    if (routeSudoku && nextRoute.key !== routeSudoku.key) {
+      return;
+    }
+
     if (nextRoute.key !== routeSudoku?.key) {
       syncedRouteKeyRef.current = nextRoute.key;
       navigate({
@@ -278,11 +292,29 @@ export function useGameRouteSync({
         search: nextRoute.search,
       });
     }
-  }, [gameState, sudokuState, initialized, currentPath, routeSudoku, routeLoadFailed, navigate, saveDisabled]);
+  }, [
+    gameState,
+    sudokuState,
+    initialized,
+    currentPath,
+    routeSudoku,
+    routeLoadFailed,
+    routeStateReady,
+    navigate,
+    saveDisabled,
+  ]);
 
   React.useEffect(() => {
     if (currentPath !== "/") {
       return;
+    }
+
+    if (routeSudoku && pendingRouteKeyRef.current) {
+      if (routeSudoku.key !== pendingRouteKeyRef.current) {
+        return;
+      }
+
+      pendingRouteKeyRef.current = null;
     }
 
     if (!routeSudoku && !routeLoadFailed) {
@@ -358,11 +390,13 @@ export function useGameRouteSync({
         }
       }
 
+      let parsedRouteSudoku: SimpleSudoku | undefined;
+      let solvedRouteSudoku: SimpleSudoku | undefined;
       try {
-        const parsedSudoku = parseSudoku(routeSudoku.sudoku);
-        const solvedSudoku = routeSudoku.solution ?? solve(parsedSudoku).sudoku;
+        parsedRouteSudoku = parseSudoku(routeSudoku.sudoku);
+        const solvedSudoku = routeSudoku.solution ?? solve(parsedRouteSudoku).sudoku;
         if (solvedSudoku) {
-          setSudoku(parsedSudoku, solvedSudoku);
+          solvedRouteSudoku = solvedSudoku;
         } else {
           pauseForDialog();
           await dialog.alert({message: translate("invalid_sudoku_url")});
@@ -403,6 +437,8 @@ export function useGameRouteSync({
           history: [storedSudoku.sudoku],
           historyIndex: 0,
         });
+      } else if (parsedRouteSudoku && solvedRouteSudoku) {
+        setSudoku(parsedRouteSudoku, solvedRouteSudoku);
       }
       syncedRouteKeyRef.current = routeSudoku.key;
       setInitialized(true);
@@ -454,5 +490,5 @@ export function useGameRouteSync({
     [replaceRouteWithGameState, setGameState, setSudokuState],
   );
 
-  return {initialized, openStoredSudoku};
+  return {initialized: initialized && routeStateReady, openStoredSudoku};
 }

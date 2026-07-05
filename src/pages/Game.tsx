@@ -350,12 +350,13 @@ const GameWithRouteManagement = () => {
   }, [activeGameLock.locked]);
 
   const switchToActivePuzzle = React.useCallback(() => {
-    if (!activeGameLock.activeSudokuKey) {
+    const activeSudokuKey = appPersistence.activeGame.load()?.sudokuKey ?? activeGameLock.activeSudokuKey;
+    if (!activeSudokuKey) {
       return;
     }
 
-    if (routeSync.openStoredSudoku(activeGameLock.activeSudokuKey)) {
-      appPersistence.activeGame.claim(activeGameLock.activeSudokuKey);
+    if (routeSync.openStoredSudoku(activeSudokuKey)) {
+      appPersistence.activeGame.claim(activeSudokuKey);
       setActiveGameLocked(false);
       activeGameLock.clearLock();
     }

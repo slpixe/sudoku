@@ -117,6 +117,8 @@ export default [
       ".worktrees/**",
       "dist/**",
       "node_modules/**",
+      "playwright-report/**",
+      "test-results/**",
       "*.min.js",
       "coverage/**",
       "postcss.config.js",
