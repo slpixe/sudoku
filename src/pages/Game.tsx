@@ -16,9 +16,13 @@ import {useUserPreferences} from "src/context/UserPrefencesContext";
 import {ContinueOverlay} from "./Game/ContinueOverlay";
 import {GameHeader} from "./Game/GameHeader";
 import {GameProviders} from "./Game/GameProviders";
+import {ActiveGameLockOverlay} from "./Game/ActiveGameLockOverlay";
+import {useActiveGameLock} from "./Game/useActiveGameLock";
 import {useGameRouteSync} from "./Game/useGameRouteSync";
 import {getSudokuCollectionDisplayName} from "src/lib/game/collectionNames";
 import {deriveBoardData} from "src/lib/game/deriveBoardData";
+import {appPersistence} from "src/lib/persistence/appPersistence";
+import {cellsToSimpleSudoku, stringifySudoku} from "src/lib/engine/utility";
 
 const GameCompletionPanel = React.lazy(() =>
   import("./Game/GameCompletionPanel").then((module) => ({default: module.GameCompletionPanel})),
@@ -48,6 +52,9 @@ const GameInner: React.FC<{
   toggleShowConflicts: () => void;
   toggleShowOccurrences: () => void;
   toggleShowMatchingNumbers: () => void;
+  locked: boolean;
+  switchToActivePuzzle: () => void;
+  resumeThisPuzzleHere: () => void;
 }> = ({
   sudokuState,
   setSudoku,
@@ -72,6 +79,9 @@ const GameInner: React.FC<{
   toggleShowConflicts,
   toggleShowOccurrences,
   toggleShowMatchingNumbers,
+  locked,
+  switchToActivePuzzle,
+  resumeThisPuzzleHere,
 }) => {
   const canUndo = sudokuState.historyIndex < sudokuState.history.length - 1;
   const sudoku = sudokuState.current;
@@ -89,6 +99,18 @@ const GameInner: React.FC<{
   const collectionName = React.useMemo(() => {
     return getSudokuCollectionDisplayName(game.sudokuCollectionName);
   }, [game.sudokuCollectionName]);
+  const pausedGame = game.state === GameStateMachine.paused;
+  const activeCell = boardData.activeCell;
+  const lockedGame = locked && !game.won;
+  const hideBoardForPause = pausedGame && !game.won;
+  const hideBoardForLock = lockedGame;
+  const displayedSudoku = hideBoardForPause || hideBoardForLock ? emptyGrid : sudoku;
+  const displayedBoardData = hideBoardForPause || hideBoardForLock ? emptyBoardData : boardData;
+  const lockedGameRef = React.useRef(lockedGame);
+
+  React.useEffect(() => {
+    lockedGameRef.current = lockedGame;
+  }, [lockedGame]);
 
   React.useEffect(() => {
     const isSolved = SudokuGame.isSolved(sudoku);
@@ -100,12 +122,18 @@ const GameInner: React.FC<{
     if (document.visibilityState === "hidden") {
       pauseGame();
     } else {
+      if (lockedGame) {
+        return;
+      }
       // So the user knows that it was paused, we wait a bit before continuing.
       setTimeout(() => {
+        if (lockedGameRef.current) {
+          return;
+        }
         continueGame();
       }, 200);
     }
-  }, [pauseGame, continueGame]);
+  }, [lockedGame, pauseGame, continueGame]);
 
   React.useEffect(() => {
     if (typeof document !== "undefined") {
@@ -119,36 +147,32 @@ const GameInner: React.FC<{
     };
   }, [onVisibilityChange]);
 
-  const pausedGame = game.state === GameStateMachine.paused;
-  const activeCell = boardData.activeCell;
-  const hideBoardForPause = pausedGame && !game.won;
-  const displayedSudoku = hideBoardForPause ? emptyGrid : sudoku;
-  const displayedBoardData = hideBoardForPause ? emptyBoardData : boardData;
-
   return (
     <Container>
       <div>
-        <Shortcuts
-          gameState={game.state}
-          continueGame={continueGame}
-          pauseGame={pauseGame}
-          activateNotesMode={activateNotesMode}
-          deactivateNotesMode={deactivateNotesMode}
-          setNumber={setNumber}
-          clearNumber={clearCell}
-          getHint={getHint}
-          setNotes={setNotes}
-          undo={undo}
-          redo={redo}
-          boardData={boardData}
-          sudoku={sudoku}
-          activeCell={activeCell}
-          notesMode={game.notesMode}
-          showHints={userPreferencesState.showHints}
-          selectCell={selectCell}
-          clipboardNotes={game.clipboardNotes}
-          copyNotes={copyNotes}
-        />
+        {!lockedGame ? (
+          <Shortcuts
+            gameState={game.state}
+            continueGame={continueGame}
+            pauseGame={pauseGame}
+            activateNotesMode={activateNotesMode}
+            deactivateNotesMode={deactivateNotesMode}
+            setNumber={setNumber}
+            clearNumber={clearCell}
+            getHint={getHint}
+            setNotes={setNotes}
+            undo={undo}
+            redo={redo}
+            boardData={boardData}
+            sudoku={sudoku}
+            activeCell={activeCell}
+            notesMode={game.notesMode}
+            showHints={userPreferencesState.showHints}
+            selectCell={selectCell}
+            clipboardNotes={game.clipboardNotes}
+            copyNotes={copyNotes}
+          />
+        ) : null}
         <div className="flex justify-center">
           <main className={`sudoku-game-layout${game.won ? " sudoku-game-layout-complete" : ""} mt-3 grid w-full gap-3`}>
             <GameHeader
@@ -161,6 +185,7 @@ const GameInner: React.FC<{
               resetGame={resetGame}
               canUndo={canUndo}
               undo={undo}
+              locked={lockedGame}
             />
             <div className="sudoku-board-panel min-w-0">
               <Sudoku
@@ -170,7 +195,10 @@ const GameInner: React.FC<{
                 showMatchingNumbers={userPreferencesState.showMatchingNumbers && game.state === GameStateMachine.running}
                 notesMode={game.notesMode}
                 shouldShowMenu={
-                  game.showMenu && userPreferencesState.showCircleMenu && game.state === GameStateMachine.running
+                  !lockedGame &&
+                  game.showMenu &&
+                  userPreferencesState.showCircleMenu &&
+                  game.state === GameStateMachine.running
                 }
                 sudoku={displayedSudoku}
                 showMenu={showMenu}
@@ -181,7 +209,12 @@ const GameInner: React.FC<{
                 setNotes={setNotes}
                 clearNumber={clearCell}
               >
-                <ContinueOverlay visible={pausedGame && !game.won} onClick={continueGame} />
+                <ContinueOverlay visible={!lockedGame && pausedGame && !game.won} onClick={continueGame} />
+                <ActiveGameLockOverlay
+                  visible={lockedGame}
+                  onSwitchToActivePuzzle={switchToActivePuzzle}
+                  onResumeThisPuzzleHere={resumeThisPuzzleHere}
+                />
               </Sudoku>
             </div>
             {game.won ? (
@@ -196,7 +229,7 @@ const GameInner: React.FC<{
                   <SudokuMenuNumbers
                     layout="row"
                     notesMode={game.notesMode}
-                    disabled={pausedGame}
+                    disabled={pausedGame || lockedGame}
                     showOccurrences={userPreferencesState.showOccurrences}
                     activeCell={game.activeCellCoordinates}
                     boardData={boardData}
@@ -209,7 +242,7 @@ const GameInner: React.FC<{
                   <SudokuMenuControls
                     notesMode={game.notesMode}
                     activeCellCoordinates={game.activeCellCoordinates}
-                    disabled={pausedGame}
+                    disabled={pausedGame || lockedGame}
                     showConflicts={userPreferencesState.showConflicts}
                     showOccurrences={userPreferencesState.showOccurrences}
                     showMatchingNumbers={userPreferencesState.showMatchingNumbers}
@@ -262,7 +295,24 @@ const GameWithRouteManagement = () => {
     undo,
     redo,
   } = useSudoku();
-  useGameRouteSync({
+  const currentSudokuKey = React.useMemo(() => {
+    return stringifySudoku(cellsToSimpleSudoku(sudokuState.current));
+  }, [sudokuState]);
+  const [activeGameLocked, setActiveGameLocked] = React.useState(false);
+  const lockAndPauseGame = React.useCallback(() => {
+    setActiveGameLocked(true);
+    pauseGame();
+  }, [pauseGame]);
+  const claimRenderedSudoku = React.useCallback(
+    (sudokuKey: string) => {
+      if (sudokuKey === currentSudokuKey) {
+        appPersistence.currentGame.save(gameState, sudokuState);
+      }
+      return appPersistence.activeGame.claim(sudokuKey);
+    },
+    [currentSudokuKey, gameState, sudokuState],
+  );
+  const routeSync = useGameRouteSync({
     gameState,
     sudokuState,
     setGameState,
@@ -271,7 +321,38 @@ const GameWithRouteManagement = () => {
     newGame,
     continueGame,
     userPreferencesState,
+    saveDisabled: activeGameLocked,
   });
+  const activeGameLock = useActiveGameLock({
+    currentSudokuKey,
+    initialized: routeSync.initialized,
+    pauseGame: lockAndPauseGame,
+    claimActiveGame: claimRenderedSudoku,
+    ownerId: appPersistence.activeGame.ownerId(),
+    storageKey: appPersistence.activeGame.storageKey,
+  });
+
+  React.useEffect(() => {
+    setActiveGameLocked(activeGameLock.locked);
+  }, [activeGameLock.locked]);
+
+  const switchToActivePuzzle = React.useCallback(() => {
+    if (!activeGameLock.activeSudokuKey) {
+      return;
+    }
+
+    if (routeSync.openStoredSudoku(activeGameLock.activeSudokuKey)) {
+      appPersistence.activeGame.claim(activeGameLock.activeSudokuKey);
+      setActiveGameLocked(false);
+      activeGameLock.clearLock();
+    }
+  }, [activeGameLock, routeSync]);
+
+  const resumeThisPuzzleHere = React.useCallback(() => {
+    activeGameLock.resumeThisPuzzleHere();
+    setActiveGameLocked(false);
+    continueGame();
+  }, [activeGameLock, continueGame]);
 
   return (
     <GameInner
@@ -298,6 +379,9 @@ const GameWithRouteManagement = () => {
       toggleShowConflicts={toggleShowConflicts}
       toggleShowOccurrences={toggleShowOccurrences}
       toggleShowMatchingNumbers={toggleShowMatchingNumbers}
+      locked={activeGameLock.locked}
+      switchToActivePuzzle={switchToActivePuzzle}
+      resumeThisPuzzleHere={resumeThisPuzzleHere}
     />
   );
 };

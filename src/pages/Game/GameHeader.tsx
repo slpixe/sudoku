@@ -62,10 +62,23 @@ const ClearGameButton: React.FC<{
 }> = ({clearGame, pauseGame, continueGame, disabled}) => {
   const {t} = useTranslation();
   const dialog = useAppDialog();
+  const disabledRef = React.useRef(disabled);
+
+  React.useEffect(() => {
+    disabledRef.current = disabled;
+  }, [disabled]);
 
   const clearGameLocal = async () => {
+    if (disabledRef.current) {
+      return;
+    }
+
     pauseGame();
     const areYouSure = await dialog.confirm({message: t("confirm_clear")});
+    if (disabledRef.current) {
+      return;
+    }
+
     if (!areYouSure) {
       continueGame();
       return;
@@ -86,7 +99,7 @@ const ClearGameButton: React.FC<{
   );
 };
 
-const NewGameButton: React.FC<{pauseGame: () => void}> = ({pauseGame}) => {
+const NewGameButton: React.FC<{pauseGame: () => void; disabled?: boolean}> = ({pauseGame, disabled}) => {
   const navigate = useNavigate();
   const {t} = useTranslation();
 
@@ -101,6 +114,7 @@ const NewGameButton: React.FC<{pauseGame: () => void}> = ({pauseGame}) => {
     <Button
       className={`bg-teal-600 dark:bg-teal-600 text-white ${topBarActionButtonClass}`}
       data-testid="sudoku-action-new-game"
+      disabled={disabled}
       onClick={pauseAndChoose}
     >
       {t("new_game")}
@@ -124,7 +138,8 @@ export const GameHeader: React.FC<{
   resetGame: () => void;
   canUndo: boolean;
   undo: () => void;
-}> = ({game, sudokuState, collectionName, pauseGame, continueGame, setSudoku, resetGame, canUndo, undo}) => {
+  locked: boolean;
+}> = ({game, sudokuState, collectionName, pauseGame, continueGame, setSudoku, resetGame, canUndo, undo, locked}) => {
   const clearGame = () => {
     const simpleSudoku = cellsToSimpleSudoku(sudokuState.current);
     const solved = solve(simpleSudoku);
@@ -146,27 +161,27 @@ export const GameHeader: React.FC<{
         <GameTimer />
       </div>
       <div className="sudoku-header-actions flex shrink-0 items-center gap-1 sm:gap-2">
-        <DarkModeButton />
+        {!locked && <DarkModeButton />}
         <UndoButton
           canUndo={canUndo}
           className="sudoku-landscape-header-undo hidden min-h-0 px-2 py-1 text-sm sm:min-h-0 sm:px-2 sm:text-base md:min-h-0 md:px-2 md:py-1 md:text-base"
-          disabled={game.won || game.state === GameStateMachine.paused}
+          disabled={locked || game.won || game.state === GameStateMachine.paused}
           testId="sudoku-action-undo"
           undo={undo}
         />
         <ClearGameButton
           pauseGame={pauseGame}
           continueGame={continueGame}
-          disabled={game.won || game.state === GameStateMachine.paused}
+          disabled={locked || game.won || game.state === GameStateMachine.paused}
           clearGame={clearGame}
         />
         <PauseButton
-          disabled={game.won}
+          disabled={locked || game.won}
           paused={game.state === GameStateMachine.paused}
           continueGame={continueGame}
           pauseGame={pauseGame}
         />
-        <NewGameButton pauseGame={pauseGame} />
+        <NewGameButton pauseGame={pauseGame} disabled={locked} />
       </div>
     </header>
   );
