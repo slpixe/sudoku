@@ -38,7 +38,7 @@ export const CellNote = ({left, top, children}: {left: number; top: number; chil
   return (
     <div
       style={{top: `${top}%`, left: `${left}%`}}
-      className="sudoku-cell-note absolute -translate-x-1/2 -translate-y-1/2 leading-none text-sky-400"
+      className="sudoku-cell-note absolute -translate-x-1/2 -translate-y-1/2 leading-none text-emerald-500 dark:text-emerald-400"
     >
       {children}
     </div>

@@ -65,7 +65,7 @@ const SudokuMenuNumbers: React.FC<SudokuMenuNumbersProps> = ({
             className={clsx("relative flex items-center justify-center font-bold", {
               "aspect-square p-0 text-base sm:text-lg md:text-xl": layout === "row",
               "bg-red-400 dark:bg-red-400": showOccurrences && occurrences > 9,
-              "bg-sky-600 dark:bg-sky-600 text-white":
+              "bg-emerald-600 text-white dark:bg-emerald-500":
                 notesMode && userNotes.includes(n) && activeCellData?.number === 0,
               "bg-sky-300 dark:bg-sky-300":
                 notesMode &&
