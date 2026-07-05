@@ -48,7 +48,7 @@
   - `createPayloadGameSearch(sudoku: string, collectionId: string, puzzleNumber: number, restart?: boolean): GameRouteSearch`
   - `createGameRouteSudokuKey(params: {collectionId: string; puzzleNumber: number; sudoku: string}): string`
 
-- [ ] **Step 1: Write failing unit tests**
+- [x] **Step 1: Write failing unit tests**
 
 Create `src/pages/Game/gameRouteContract.test.ts`:
 
@@ -143,13 +143,13 @@ describe("game route contract", () => {
 });
 ```
 
-- [ ] **Step 2: Run the new unit tests and verify they fail**
+- [x] **Step 2: Run the new unit tests and verify they fail**
 
 Run: `pnpm test -- src/pages/Game/gameRouteContract.test.ts`
 
 Expected: FAIL with an import resolution error for `./gameRouteContract`.
 
-- [ ] **Step 3: Implement the helper**
+- [x] **Step 3: Implement the helper**
 
 Create `src/pages/Game/gameRouteContract.ts` with the exported types and functions named above. The implementation must:
 
@@ -160,13 +160,13 @@ Create `src/pages/Game/gameRouteContract.ts` with the exported types and functio
 - Use `"custom"` and `1` as exact-payload fallback metadata.
 - Sort search keys in `createGameRouteSearchKey()`.
 
-- [ ] **Step 4: Run the helper tests and verify they pass**
+- [x] **Step 4: Run the helper tests and verify they pass**
 
 Run: `pnpm test -- src/pages/Game/gameRouteContract.test.ts`
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/pages/Game/gameRouteContract.ts src/pages/Game/gameRouteContract.test.ts
