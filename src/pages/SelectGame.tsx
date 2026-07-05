@@ -23,7 +23,11 @@ const SelectGame = () => {
           <h1 className="text-2xl text-white">{t("select_game_title")}</h1>
           <div className="flex gap-2">
             <DarkModeButton />
-            <Button className="bg-teal-600 dark:bg-teal-600 text-white flex-shrink-0" onClick={goBack}>
+            <Button
+              className="bg-teal-600 dark:bg-teal-600 text-white flex-shrink-0"
+              data-testid="select-game-back"
+              onClick={goBack}
+            >
               {"◀ " + t("go_back")}
             </Button>
           </div>

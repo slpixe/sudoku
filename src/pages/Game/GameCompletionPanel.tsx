@@ -106,6 +106,7 @@ export const GameCompletionPanel: React.FC<{game: GameState}> = ({game}) => {
     >
       <div
         className="sudoku-completion-copy rounded-sm bg-white p-3 text-gray-900 shadow-sm dark:bg-gray-700 dark:text-white"
+        data-testid="sudoku-completion-copy"
         role="status"
       >
         <h2 className="text-base font-bold leading-tight sm:text-lg" id="sudoku-completion-title">
@@ -120,22 +121,17 @@ export const GameCompletionPanel: React.FC<{game: GameState}> = ({game}) => {
             })}
           />
           {bestTimeValue !== null ? (
-            <CompletionMetric
-              label={t("best_time_label")}
-              testId="sudoku-completion-best-time"
-              value={bestTimeValue}
-            />
+            <CompletionMetric label={t("best_time_label")} testId="sudoku-completion-best-time" value={bestTimeValue} />
           ) : null}
-          <CompletionMetric
-            label={t("this_time_label")}
-            testId="sudoku-completion-this-time"
-            value={thisTimeValue}
-          />
+          <CompletionMetric label={t("this_time_label")} testId="sudoku-completion-this-time" value={thisTimeValue} />
           {!nextSudokuParams ? <p>{t("collection_finished", {collection: collectionName})}</p> : null}
         </div>
       </div>
 
-      <div className="sudoku-completion-actions grid min-w-0 content-center gap-2 sm:min-w-36">
+      <div
+        className="sudoku-completion-actions grid min-w-0 content-center gap-2 sm:min-w-36"
+        data-testid="sudoku-completion-actions"
+      >
         {nextSudokuParams ? (
           <Button
             className="min-h-11 w-full bg-teal-700 px-3 py-2 text-sm text-white dark:bg-teal-600 sm:text-base"

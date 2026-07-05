@@ -1,7 +1,6 @@
 import {expect, type Locator, type Page, test} from "@playwright/test";
 
 const FIRST_PUZZLE = "534920700060007309900000010008700000496803002721594806000200940800046100003000000";
-const SECOND_PUZZLE = "009043005867002003040060027002086050930420000058397040300270900001000002724059030";
 const MEDIUM_FIRST_PUZZLE = "502000000003400000000005093700006002000003608008021070870032504106080020400070300";
 const SHORTCUT_MODIFIER = "Control";
 
@@ -59,11 +58,11 @@ async function expectGameSearch(page: Page, sudoku: string, sudokuIndex: number,
 }
 
 async function continueIfPaused(page: Page) {
-  const continueButton = page.getByRole("button", {name: "Continue"});
-  if (await continueButton.isVisible()) {
-    await continueButton.click();
+  const continueOverlay = page.getByTestId("continue-overlay");
+  if (await continueOverlay.isVisible()) {
+    await continueOverlay.click();
   }
-  await expect(page.getByRole("button", {name: "Pause"})).toBeVisible();
+  await expect(page.getByTestId("sudoku-action-pause")).toBeVisible();
 }
 
 async function selectCell(page: Page, x: number, y: number) {
@@ -84,7 +83,10 @@ async function expectStoredPreferences(page: Page, preferences: Record<string, b
 
 async function expectNoVerticalDocumentScroll(page: Page, name: string) {
   const overflow = await page.evaluate(() => {
-    return Math.max(document.body.scrollHeight, document.documentElement.scrollHeight) - document.documentElement.clientHeight;
+    return (
+      Math.max(document.body.scrollHeight, document.documentElement.scrollHeight) -
+      document.documentElement.clientHeight
+    );
   });
 
   expect(overflow, `${name} vertical overflow`).toBeLessThanOrEqual(1);
@@ -158,8 +160,14 @@ async function expectSameRow(locators: Locator[], name: string) {
   }
 }
 
+function visibleUndoButton(page: Page, viewportName: string) {
+  return viewportName.includes("landscape")
+    ? page.getByTestId("sudoku-action-undo")
+    : page.getByTestId("sudoku-control-undo");
+}
+
 async function expectCompactHeader(page: Page, name: string) {
-  const headerBox = await page.locator("header").boundingBox();
+  const headerBox = await page.getByTestId("sudoku-game-header").boundingBox();
 
   if (!headerBox) {
     throw new Error(`${name} header must have a visible box`);
@@ -210,9 +218,10 @@ async function expectNumberPadLabelLayout(page: Page, number: number, compact: b
     expect(fontSize, `${name} compact number label font size`).toBeGreaterThanOrEqual(20);
     expect(labelCenterX, `${name} compact number label x position`).toBeLessThan(buttonCenterX);
     expect(labelCenterY, `${name} compact number label y position`).toBeLessThan(buttonCenterY);
-    expect(labelBox.x + labelBox.width, `${name} compact label clears occurrence badge horizontally`).toBeLessThanOrEqual(
-      badgeBox.x + 1,
-    );
+    expect(
+      labelBox.x + labelBox.width,
+      `${name} compact label clears occurrence badge horizontally`,
+    ).toBeLessThanOrEqual(badgeBox.x + 1);
   } else {
     expect(Math.abs(labelCenterX - buttonCenterX), `${name} number label centered horizontally`).toBeLessThanOrEqual(6);
     expect(Math.abs(labelCenterY - buttonCenterY), `${name} number label centered vertically`).toBeLessThanOrEqual(6);
@@ -260,16 +269,16 @@ test("supports number entry, erase, undo, redo, notes, hints, and keyboard short
   await openGame(page);
 
   await selectCell(page, 5, 0);
-  await page.getByRole("button", {name: "Set 1"}).click();
+  await page.getByTestId("sudoku-number-1").click();
   await expect(cellValue(page, 5, 0)).toHaveText("1");
 
-  await page.getByRole("button", {name: "Erase"}).click();
+  await page.getByTestId("sudoku-control-erase").click();
   await expect(cellValue(page, 5, 0)).toHaveText("");
 
-  await page.getByRole("button", {name: "Set 2"}).click();
+  await page.getByTestId("sudoku-number-2").click();
   await expect(cellValue(page, 5, 0)).toHaveText("2");
 
-  await page.getByRole("button", {name: "Undo"}).click();
+  await page.getByTestId("sudoku-control-undo").click();
   await expect(cellValue(page, 5, 0)).toHaveText("");
 
   await page.keyboard.press(`${SHORTCUT_MODIFIER}+Y`);
@@ -309,18 +318,18 @@ test("supports number entry, erase, undo, redo, notes, hints, and keyboard short
   await expect(cellNotes(page, 0, 1)).toHaveText("");
 
   await page.keyboard.press("Escape");
-  await expect(page.getByRole("button", {name: "Continue"})).toBeVisible();
-  await expect(page.getByRole("button", {name: "Set 1"})).toBeDisabled();
-  await expect(page.getByRole("button", {name: "Undo"})).toBeDisabled();
-  await expect(page.getByRole("button", {name: "Erase"})).toBeDisabled();
-  await expect(page.getByRole("button", {name: /Notes (ON|OFF)/})).toBeDisabled();
-  await expect(page.getByRole("button", {name: /Hint\s+Active cell/})).toBeDisabled();
-  await expect(page.getByRole("button", {name: /Clash\s+(ON|OFF)/})).toBeDisabled();
-  await expect(page.getByRole("button", {name: /Count\s+(ON|OFF)/})).toBeDisabled();
-  await expect(page.getByRole("button", {name: "Resume game"})).toBeVisible();
-  await page.getByRole("button", {name: "Resume game"}).focus();
+  await expect(page.getByTestId("sudoku-action-pause")).toHaveAttribute("aria-label", "Continue");
+  await expect(page.getByTestId("sudoku-number-1")).toBeDisabled();
+  await expect(page.getByTestId("sudoku-control-undo")).toBeDisabled();
+  await expect(page.getByTestId("sudoku-control-erase")).toBeDisabled();
+  await expect(page.getByTestId("sudoku-control-notes")).toBeDisabled();
+  await expect(page.getByTestId("sudoku-control-hint")).toBeDisabled();
+  await expect(page.getByTestId("sudoku-toggle-conflicts")).toBeDisabled();
+  await expect(page.getByTestId("sudoku-toggle-occurrences")).toBeDisabled();
+  await expect(page.getByTestId("continue-overlay")).toBeVisible();
+  await page.getByTestId("continue-overlay").focus();
   await page.keyboard.press("Enter");
-  await expect(page.getByRole("button", {name: "Pause"})).toBeVisible();
+  await expect(page.getByTestId("sudoku-action-pause")).toHaveAttribute("aria-label", "Pause");
 });
 
 test("keeps the game layout visible in constrained viewports", async ({page}) => {
@@ -353,20 +362,16 @@ test("keeps the game layout visible in constrained viewports", async ({page}) =>
     await expect(page.getByText("Sudoku", {exact: true})).toHaveCount(0);
     await expectCompactHeader(page, viewport.name);
     await expectNoVerticalDocumentScroll(page, viewport.name);
-    await expectWithinViewport(page, page.getByRole("button", {name: "Toggle dark mode"}), `${viewport.name} theme toggle`);
-    await expectWithinViewport(page, page.getByRole("button", {name: "Clear"}), `${viewport.name} clear button`);
-    await expectWithinViewport(page, page.getByRole("button", {name: "Pause"}), `${viewport.name} pause button`);
-    await expectWithinViewport(page, page.getByRole("button", {name: "New game"}), `${viewport.name} new game button`);
+    await expectWithinViewport(page, page.getByTestId("sudoku-action-theme"), `${viewport.name} theme toggle`);
+    await expectWithinViewport(page, page.getByTestId("sudoku-action-clear"), `${viewport.name} clear button`);
+    await expectWithinViewport(page, page.getByTestId("sudoku-action-pause"), `${viewport.name} pause button`);
+    await expectWithinViewport(page, page.getByTestId("sudoku-action-new-game"), `${viewport.name} new game button`);
     await expectWithinViewport(page, page.getByTestId("sudoku-board"), `${viewport.name} board`);
     await expectInsideElement(cellValue(page, 0, 0), cell(page, 0, 0), `${viewport.name} board digit`);
-    await expectWithinViewport(page, page.getByRole("button", {name: "Set 5"}), `${viewport.name} number button`);
+    await expectWithinViewport(page, page.getByTestId("sudoku-number-5"), `${viewport.name} number button`);
     await expectOccurrenceBadgeWithinButton(page, 5, viewport.name);
-    await expectWithinViewport(page, page.getByRole("button", {name: "Undo"}), `${viewport.name} undo button`);
-    await expectWithinViewport(
-      page,
-      page.getByTestId("sudoku-toggle-occurrences"),
-      `${viewport.name} count toggle`,
-    );
+    await expectWithinViewport(page, visibleUndoButton(page, viewport.name), `${viewport.name} undo button`);
+    await expectWithinViewport(page, page.getByTestId("sudoku-toggle-occurrences"), `${viewport.name} count toggle`);
     await expectWithinViewport(
       page,
       page.getByTestId("sudoku-toggle-matching-numbers"),
@@ -376,9 +381,9 @@ test("keeps the game layout visible in constrained viewports", async ({page}) =>
     if (viewport.name.includes("landscape")) {
       await expectLeftToRight(
         [
-          page.getByRole("button", {name: "Toggle dark mode"}),
-          page.getByRole("button", {name: "Undo"}),
-          page.getByRole("button", {name: "Clear"}),
+          page.getByTestId("sudoku-action-theme"),
+          page.getByTestId("sudoku-action-undo"),
+          page.getByTestId("sudoku-action-clear"),
         ],
         `${viewport.name} header actions`,
       );
@@ -387,9 +392,9 @@ test("keeps the game layout visible in constrained viewports", async ({page}) =>
     if (viewport.name === "wide phone landscape") {
       await expectSameRow(
         [
-          page.getByRole("button", {name: "Erase"}),
-          page.getByRole("button", {name: /Notes\s+(ON|OFF)/}),
-          page.getByRole("button", {name: /Hint\s+Active cell/}),
+          page.getByTestId("sudoku-control-erase"),
+          page.getByTestId("sudoku-control-notes"),
+          page.getByTestId("sudoku-control-hint"),
           page.getByTestId("sudoku-toggle-conflicts"),
           page.getByTestId("sudoku-toggle-occurrences"),
           page.getByTestId("sudoku-toggle-matching-numbers"),
@@ -400,9 +405,9 @@ test("keeps the game layout visible in constrained viewports", async ({page}) =>
 
     if (viewport.name === "phone landscape") {
       await selectCell(page, 5, 0);
-      await page.getByRole("button", {name: /Notes\s+OFF/}).click();
-      await page.getByRole("button", {name: "Set 3"}).click();
-      await page.getByRole("button", {name: "Set 4"}).click();
+      await page.getByTestId("sudoku-control-notes").click();
+      await page.getByTestId("sudoku-number-3").click();
+      await page.getByTestId("sudoku-number-4").click();
       await expectInsideElement(
         cellNotes(page, 5, 0).getByText("3", {exact: true}),
         cell(page, 5, 0),
@@ -496,30 +501,30 @@ test("uses visible game preference toggles and dark mode", async ({page}) => {
   expect(keypadBox.y).toBeGreaterThan(boardBox.y + boardBox.height - 1);
   expect(Math.abs(keypadBox.width - keypadBox.height)).toBeLessThanOrEqual(1);
 
-  const undoBox = await page.getByRole("button", {name: "Undo"}).boundingBox();
+  const undoBox = await page.getByTestId("sudoku-control-undo").boundingBox();
   if (!undoBox) {
     throw new Error("Undo button must be visible");
   }
   expect(undoBox.y).toBeGreaterThan(keypadBox.y + keypadBox.height - 1);
 
   await selectCell(page, 5, 0);
-  await page.getByRole("button", {name: "Set 2"}).click();
+  await page.getByTestId("sudoku-number-2").click();
   await expect(cell(page, 5, 0)).toHaveAttribute("data-cell-conflict", "false");
   await expect(cell(page, 4, 0)).toHaveAttribute("data-cell-matching-number", "true");
 
-  await page.getByRole("button", {name: /Match\s+ON/}).click();
+  await page.getByTestId("sudoku-toggle-matching-numbers").click();
   await expect(page.getByTestId("sudoku-toggle-matching-numbers")).toHaveAttribute("aria-pressed", "false");
   await expect(cell(page, 4, 0)).toHaveAttribute("data-cell-matching-number", "false");
 
-  await page.getByRole("button", {name: /Match\s+OFF/}).click();
+  await page.getByTestId("sudoku-toggle-matching-numbers").click();
   await expect(page.getByTestId("sudoku-toggle-matching-numbers")).toHaveAttribute("aria-pressed", "true");
   await expect(cell(page, 4, 0)).toHaveAttribute("data-cell-matching-number", "true");
 
-  await page.getByRole("button", {name: /Clash\s+OFF/}).click();
+  await page.getByTestId("sudoku-toggle-conflicts").click();
   await expect(cell(page, 5, 0)).toHaveAttribute("data-cell-conflict", "true");
   await expect(page.getByTestId("sudoku-toggle-conflicts")).toHaveAttribute("aria-pressed", "true");
 
-  await page.getByRole("button", {name: /Count\s+OFF/}).click();
+  await page.getByTestId("sudoku-toggle-occurrences").click();
   await expect(page.getByTestId("sudoku-number-occurrences-5")).toBeVisible();
   await expect(page.getByTestId("sudoku-toggle-occurrences")).toHaveAttribute("aria-pressed", "true");
 
@@ -546,7 +551,7 @@ test("uses visible game preference toggles and dark mode", async ({page}) => {
     return document.documentElement.classList.contains("dark") || document.body.classList.contains("dark");
   });
 
-  await page.getByRole("button", {name: "Toggle dark mode"}).click();
+  await page.getByTestId("sudoku-action-theme").click();
   await expect
     .poll(() => {
       return page.evaluate(() => {
@@ -558,7 +563,7 @@ test("uses visible game preference toggles and dark mode", async ({page}) => {
   await expect(page.getByLabel("Select language")).toHaveCount(0);
 
   await page.reload();
-  await expect(page.getByRole("button", {name: "New game"})).toBeVisible();
+  await expect(page.getByTestId("sudoku-action-new-game")).toBeVisible();
 });
 
 test("uses browser language automatically", async ({page}) => {
@@ -578,22 +583,22 @@ test("clears the current game only after confirmation", async ({page}) => {
   await openGame(page);
 
   await selectCell(page, 5, 0);
-  await page.getByRole("button", {name: "Set 1"}).click();
+  await page.getByTestId("sudoku-number-1").click();
   await expect(cellValue(page, 5, 0)).toHaveText("1");
 
-  await page.getByRole("button", {name: "Clear"}).click();
-  const clearDialog = page.getByRole("dialog");
+  await page.getByTestId("sudoku-action-clear").click();
+  const clearDialog = page.getByTestId("app-dialog");
   await expect(clearDialog).toContainText("Are you sure you want to restart this game? Your progress will be lost.");
-  await clearDialog.getByRole("button", {name: "Cancel"}).click();
+  await page.getByTestId("app-dialog-cancel").click();
   await expect(clearDialog).toHaveCount(0);
-  await expect(page.getByRole("button", {name: "Pause"})).toBeVisible();
+  await expect(page.getByTestId("sudoku-action-pause")).toHaveAttribute("aria-label", "Pause");
   await expect(cellValue(page, 5, 0)).toHaveText("1");
 
-  await page.getByRole("button", {name: "Clear"}).click();
+  await page.getByTestId("sudoku-action-clear").click();
   await expect(clearDialog).toContainText("Are you sure you want to restart this game? Your progress will be lost.");
-  await clearDialog.getByRole("button", {name: "OK"}).click();
+  await page.getByTestId("app-dialog-confirm").click();
   await expect(clearDialog).toHaveCount(0);
-  await expect(page.getByRole("button", {name: "Pause"})).toBeVisible();
+  await expect(page.getByTestId("sudoku-action-pause")).toHaveAttribute("aria-label", "Pause");
   await expect(cellValue(page, 5, 0)).toHaveText("");
   await expectGameSearch(page, FIRST_PUZZLE, 1, "easy");
 });
@@ -602,29 +607,29 @@ test("changes games through the selection screen", async ({page}) => {
   await seedFinishedSudoku(page, MEDIUM_FIRST_PUZZLE, 1, "medium");
   await openGame(page);
 
-  await page.getByRole("button", {name: "New game"}).click();
+  await page.getByTestId("sudoku-action-new-game").click();
   await expect(page.getByRole("heading", {name: "Select Game"})).toBeVisible();
   await expect(page.getByRole("button", {name: "+ New Collection"})).toHaveCount(0);
   await expect(page.getByRole("button", {name: "Add sudoku +"})).toHaveCount(0);
   await expect(page.getByRole("button", {name: "Delete Collection"})).toHaveCount(0);
   await expect(page.getByText("Create new sudoku")).toHaveCount(0);
 
-  await page.getByRole("button", {name: "Medium"}).click();
-  const mediumPreview = page.getByRole("button", {name: "Select sudoku 1", exact: true});
+  await page.getByTestId("select-game-collection-medium").click();
+  const mediumPreview = page.getByTestId("sudoku-preview-1");
   await mediumPreview.focus();
   await expect(mediumPreview).toBeFocused();
   await page.keyboard.press("Enter");
 
-  const restartDialog = page.getByRole("dialog");
+  const restartDialog = page.getByTestId("app-dialog");
   await expect(restartDialog).toContainText("This will restart the sudoku and reset the timer");
-  await restartDialog.getByRole("button", {name: "Cancel"}).click();
+  await page.getByTestId("app-dialog-cancel").click();
   await expect(restartDialog).toHaveCount(0);
   await expect(page.getByRole("heading", {name: "Select Game"})).toBeVisible();
 
   await mediumPreview.focus();
   await page.keyboard.press("Enter");
   await expect(restartDialog).toContainText("This will restart the sudoku and reset the timer");
-  await restartDialog.getByRole("button", {name: "OK"}).click();
+  await page.getByTestId("app-dialog-confirm").click();
 
   await expect(page.getByTestId("current-game-label")).toHaveText("Medium #1");
   await expect(page).toHaveURL(/sudokuCollectionName=medium/);

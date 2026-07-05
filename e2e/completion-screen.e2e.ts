@@ -32,11 +32,11 @@ async function openGame(page: Page, sudoku = FIRST_PUZZLE, sudokuIndex = 1, coll
 }
 
 async function continueIfPaused(page: Page) {
-  const continueButton = page.getByRole("button", {name: "Continue"});
-  if (await continueButton.isVisible()) {
-    await continueButton.click();
+  const continueOverlay = page.getByTestId("continue-overlay");
+  if (await continueOverlay.isVisible()) {
+    await continueOverlay.click();
   }
-  await expect(page.getByRole("button", {name: "Pause"})).toBeVisible();
+  await expect(page.getByTestId("sudoku-action-pause")).toBeVisible();
 }
 
 async function selectCell(page: Page, x: number, y: number) {
@@ -192,7 +192,7 @@ test("solves a sudoku and starts the next game from the completion panel", async
   await openGame(page, ONE_EMPTY_CELL_PUZZLE);
 
   await selectCell(page, 8, 8);
-  await page.getByRole("button", {name: "Set 7"}).click();
+  await page.getByTestId("sudoku-number-7").click();
 
   const completionPanel = page.getByTestId("sudoku-completion-panel");
   await expect(completionPanel).toBeVisible();
@@ -200,7 +200,7 @@ test("solves a sudoku and starts the next game from the completion panel", async
   await expect(page.getByText(/Congrats, you won/)).toHaveCount(0);
   await expect(page.getByTestId("sudoku-board")).toBeVisible();
   await expect(cellValue(page, 8, 8)).toHaveText("7");
-  await expect(page.getByRole("button", {name: "Set 7"})).toHaveCount(0);
+  await expect(page.getByTestId("sudoku-number-7")).toHaveCount(0);
   await expect(page.getByTestId("sudoku-toggle-occurrences")).toHaveCount(0);
   await expect(page.getByTestId("sudoku-completion-next")).toBeFocused();
 
@@ -216,7 +216,7 @@ test("opens game selection from the completion panel", async ({page}) => {
   await openGame(page, ONE_EMPTY_CELL_PUZZLE);
 
   await selectCell(page, 8, 8);
-  await page.getByRole("button", {name: "Set 7"}).click();
+  await page.getByTestId("sudoku-number-7").click();
 
   await expect(page.getByTestId("sudoku-completion-panel")).toBeVisible();
   await page.getByTestId("sudoku-completion-new-game").click();
@@ -233,11 +233,11 @@ test("restarts the current completed puzzle when selecting it from completion ne
   await page.getByTestId("sudoku-completion-new-game").click();
   await expect(page.getByRole("heading", {name: "Select Game"})).toBeVisible();
 
-  await page.getByRole("button", {name: "Select sudoku 1", exact: true}).click();
-  await expect(page.getByRole("dialog")).toContainText("This will restart the sudoku and reset the timer");
-  await page.getByRole("dialog").getByRole("button", {name: "OK"}).click();
+  await page.getByTestId("sudoku-preview-1").click();
+  await expect(page.getByTestId("app-dialog")).toContainText("This will restart the sudoku and reset the timer");
+  await page.getByTestId("app-dialog-confirm").click();
 
-  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.getByTestId("app-dialog")).toHaveCount(0);
   await expect(page.getByTestId("sudoku-completion-panel")).toHaveCount(0);
   await expect(page.getByRole("heading", {name: "Solved"})).toHaveCount(0);
   await expect(cellValue(page, 5, 0)).toHaveText("");
@@ -264,18 +264,18 @@ for (const viewport of completionViewports) {
     }
 
     await selectCell(page, 8, 8);
-    await page.getByRole("button", {name: "Set 7"}).click();
+    await page.getByTestId("sudoku-number-7").click();
 
     const completionPanel = page.getByTestId("sudoku-completion-panel");
-    const completionCopy = page.locator(".sudoku-completion-copy");
-    const completionActions = page.locator(".sudoku-completion-actions");
+    const completionCopy = page.getByTestId("sudoku-completion-copy");
+    const completionActions = page.getByTestId("sudoku-completion-actions");
     await expect(completionPanel).toBeVisible();
     await expect(completionPanel.getByRole("heading", {name: "Solved"})).toBeVisible();
     await expectWithinViewport(page, board, `${viewport.name} completed board`);
     await expectWithinViewport(page, completionPanel, `${viewport.name} completion panel`);
     await expectInsideElement(completionCopy, completionPanel, `${viewport.name} completion copy`);
     await expectInsideElement(completionActions, completionPanel, `${viewport.name} completion actions`);
-    await expect(page.getByRole("button", {name: "Set 7"})).toHaveCount(0);
+    await expect(page.getByTestId("sudoku-number-7")).toHaveCount(0);
     await expect(page.getByTestId("sudoku-toggle-occurrences")).toHaveCount(0);
 
     const boardAfter = await board.boundingBox();
@@ -285,8 +285,14 @@ for (const viewport of completionViewports) {
 
     expect(Math.abs(boardAfter.x - boardBefore.x), `${viewport.name} completed board x shift`).toBeLessThanOrEqual(1);
     expect(Math.abs(boardAfter.y - boardBefore.y), `${viewport.name} completed board y shift`).toBeLessThanOrEqual(1);
-    expect(Math.abs(boardAfter.width - boardBefore.width), `${viewport.name} completed board width shift`).toBeLessThanOrEqual(1);
-    expect(Math.abs(boardAfter.height - boardBefore.height), `${viewport.name} completed board height shift`).toBeLessThanOrEqual(1);
+    expect(
+      Math.abs(boardAfter.width - boardBefore.width),
+      `${viewport.name} completed board width shift`,
+    ).toBeLessThanOrEqual(1);
+    expect(
+      Math.abs(boardAfter.height - boardBefore.height),
+      `${viewport.name} completed board height shift`,
+    ).toBeLessThanOrEqual(1);
 
     if (viewport.name === "mobile landscape") {
       await expectLeftToRight([board, completionPanel], `${viewport.name} completion layout`);
@@ -295,7 +301,7 @@ for (const viewport of completionViewports) {
     }
 
     if (viewport.landscape) {
-      await expect(page.locator(".sudoku-completion-copy")).toHaveCSS("text-align", "center");
+      await expect(page.getByTestId("sudoku-completion-copy")).toHaveCSS("text-align", "center");
       for (const metricName of ["solved-count", "best-time", "this-time"]) {
         const metricLabel = page.getByTestId(`sudoku-completion-${metricName}-label`);
         const metricValue = page.getByTestId(`sudoku-completion-${metricName}-value`);

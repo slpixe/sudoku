@@ -23,7 +23,7 @@ const selectGameViewports = [
 ];
 
 function previewCard(page: Page, id: number): Locator {
-  return page.getByTestId(`sudoku-preview-${id}`).locator("xpath=..");
+  return page.getByTestId(`select-game-card-${id}`);
 }
 
 async function expectInsideElement(inner: Locator, outer: Locator, name: string) {
@@ -144,13 +144,15 @@ test("shows restart confirmation dialog for finished games on select screen", as
   await page.goto("/#/select-game");
 
   const finishedCard = previewCard(page, 2);
-  const dialog = page.getByRole("dialog");
-  const cancelButton = dialog.getByRole("button", {name: "Cancel"});
-  const confirmButton = dialog.getByRole("button", {name: "OK"});
+  const dialog = page.getByTestId("app-dialog");
+  const cancelButton = page.getByTestId("app-dialog-cancel");
+  const confirmButton = page.getByTestId("app-dialog-confirm");
 
   await finishedCard.click();
   await expect(dialog).toBeVisible();
-  await expect(page.getByText("Are you sure? This will restart the sudoku and reset the timer.")).toBeVisible();
+  await expect(page.getByTestId("app-dialog-message")).toContainText(
+    "Are you sure? This will restart the sudoku and reset the timer.",
+  );
   await expect(cancelButton).toBeVisible();
   await expect(cancelButton).toHaveClass(/bg-gray-100/);
   await expect(cancelButton).toHaveClass(/border-gray-300/);
@@ -176,48 +178,50 @@ for (const viewport of selectGameViewports) {
 
     await expect(page.getByRole("heading", {name: "Select Game"})).toBeVisible();
     await expect(page.getByText("Select a new sudoku to play or continue with an already started game.")).toBeVisible();
-    await expect(page.getByRole("button", {name: "Easy"})).toBeVisible();
-    await expect(page.getByRole("button", {name: "Medium"})).toBeVisible();
+    await expect(page.getByTestId("select-game-collection-easy")).toBeVisible();
+    await expect(page.getByTestId("select-game-collection-medium")).toBeVisible();
 
     const unfinishedCard = previewCard(page, 1);
     const finishedCard = previewCard(page, 2);
     const freshCard = previewCard(page, 3);
+    const unfinishedStatus = page.getByTestId("select-game-card-status-1");
+    const finishedStatus = page.getByTestId("select-game-card-status-2");
 
     await expect(page.getByTestId("sudoku-preview-1")).toBeVisible();
     await expect(page.getByTestId("sudoku-preview-2")).toBeVisible();
     await expect(page.getByTestId("sudoku-preview-3")).toBeVisible();
     await expectInsideElement(
-      unfinishedCard.getByText("Continue", {exact: true}),
+      unfinishedStatus.getByText("Continue", {exact: true}),
       unfinishedCard,
       `${viewport.name} continue label`,
     );
     await expectInsideElement(
-      finishedCard.getByText("Restart?", {exact: true}),
+      finishedStatus.getByText("Restart?", {exact: true}),
       finishedCard,
       `${viewport.name} restart label`,
     );
     await expectPreviewNumberAboveMetadata(
       page,
       1,
-      unfinishedCard.getByText(/Play time:\s+21:05 min/),
+      unfinishedStatus.getByText(/Play time:\s+21:05 min/),
       `${viewport.name} unfinished preview number`,
     );
     await expectPreviewNumberAboveMetadata(
       page,
       2,
-      finishedCard.getByText(/Last time:\s+18:42 min/),
+      finishedStatus.getByText(/Last time:\s+18:42 min/),
       `${viewport.name} finished preview number`,
     );
 
-    await expect(unfinishedCard).toContainText(/Play time:\s+21:05 min/);
-    await expect(unfinishedCard).toContainText(/Best time:\s+19:35 min/);
-    await expect(unfinishedCard).toContainText("Solved 2 times");
-    await expect(unfinishedCard).toContainText("Continue");
+    await expect(unfinishedStatus).toContainText(/Play time:\s+21:05 min/);
+    await expect(unfinishedStatus).toContainText(/Best time:\s+19:35 min/);
+    await expect(unfinishedStatus).toContainText("Solved 2 times");
+    await expect(unfinishedStatus).toContainText("Continue");
 
-    await expect(finishedCard).toContainText(/Last time:\s+18:42 min/);
-    await expect(finishedCard).toContainText(/Best time:\s+16:05 min/);
-    await expect(finishedCard).toContainText("Solved 3 times");
-    await expect(finishedCard).toContainText("Restart?");
+    await expect(finishedStatus).toContainText(/Last time:\s+18:42 min/);
+    await expect(finishedStatus).toContainText(/Best time:\s+16:05 min/);
+    await expect(finishedStatus).toContainText("Solved 3 times");
+    await expect(finishedStatus).toContainText("Restart?");
 
     await expect(freshCard).not.toContainText(/Play time:|Last time:|Best time:|Solved|Continue|Restart\?/);
 

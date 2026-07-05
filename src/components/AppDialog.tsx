@@ -161,6 +161,7 @@ export function AppDialogProvider({children}: {children: React.ReactNode}) {
             aria-labelledby="app-dialog-title"
             aria-modal="true"
             className="w-full max-w-sm rounded-lg bg-white p-5 text-gray-900 shadow-xl dark:bg-gray-700 dark:text-white"
+            data-testid="app-dialog"
             onKeyDown={onDialogKeyDown}
             ref={dialogPanelRef}
             role="dialog"
@@ -168,19 +169,25 @@ export function AppDialogProvider({children}: {children: React.ReactNode}) {
             <h2 className="sr-only" id="app-dialog-title">
               {dialogTitle}
             </h2>
-            <p className="text-base" id="app-dialog-message">
+            <p className="text-base" data-testid="app-dialog-message" id="app-dialog-message">
               {dialog.options.message}
             </p>
             <div className="mt-6 flex justify-end gap-2">
               {dialog.type === "confirm" ? (
                 <Button
                   className="bg-gray-100 text-black border border-gray-300 hover:bg-gray-200 dark:bg-gray-500 dark:border-gray-400 dark:text-white dark:hover:bg-gray-400"
+                  data-testid="app-dialog-cancel"
                   onClick={() => closeDialog(false)}
                 >
                   {dialog.options.cancelLabel ?? t("dialog_cancel")}
                 </Button>
               ) : null}
-              <Button autoFocus className="bg-teal-600 text-white dark:bg-teal-600" onClick={() => closeDialog(true)}>
+              <Button
+                autoFocus
+                className="bg-teal-600 text-white dark:bg-teal-600"
+                data-testid="app-dialog-confirm"
+                onClick={() => closeDialog(true)}
+              >
                 {confirmLabel}
               </Button>
             </div>

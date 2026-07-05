@@ -14,11 +14,17 @@ export const UndoButton: React.FC<{
   canUndo: boolean;
   className?: string;
   disabled?: boolean;
+  testId?: string;
   undo: () => void;
-}> = ({canUndo, className, disabled = false, undo}) => {
+}> = ({canUndo, className, disabled = false, testId = "sudoku-control-undo", undo}) => {
   const {t} = useTranslation();
   return (
-    <Button disabled={disabled || !canUndo} onClick={undo} className={clsx(controlButtonClass, className)}>
+    <Button
+      className={clsx(controlButtonClass, className)}
+      data-testid={testId}
+      disabled={disabled || !canUndo}
+      onClick={undo}
+    >
       {t("undo_btn")}
     </Button>
   );
@@ -32,6 +38,7 @@ export const EraseButton: React.FC<{
   const {t} = useTranslation();
   return (
     <Button
+      data-testid="sudoku-control-erase"
       disabled={disabled}
       className={controlButtonClass}
       onClick={() => activeCellCoordinates && clearCell(activeCellCoordinates)}
@@ -50,6 +57,7 @@ const NotesButton: React.FC<{
   const {t} = useTranslation();
   return (
     <Button
+      data-testid="sudoku-control-notes"
       disabled={disabled}
       onClick={() => (notesMode ? deactivateNotesMode() : activateNotesMode())}
       className={`${controlButtonClass} flex-col gap-0.5 py-1 md:py-1`}
@@ -73,6 +81,7 @@ const HintButton: React.FC<{
   const {t} = useTranslation();
   return (
     <Button
+      data-testid="sudoku-control-hint"
       disabled={disabled || !activeCellCoordinates}
       className={`${controlButtonClass} flex-col gap-0.5 py-1 md:py-1`}
       onClick={() => activeCellCoordinates && getHint(activeCellCoordinates)}

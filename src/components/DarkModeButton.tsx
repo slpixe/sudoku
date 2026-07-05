@@ -38,6 +38,7 @@ export const DarkModeButton = () => {
   return (
     <button
       aria-label="Toggle dark mode"
+      data-testid="sudoku-action-theme"
       onClick={toggleDarkMode}
       className="md:h-10 md:w-10 h-8 w-8 rounded-sm p-1 touch-manipulation hover:bg-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-800"
     >

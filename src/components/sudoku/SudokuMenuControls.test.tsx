@@ -58,6 +58,10 @@ describe("SudokuMenuControls", () => {
   it("renders visible preference toggles with pressed state", () => {
     const html = renderControls({showConflicts: true, showOccurrences: false, showMatchingNumbers: true});
 
+    expect(html).toContain('data-testid="sudoku-control-undo"');
+    expect(html).toContain('data-testid="sudoku-control-erase"');
+    expect(html).toContain('data-testid="sudoku-control-notes"');
+    expect(html).toContain('data-testid="sudoku-control-hint"');
     expect(html).toContain('data-testid="sudoku-toggle-conflicts"');
     expect(html).toContain('data-testid="sudoku-toggle-occurrences"');
     expect(html).toContain('data-testid="sudoku-toggle-matching-numbers"');

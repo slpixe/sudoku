@@ -70,7 +70,7 @@ const PageSelector = ({
 
   return (
     <div className="flex justify-center items-center space-x-2 py-4">
-      <Button onClick={() => setPage(page - 1)} disabled={page === 0}>
+      <Button data-testid="select-game-pagination-prev" onClick={() => setPage(page - 1)} disabled={page === 0}>
         {"‹"}
       </Button>
 
@@ -80,6 +80,7 @@ const PageSelector = ({
             <span className="px-2 text-gray-500">...</span>
           ) : (
             <Button
+              data-testid={`select-game-pagination-page-${pageNum}`}
               onClick={() => setPage((pageNum as number) - 1)}
               className={pageNum === page + 1 ? "bg-teal-600 dark:bg-teal-600 text-white" : ""}
             >
@@ -89,7 +90,11 @@ const PageSelector = ({
         </React.Fragment>
       ))}
 
-      <Button onClick={() => setPage(page + 1)} disabled={page === pageCount - 1}>
+      <Button
+        data-testid="select-game-pagination-next"
+        onClick={() => setPage(page + 1)}
+        disabled={page === pageCount - 1}
+      >
         {"›"}
       </Button>
     </div>
@@ -137,9 +142,12 @@ const SudokuToSelect = ({
   const size = useElementWidth(sudokuContainerRef);
 
   return (
-    <div className="relative" ref={sudokuContainerRef}>
+    <div className="relative" data-testid={`select-game-card-${index + 1}`} ref={sudokuContainerRef}>
       {unfinished || finished ? (
-        <div className="pointer-events-none absolute left-2 rounded-sm bottom-2 z-10 max-w-min bg-gray-900 px-2 py-1 text-xs text-white md:text-base">
+        <div
+          className="pointer-events-none absolute left-2 rounded-sm bottom-2 z-10 max-w-min bg-gray-900 px-2 py-1 text-xs text-white md:text-base"
+          data-testid={`select-game-card-status-${index + 1}`}
+        >
           <div>
             <div className="whitespace-nowrap">{`
               ${unfinished ? t("play_time") : t("last_time")}
@@ -197,7 +205,7 @@ const GameIndex = ({
 
   return (
     <div>
-      <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4" data-testid="select-game-grid">
         {pageSudokus.map((sudoku, index) => {
           const globalIndex = pageStart + index;
           const sudokuKey = stringifySudoku(sudoku.sudoku);
@@ -243,6 +251,7 @@ const GameSelect: React.FC = () => {
             <TabItem
               key={collection.id}
               active={activeCollection.id === collection.id}
+              data-testid={`select-game-collection-${collection.id}`}
               onClick={() => setActiveCollectionAndResetPage(collection.id)}
             >
               {translateCollectionName(collection.name)}

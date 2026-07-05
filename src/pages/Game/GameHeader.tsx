@@ -44,6 +44,7 @@ function PauseButton({
     <Button
       aria-label={paused ? t("continue") : t("pause")}
       className={topBarActionButtonClass}
+      data-testid="sudoku-action-pause"
       disabled={disabled}
       onClick={paused ? continueGame : pauseGame}
     >
@@ -73,8 +74,13 @@ const ClearGameButton: React.FC<{
     clearGame();
   };
 
-    return (
-    <Button className={topBarActionButtonClass} disabled={disabled} onClick={clearGameLocal}>
+  return (
+    <Button
+      className={topBarActionButtonClass}
+      data-testid="sudoku-action-clear"
+      disabled={disabled}
+      onClick={clearGameLocal}
+    >
       {t("clear")}
     </Button>
   );
@@ -94,6 +100,7 @@ const NewGameButton: React.FC<{pauseGame: () => void}> = ({pauseGame}) => {
   return (
     <Button
       className={`bg-teal-600 dark:bg-teal-600 text-white ${topBarActionButtonClass}`}
+      data-testid="sudoku-action-new-game"
       onClick={pauseAndChoose}
     >
       {t("new_game")}
@@ -128,7 +135,10 @@ export const GameHeader: React.FC<{
   };
 
   return (
-    <header className="sudoku-game-header flex items-center justify-between gap-2 pt-4 text-sm sm:text-base">
+    <header
+      className="sudoku-game-header flex items-center justify-between gap-2 pt-4 text-sm sm:text-base"
+      data-testid="sudoku-game-header"
+    >
       <div className="sudoku-header-meta flex min-w-0 items-center gap-2 text-white">
         <DifficultyShow className="truncate text-white capitalize" data-testid="current-game-label">
           {`${collectionName} #${game.sudokuIndex + 1}`}
@@ -141,6 +151,7 @@ export const GameHeader: React.FC<{
           canUndo={canUndo}
           className="sudoku-landscape-header-undo hidden min-h-0 px-2 py-1 text-sm sm:min-h-0 sm:px-2 sm:text-base md:min-h-0 md:px-2 md:py-1 md:text-base"
           disabled={game.won || game.state === GameStateMachine.paused}
+          testId="sudoku-action-undo"
           undo={undo}
         />
         <ClearGameButton
