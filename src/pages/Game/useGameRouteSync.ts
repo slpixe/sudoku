@@ -94,6 +94,7 @@ export function useGameRouteSync({
   newGame,
   continueGame,
   userPreferencesState,
+  saveDisabled = false,
 }: {
   gameState: GameState;
   sudokuState: SudokuState;
@@ -109,6 +110,7 @@ export function useGameRouteSync({
   ) => void;
   continueGame: () => void;
   userPreferencesState: UserPreferences;
+  saveDisabled?: boolean;
 }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -162,11 +164,18 @@ export function useGameRouteSync({
       return;
     }
 
+    if (saveDisabled) {
+      throttledSave.cancel();
+    }
+
     if (routeSudoku && routeSudoku.key !== syncedRouteKeyRef.current) {
       return;
     }
 
-    throttledSave(gameState, sudokuState);
+    if (!saveDisabled) {
+      throttledSave(gameState, sudokuState);
+    }
+
     const stringifiedSudoku = stringifySudoku(cellsToSimpleSudoku(sudokuState.current));
     const nextSearch = {
       sudokuIndex: gameState.sudokuIndex + 1,
@@ -183,7 +192,7 @@ export function useGameRouteSync({
         search: nextSearch,
       });
     }
-  }, [gameState, sudokuState, initialized, currentPath, routeSudoku, navigate]);
+  }, [gameState, sudokuState, initialized, currentPath, routeSudoku, navigate, saveDisabled]);
 
   React.useEffect(() => {
     if (currentPath !== "/") {
@@ -295,4 +304,28 @@ export function useGameRouteSync({
     setSudoku,
     replaceRouteWithGameState,
   ]);
+
+  const openStoredSudoku = React.useCallback(
+    (sudokuKey: string) => {
+      const storedSudoku = appPersistence.playedSudokus.load(sudokuKey);
+      if (!storedSudoku) {
+        return false;
+      }
+
+      const storedSudokuState = {
+        current: storedSudoku.sudoku,
+        history: [storedSudoku.sudoku],
+        historyIndex: 0,
+      };
+
+      setGameState({...storedSudoku.game});
+      setSudokuState(storedSudokuState);
+      replaceRouteWithGameState(storedSudoku.game, storedSudokuState);
+      continueGame();
+      return true;
+    },
+    [continueGame, replaceRouteWithGameState, setGameState, setSudokuState],
+  );
+
+  return {initialized, openStoredSudoku};
 }
