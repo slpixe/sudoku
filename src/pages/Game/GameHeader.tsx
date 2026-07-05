@@ -59,14 +59,17 @@ const ClearGameButton: React.FC<{
   pauseGame: () => void;
   continueGame: () => void;
   disabled: boolean;
-}> = ({clearGame, pauseGame, continueGame, disabled}) => {
+  blocked: boolean;
+}> = ({clearGame, pauseGame, continueGame, disabled, blocked}) => {
   const {t} = useTranslation();
   const dialog = useAppDialog();
   const disabledRef = React.useRef(disabled);
+  const blockedRef = React.useRef(blocked);
 
   React.useEffect(() => {
     disabledRef.current = disabled;
-  }, [disabled]);
+    blockedRef.current = blocked;
+  }, [blocked, disabled]);
 
   const clearGameLocal = async () => {
     if (disabledRef.current) {
@@ -75,12 +78,15 @@ const ClearGameButton: React.FC<{
 
     pauseGame();
     const areYouSure = await dialog.confirm({message: t("confirm_clear")});
-    if (disabledRef.current) {
+
+    if (!areYouSure) {
+      if (!blockedRef.current) {
+        continueGame();
+      }
       return;
     }
 
-    if (!areYouSure) {
-      continueGame();
+    if (blockedRef.current) {
       return;
     }
 
@@ -173,6 +179,7 @@ export const GameHeader: React.FC<{
           pauseGame={pauseGame}
           continueGame={continueGame}
           disabled={locked || game.won || game.state === GameStateMachine.paused}
+          blocked={locked || game.won}
           clearGame={clearGame}
         />
         <PauseButton

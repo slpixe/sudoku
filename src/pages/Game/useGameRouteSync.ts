@@ -4,7 +4,7 @@ import {useLocation, useNavigate} from "@tanstack/react-router";
 import throttle from "lodash-es/throttle";
 import {useTranslation} from "react-i18next";
 import {useAppDialog} from "src/components/AppDialog";
-import {GameState} from "src/context/GameContext";
+import {GameStateMachine, type GameState} from "src/context/GameContext";
 import {SudokuState} from "src/context/SudokuContext";
 import {translateCollectionName} from "src/lib/database/collections";
 import type {UserPreferences} from "src/lib/database/userPreferences";
@@ -92,6 +92,7 @@ export function useGameRouteSync({
   setSudokuState,
   setSudoku,
   newGame,
+  pauseGame,
   continueGame,
   userPreferencesState,
   saveDisabled = false,
@@ -108,6 +109,7 @@ export function useGameRouteSync({
     previousTimes: number[],
     preferences: UserPreferences,
   ) => void;
+  pauseGame: () => void;
   continueGame: () => void;
   userPreferencesState: UserPreferences;
   saveDisabled?: boolean;
@@ -221,7 +223,20 @@ export function useGameRouteSync({
       }
 
       console.info("Loading sudoku from URL", routeSudoku.sudokuIndex, routeSudoku.sudoku, routeSudoku.sudokuCollectionName);
+      const wasRunning = currentGameState.state === GameStateMachine.running;
+      const pauseForDialog = () => {
+        if (wasRunning) {
+          pauseGame();
+        }
+      };
+      const resumeExistingGame = () => {
+        if (wasRunning) {
+          continueGame();
+        }
+      };
+
       if (currentGameState.secondsPlayed > 5 && !currentGameState.won) {
+        pauseForDialog();
         const areYouSure = await dialog.confirm({
           message: translate("confirm_new_game", {
             currentCollectionName: translateCollectionName(currentGameState.sudokuCollectionName),
@@ -236,6 +251,7 @@ export function useGameRouteSync({
         if (!areYouSure) {
           setInitialized(true);
           replaceRouteWithGameState(currentGameState, currentSudokuState);
+          resumeExistingGame();
           return;
         }
       }
@@ -246,15 +262,18 @@ export function useGameRouteSync({
         if (solvedSudoku.sudoku) {
           setSudoku(parsedSudoku, solvedSudoku.sudoku);
         } else {
+          pauseForDialog();
           await dialog.alert({message: translate("invalid_sudoku_url")});
           if (cancelled) {
             return;
           }
           setInitialized(true);
           replaceRouteWithGameState(currentGameState, currentSudokuState);
+          resumeExistingGame();
           return;
         }
       } catch (error) {
+        pauseForDialog();
         await dialog.alert({message: translate("invalid_sudoku_url")});
         if (cancelled) {
           return;
@@ -262,6 +281,7 @@ export function useGameRouteSync({
         setInitialized(true);
         console.error(error);
         replaceRouteWithGameState(currentGameState, currentSudokuState);
+        resumeExistingGame();
         return;
       }
 
@@ -299,6 +319,7 @@ export function useGameRouteSync({
     dialog,
     setGameState,
     setSudokuState,
+    pauseGame,
     continueGame,
     newGame,
     setSudoku,

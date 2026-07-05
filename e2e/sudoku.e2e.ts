@@ -2,6 +2,7 @@ import {expect, type Locator, type Page, test} from "@playwright/test";
 
 const FIRST_PUZZLE = "534920700060007309900000010008700000496803002721594806000200940800046100003000000";
 const MEDIUM_FIRST_PUZZLE = "502000000003400000000005093700006002000003608008021070870032504106080020400070300";
+const SECOND_PUZZLE = "009043005867002003040060027002086050930420000058397040300270900001000002724059030";
 const SHORTCUT_MODIFIER = "Control";
 
 function gameUrl(sudoku = FIRST_PUZZLE, sudokuIndex = 1, sudokuCollectionName = "easy") {
@@ -614,6 +615,23 @@ test("clears the current game only after confirmation", async ({page}) => {
   await expectGameSearch(page, FIRST_PUZZLE, 1, "easy");
 });
 
+test("pauses the timer while confirming a route puzzle change", async ({page}) => {
+  await openGame(page);
+  await expect(page.getByTestId("game-timer")).toHaveText("00:06 min", {timeout: 7000});
+
+  await page.goto(gameUrl(SECOND_PUZZLE, 2, "easy"));
+  const restartDialog = page.getByTestId("app-dialog");
+  await expect(restartDialog).toContainText("do you want to pause it and start Easy #2");
+
+  const timerWhileDialogOpened = await page.getByTestId("game-timer").textContent();
+  await page.waitForTimeout(1400);
+  await expect(page.getByTestId("game-timer")).toHaveText(timerWhileDialogOpened ?? "");
+
+  await page.getByTestId("app-dialog-cancel").click();
+  await expect(restartDialog).toHaveCount(0);
+  await expect(page.getByTestId("sudoku-action-pause")).toHaveAttribute("aria-label", "Pause");
+});
+
 test("changes games through the selection screen", async ({page}) => {
   await seedFinishedSudoku(page, MEDIUM_FIRST_PUZZLE, 1, "medium");
   await openGame(page);
@@ -651,7 +669,7 @@ test("locks older tabs when another tab claims a different active puzzle", async
   const pageB = await context.newPage();
 
   await openGame(pageA, FIRST_PUZZLE, 1, "easy", "Easy");
-  await openGame(pageB, MEDIUM_FIRST_PUZZLE, 1, "medium", "Medium");
+  await openGame(pageB, SECOND_PUZZLE, 2, "easy", "Easy");
 
   await expect(pageA.getByTestId("active-game-lock-overlay")).toBeVisible();
   await expect(cellValue(pageA, 0, 0)).toHaveText("");
@@ -659,8 +677,8 @@ test("locks older tabs when another tab claims a different active puzzle", async
 
   await pageA.getByTestId("active-game-lock-switch").click();
   await expect(pageA.getByTestId("active-game-lock-overlay")).toHaveCount(0);
-  await expect(pageA.getByTestId("current-game-label")).toHaveText("Medium #1");
-  await expectGameSearch(pageA, MEDIUM_FIRST_PUZZLE, 1, "medium");
+  await expect(pageA.getByTestId("current-game-label")).toHaveText("Easy #2");
+  await expectGameSearch(pageA, SECOND_PUZZLE, 2, "easy");
 
   await pageA.goto(gameUrl(FIRST_PUZZLE, 1, "easy"));
   await expect(pageA.getByTestId("current-game-label")).toHaveText("Easy #1");
@@ -668,8 +686,25 @@ test("locks older tabs when another tab claims a different active puzzle", async
 
   await pageB.getByTestId("active-game-lock-resume").click();
   await expect(pageB.getByTestId("active-game-lock-overlay")).toHaveCount(0);
-  await expect(pageB.getByTestId("current-game-label")).toHaveText("Medium #1");
+  await expect(pageB.getByTestId("current-game-label")).toHaveText("Easy #2");
   await expect(pageA.getByTestId("active-game-lock-overlay")).toBeVisible();
+
+  await pageB.close();
+});
+
+test("locks older tabs when another tab claims the same active puzzle", async ({context, page}) => {
+  const pageA = page;
+  const pageB = await context.newPage();
+
+  await openGame(pageA, FIRST_PUZZLE, 1, "easy", "Easy");
+  await openGame(pageB, FIRST_PUZZLE, 1, "easy", "Easy");
+
+  await expect(pageA.getByTestId("active-game-lock-overlay")).toBeVisible();
+  await expect(cellValue(pageA, 0, 0)).toHaveText("");
+
+  await pageA.getByTestId("active-game-lock-resume").click();
+  await expect(pageA.getByTestId("active-game-lock-overlay")).toHaveCount(0);
+  await expect(pageB.getByTestId("active-game-lock-overlay")).toBeVisible();
 
   await pageB.close();
 });

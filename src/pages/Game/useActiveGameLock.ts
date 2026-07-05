@@ -13,12 +13,8 @@ type ActiveGameLockState =
       activeSudokuKey: string;
     };
 
-export function shouldLockForActiveGame(
-  activeGame: ActiveGameRecord | undefined,
-  ownerId: string,
-  currentSudokuKey: string,
-) {
-  return Boolean(activeGame && activeGame.ownerId !== ownerId && activeGame.sudokuKey !== currentSudokuKey);
+export function shouldLockForActiveGame(activeGame: ActiveGameRecord | undefined, ownerId: string) {
+  return Boolean(activeGame && activeGame.ownerId !== ownerId);
 }
 
 export function shouldClaimCurrentSudoku({
@@ -84,7 +80,7 @@ export function useActiveGameLock({
       }
 
       const activeGame = parseActiveGameRecord(event.newValue);
-      if (activeGame === undefined || !shouldLockForActiveGame(activeGame, ownerId, currentSudokuKey)) {
+      if (activeGame === undefined || !shouldLockForActiveGame(activeGame, ownerId)) {
         return;
       }
 

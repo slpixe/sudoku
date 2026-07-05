@@ -319,6 +319,7 @@ const GameWithRouteManagement = () => {
     setSudokuState,
     setSudoku,
     newGame,
+    pauseGame,
     continueGame,
     userPreferencesState,
     saveDisabled: activeGameLocked,

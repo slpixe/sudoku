@@ -4,21 +4,15 @@ import {shouldClaimCurrentSudoku, shouldLockForActiveGame} from "./useActiveGame
 
 describe("useActiveGameLock", () => {
   it("locks when another owner claims a different puzzle", () => {
-    expect(
-      shouldLockForActiveGame({sudokuKey: "puzzle-b", ownerId: "owner-b", updatedAt: 1}, "owner-a", "puzzle-a"),
-    ).toBe(true);
+    expect(shouldLockForActiveGame({sudokuKey: "puzzle-b", ownerId: "owner-b", updatedAt: 1}, "owner-a")).toBe(true);
   });
 
-  it("does not lock when another owner claims the same puzzle", () => {
-    expect(
-      shouldLockForActiveGame({sudokuKey: "puzzle-a", ownerId: "owner-b", updatedAt: 1}, "owner-a", "puzzle-a"),
-    ).toBe(false);
+  it("locks when another owner claims the same puzzle", () => {
+    expect(shouldLockForActiveGame({sudokuKey: "puzzle-a", ownerId: "owner-b", updatedAt: 1}, "owner-a")).toBe(true);
   });
 
   it("does not lock for this tab's own claim", () => {
-    expect(
-      shouldLockForActiveGame({sudokuKey: "puzzle-b", ownerId: "owner-a", updatedAt: 1}, "owner-a", "puzzle-a"),
-    ).toBe(false);
+    expect(shouldLockForActiveGame({sudokuKey: "puzzle-b", ownerId: "owner-a", updatedAt: 1}, "owner-a")).toBe(false);
   });
 
   it("does not claim again when the current puzzle was already claimed", () => {
