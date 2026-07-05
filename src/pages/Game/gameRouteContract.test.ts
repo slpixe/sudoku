@@ -6,6 +6,7 @@ import {
   createGameRouteSudokuKey,
   createPayloadGameSearch,
   parseGameRouteIntent,
+  shouldUseCompactGameSearch,
 } from "./gameRouteContract";
 
 describe("game route contract", () => {
@@ -83,6 +84,17 @@ describe("game route contract", () => {
     );
     expect(createGameRouteSudokuKey({collectionId: "easy", puzzleNumber: 1, sudoku: "123"})).toBe(
       JSON.stringify(["easy", 1, "123"]),
+    );
+  });
+
+  it("uses compact search when collection puzzle metadata matches the payload", () => {
+    expect(shouldUseCompactGameSearch({sudoku: "123", collectionSudoku: "123", hasPuzzleMetadata: true})).toBe(true);
+  });
+
+  it("keeps payload search when collection puzzle metadata does not match the payload", () => {
+    expect(shouldUseCompactGameSearch({sudoku: "123", collectionSudoku: "456", hasPuzzleMetadata: true})).toBe(false);
+    expect(shouldUseCompactGameSearch({sudoku: "123", collectionSudoku: undefined, hasPuzzleMetadata: false})).toBe(
+      false,
     );
   });
 });

@@ -12,6 +12,7 @@ import {Collection, translateCollectionName} from "src/lib/database/collections"
 import {useTranslation} from "react-i18next";
 import {useAppDialog} from "src/components/AppDialog";
 import {appPersistence, StoredPlayedSudokuState} from "src/lib/persistence/appPersistence";
+import {createCompactGameSearch} from "./gameRouteContract";
 
 const TabItem = ({active, children, ...props}: React.ButtonHTMLAttributes<HTMLButtonElement> & {active: boolean}) => (
   <button
@@ -126,15 +127,9 @@ const SudokuToSelect = ({
         return;
       }
     }
-    const nextSearch = {
-      sudokuIndex: index + 1,
-      sudoku: stringifySudoku(sudoku.sudoku),
-      sudokuCollectionName: sudokuCollectionName,
-      ...(finished ? {restart: "1"} : {}),
-    };
     navigate({
       to: "/",
-      search: nextSearch,
+      search: createCompactGameSearch(sudokuCollectionName, index + 1, Boolean(finished)),
     });
   };
 

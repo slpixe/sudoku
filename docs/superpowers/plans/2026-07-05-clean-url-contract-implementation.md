@@ -185,7 +185,7 @@ git commit -m "feat: add game route contract helper"
 - Consumes Task 1 helper exports.
 - Produces compact normal navigation and route replacement for known collection/index puzzles.
 
-- [ ] **Step 1: Write focused failing route-sync tests where possible**
+- [x] **Step 1: Write focused failing route-sync tests where possible**
 
 Extend `src/pages/Game/gameRouteContract.test.ts` with tests for known collection payload normalization decisions:
 
@@ -206,7 +206,7 @@ Run: `pnpm test -- src/pages/Game/gameRouteContract.test.ts`
 
 Expected: FAIL because `shouldUseCompactGameSearch` is not exported yet.
 
-- [ ] **Step 2: Add `shouldUseCompactGameSearch`**
+- [x] **Step 2: Add `shouldUseCompactGameSearch`**
 
 Update `src/pages/Game/gameRouteContract.ts`:
 
@@ -224,7 +224,7 @@ export function shouldUseCompactGameSearch({
 }
 ```
 
-- [ ] **Step 3: Share collection lookup**
+- [x] **Step 3: Share collection lookup**
 
 Update `src/lib/game/sudokus.ts` to export:
 
@@ -243,13 +243,13 @@ export function getCollection(collectionId: string) {
 
 Then update `useSudokuCollections()` so its `getCollection` callback delegates to this exported function.
 
-- [ ] **Step 4: Update selection and completion navigation**
+- [x] **Step 4: Update selection and completion navigation**
 
 In `GameSelect`, replace the normal `nextSearch` shape with `createCompactGameSearch(sudokuCollectionName, index + 1, Boolean(finished))` and remove the no-longer-needed `stringifySudoku` import for navigation payloads.
 
 In `GameCompletionPanel`, change `NextSudokuParams` to `{collection: string; puzzle: number}`, stop stringifying the next Sudoku in `useNextSudoku`, and navigate with compact params.
 
-- [ ] **Step 5: Update `useGameRouteSync`**
+- [x] **Step 5: Update `useGameRouteSync`**
 
 Update `useGameRouteSync` to:
 
@@ -262,13 +262,13 @@ Update `useGameRouteSync` to:
 - Build normal route replacement through `createCompactGameSearch()` when current game metadata still resolves to the current puzzle key.
 - Fall back to `createPayloadGameSearch()` when the current game cannot be represented by collection/index.
 
-- [ ] **Step 6: Run unit tests**
+- [x] **Step 6: Run unit tests**
 
 Run: `pnpm test -- src/pages/Game/gameRouteContract.test.ts src/lib/game/SudokuGame.test.ts`
 
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/lib/game/sudokus.ts src/pages/Game/useGameRouteSync.ts src/pages/Game/GameSelect.tsx src/pages/Game/GameCompletionPanel.tsx src/pages/Game/gameRouteContract.ts src/pages/Game/gameRouteContract.test.ts

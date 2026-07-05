@@ -5,14 +5,13 @@ import {useTranslation} from "react-i18next";
 import Button from "src/components/Button";
 import type {GameState} from "src/context/GameContext";
 import {translateCollectionName} from "src/lib/database/collections";
-import {stringifySudoku} from "src/lib/engine/utility";
 import {getSudokusPaginated, useSudokuCollections} from "src/lib/game/sudokus";
 import {formatDuration} from "src/utils/format";
+import {createCompactGameSearch} from "./gameRouteContract";
 
 type NextSudokuParams = {
-  sudokuIndex: number;
-  sudoku: string;
-  sudokuCollectionName: string;
+  collection: string;
+  puzzle: number;
 };
 
 type CompletionMetricProps = {
@@ -48,9 +47,8 @@ function useNextSudoku(gameState: GameState) {
       }
 
       const nextSudokuParams: NextSudokuParams = {
-        sudokuIndex: nextIndex + 1,
-        sudoku: stringifySudoku(sudoku.sudoku),
-        sudokuCollectionName: gameState.sudokuCollectionName,
+        collection: gameState.sudokuCollectionName,
+        puzzle: nextIndex + 1,
       };
 
       return {
@@ -87,7 +85,7 @@ export const GameCompletionPanel: React.FC<{game: GameState}> = ({game}) => {
 
     await navigate({
       to: "/",
-      search: nextSudokuParams,
+      search: createCompactGameSearch(nextSudokuParams.collection, nextSudokuParams.puzzle),
     });
   };
 
@@ -141,7 +139,7 @@ export const GameCompletionPanel: React.FC<{game: GameState}> = ({game}) => {
           >
             {t("completion_next_sudoku", {
               collection: collectionName,
-              sudokuIndex: nextSudokuParams.sudokuIndex,
+              sudokuIndex: nextSudokuParams.puzzle,
             })}
           </Button>
         ) : null}

@@ -82,26 +82,26 @@ export function getCollections() {
   return [...baseCollections.map((collection) => ({id: collection, name: collection})), ...collections];
 }
 
+export function getSudokuCollection(collectionId: string) {
+  if (isBaseCollectionId(collectionId)) {
+    return {
+      id: collectionId,
+      name: collectionId,
+      sudokusRaw: BASE_SUDOKU_COLLECTIONS[collectionId as BaseCollection],
+    };
+  }
+  return appPersistence.collections.load(collectionId);
+}
+
 export function useSudokuCollections() {
   const collections = getCollections();
   const [activeCollectionId, setActiveCollectionId] = useState<string>("easy");
 
-  const isBaseCollection = useCallback((collectionId: string) => {
-    return isBaseCollectionId(collectionId);
-  }, []);
-
   const getCollection = useCallback(
     (collectionId: string) => {
-      if (isBaseCollection(collectionId)) {
-        return {
-          id: collectionId,
-          name: collectionId,
-          sudokusRaw: BASE_SUDOKU_COLLECTIONS[collectionId as BaseCollection],
-        };
-      }
-      return appPersistence.collections.load(collectionId);
+      return getSudokuCollection(collectionId);
     },
-    [isBaseCollection],
+    [],
   );
 
   const activeCollection = getCollection(activeCollectionId);

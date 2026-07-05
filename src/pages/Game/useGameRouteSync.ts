@@ -11,78 +11,166 @@ import type {UserPreferences} from "src/lib/database/userPreferences";
 import {SimpleSudoku} from "src/lib/engine/types";
 import {cellsToSimpleSudoku, parseSudoku, stringifySudoku} from "src/lib/engine/utility";
 import {solve} from "src/lib/engine/solverAC3";
+import {getSudokuCollection, getSudokusPaginated} from "src/lib/game/sudokus";
 import {appPersistence} from "src/lib/persistence/appPersistence";
+import {
+  createCompactGameSearch,
+  createGameRouteSudokuKey,
+  createPayloadGameSearch,
+  parseGameRouteIntent,
+  shouldUseCompactGameSearch,
+  type GameRouteIntent,
+  type GameRouteSearch,
+} from "./gameRouteContract";
 
 const throttledSave = throttle(appPersistence.currentGame.save, 2000);
 
-type RouteSudokuSearch = {
+type RouteSudokuParams = {
   sudokuIndex: number;
   sudoku: string;
   sudokuCollectionName: string;
-};
-
-type RouteSudokuParams = RouteSudokuSearch & {
   key: string;
+  search: GameRouteSearch;
+  solution?: SimpleSudoku;
+  forceRestart: boolean;
 };
 
-function createRouteSudokuKey(params: RouteSudokuSearch) {
-  return JSON.stringify([params.sudokuCollectionName, params.sudokuIndex, params.sudoku]);
-}
-
-function stripWrappingQuotes(value: string) {
-  if (value.startsWith('"') && value.endsWith('"')) {
-    return value.slice(1, -1);
-  }
-  return value;
-}
-
-function getRawSearchParam(name: string) {
+function getCurrentRawSearch() {
   if (typeof window === "undefined") {
     return undefined;
   }
 
   const hashSearch = window.location.hash.includes("?") ? window.location.hash.split("?")[1] : "";
-  const searchSources = [hashSearch, window.location.search.replace(/^\?/, "")].filter(Boolean);
+  return hashSearch || window.location.search.replace(/^\?/, "") || undefined;
+}
 
-  for (const source of searchSources) {
-    const value = new URLSearchParams(source).get(name);
-    if (value !== null) {
-      return stripWrappingQuotes(value);
+function getCollectionSudoku(collectionId: string, puzzleNumber: number) {
+  const collection = getSudokuCollection(collectionId);
+  const result = getSudokusPaginated(collection, puzzleNumber - 1, 1);
+  return result.sudokus[0];
+}
+
+function createRouteSudoku({
+  collectionId,
+  puzzleNumber,
+  sudoku,
+  search,
+  solution,
+  forceRestart,
+}: {
+  collectionId: string;
+  puzzleNumber: number;
+  sudoku: string;
+  search: GameRouteSearch;
+  solution?: SimpleSudoku;
+  forceRestart: boolean;
+}): RouteSudokuParams {
+  return {
+    sudokuIndex: puzzleNumber,
+    sudoku,
+    sudokuCollectionName: collectionId,
+    key: createGameRouteSudokuKey({collectionId, puzzleNumber, sudoku}),
+    search,
+    solution,
+    forceRestart,
+  };
+}
+
+function resolveRouteSudoku(intent: GameRouteIntent): RouteSudokuParams | null {
+  if (intent.kind === "none" || intent.kind === "invalid") {
+    return null;
+  }
+
+  if (intent.kind === "collection") {
+    const collectionSudoku = getCollectionSudoku(intent.collectionId, intent.puzzleNumber);
+    if (!collectionSudoku) {
+      return null;
+    }
+
+    return createRouteSudoku({
+      collectionId: intent.collectionId,
+      puzzleNumber: intent.puzzleNumber,
+      sudoku: stringifySudoku(collectionSudoku.sudoku),
+      search: createCompactGameSearch(intent.collectionId, intent.puzzleNumber, intent.forceRestart),
+      solution: collectionSudoku.solution,
+      forceRestart: intent.forceRestart,
+    });
+  }
+
+  let collectionSudoku: string | undefined;
+  let solution: SimpleSudoku | undefined;
+  if (intent.hasPuzzleMetadata) {
+    try {
+      const matchedSudoku = getCollectionSudoku(intent.collectionId, intent.puzzleNumber);
+      collectionSudoku = matchedSudoku ? stringifySudoku(matchedSudoku.sudoku) : undefined;
+      solution = matchedSudoku?.solution;
+    } catch {
+      collectionSudoku = undefined;
+      solution = undefined;
     }
   }
 
-  return undefined;
+  const useCompactSearch = shouldUseCompactGameSearch({
+    sudoku: intent.sudoku,
+    collectionSudoku,
+    hasPuzzleMetadata: intent.hasPuzzleMetadata,
+  });
+
+  return createRouteSudoku({
+    collectionId: intent.collectionId,
+    puzzleNumber: intent.puzzleNumber,
+    sudoku: intent.sudoku,
+    search: useCompactSearch
+      ? createCompactGameSearch(intent.collectionId, intent.puzzleNumber, intent.forceRestart)
+      : createPayloadGameSearch(intent.sudoku, intent.collectionId, intent.puzzleNumber, intent.forceRestart),
+    solution: useCompactSearch ? solution : undefined,
+    forceRestart: intent.forceRestart,
+  });
 }
 
-function getSearchString(search: Record<string, unknown>, name: string) {
-  const rawValue = getRawSearchParam(name);
-  if (rawValue !== undefined) {
-    return rawValue;
+function createRouteSearchForGameState(
+  currentGameState: GameState,
+  currentSudokuState: SudokuState,
+  currentRouteSudoku?: RouteSudokuParams | null,
+) {
+  const currentSudoku = stringifySudoku(cellsToSimpleSudoku(currentSudokuState.current));
+  const puzzleNumber = currentGameState.sudokuIndex + 1;
+  if (
+    currentRouteSudoku &&
+    currentRouteSudoku.sudoku === currentSudoku &&
+    currentRouteSudoku.sudokuCollectionName === currentGameState.sudokuCollectionName &&
+    currentRouteSudoku.sudokuIndex === puzzleNumber
+  ) {
+    return {
+      search: currentRouteSudoku.search,
+      key: currentRouteSudoku.key,
+    };
   }
 
-  const value = search[name];
-  if (typeof value === "string") {
-    return stripWrappingQuotes(value);
+  try {
+    const collectionSudoku = getCollectionSudoku(currentGameState.sudokuCollectionName, puzzleNumber);
+    if (collectionSudoku && stringifySudoku(collectionSudoku.sudoku) === currentSudoku) {
+      return {
+        search: createCompactGameSearch(currentGameState.sudokuCollectionName, puzzleNumber),
+        key: createGameRouteSudokuKey({
+          collectionId: currentGameState.sudokuCollectionName,
+          puzzleNumber,
+          sudoku: currentSudoku,
+        }),
+      };
+    }
+  } catch {
+    // Fall through to payload search for exact/custom puzzles.
   }
-  if (typeof value === "number" && Number.isSafeInteger(value)) {
-    return value.toString();
-  }
-  return undefined;
-}
 
-function getSearchNumber(search: Record<string, unknown>, name: string) {
-  const value = getSearchString(search, name);
-  if (value === undefined) {
-    return undefined;
-  }
-
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : undefined;
-}
-
-function getSearchBoolean(search: Record<string, unknown>, name: string) {
-  const value = getSearchString(search, name);
-  return value === "1" || value?.toLowerCase() === "true" || value?.toLowerCase() === "yes";
+  return {
+    search: createPayloadGameSearch(currentSudoku, currentGameState.sudokuCollectionName, puzzleNumber),
+    key: createGameRouteSudokuKey({
+      collectionId: currentGameState.sudokuCollectionName,
+      puzzleNumber,
+      sudoku: currentSudoku,
+    }),
+  };
 }
 
 export function useGameRouteSync({
@@ -122,19 +210,23 @@ export function useGameRouteSync({
 
   const currentPath = location.pathname;
   const search = location.search as Record<string, unknown>;
-  const sudokuIndex = getSearchNumber(search, "sudokuIndex");
-  const sudoku = getSearchString(search, "sudoku");
-  const sudokuCollectionName = getSearchString(search, "sudokuCollectionName");
-  const forceRestart = getSearchBoolean(search, "restart");
+  const rawSearch = getCurrentRawSearch();
+  const searchKey = React.useMemo(() => JSON.stringify(search), [search]);
+  const routeSearch = React.useMemo(() => JSON.parse(searchKey) as Record<string, unknown>, [searchKey]);
+
+  const routeIntent = React.useMemo(() => {
+    return parseGameRouteIntent(routeSearch, rawSearch);
+  }, [routeSearch, rawSearch]);
 
   const routeSudoku = React.useMemo<RouteSudokuParams | null>(() => {
-    if (sudokuIndex === undefined || sudoku === undefined || sudokuCollectionName === undefined) {
+    try {
+      return resolveRouteSudoku(routeIntent);
+    } catch (error) {
+      console.error(error);
       return null;
     }
-
-    const params = {sudokuIndex, sudoku, sudokuCollectionName};
-    return {...params, key: createRouteSudokuKey(params)};
-  }, [sudokuIndex, sudoku, sudokuCollectionName]);
+  }, [routeIntent]);
+  const routeLoadFailed = routeIntent.kind === "invalid" || (routeIntent.kind !== "none" && routeSudoku === null);
 
   const syncedRouteKeyRef = React.useRef<string | null>(null);
   const latestStateRef = React.useRef({gameState, sudokuState, userPreferencesState, t});
@@ -145,20 +237,15 @@ export function useGameRouteSync({
 
   const replaceRouteWithGameState = React.useCallback(
     (currentGameState: GameState, currentSudokuState: SudokuState) => {
-      const currentSudoku = stringifySudoku(cellsToSimpleSudoku(currentSudokuState.current));
-      const nextSearch = {
-        sudokuIndex: currentGameState.sudokuIndex + 1,
-        sudoku: currentSudoku,
-        sudokuCollectionName: currentGameState.sudokuCollectionName,
-      };
-      syncedRouteKeyRef.current = createRouteSudokuKey(nextSearch);
+      const nextRoute = createRouteSearchForGameState(currentGameState, currentSudokuState, routeSudoku);
+      syncedRouteKeyRef.current = nextRoute.key;
       navigate({
         replace: true,
         to: "/",
-        search: nextSearch,
+        search: nextRoute.search,
       });
     },
-    [navigate],
+    [navigate, routeSudoku],
   );
 
   React.useEffect(() => {
@@ -170,7 +257,7 @@ export function useGameRouteSync({
       throttledSave.cancel();
     }
 
-    if (routeSudoku && routeSudoku.key !== syncedRouteKeyRef.current) {
+    if (routeLoadFailed || (routeSudoku && routeSudoku.key !== syncedRouteKeyRef.current)) {
       return;
     }
 
@@ -181,30 +268,24 @@ export function useGameRouteSync({
       }
     }
 
-    const stringifiedSudoku = stringifySudoku(cellsToSimpleSudoku(sudokuState.current));
-    const nextSearch = {
-      sudokuIndex: gameState.sudokuIndex + 1,
-      sudoku: stringifiedSudoku,
-      sudokuCollectionName: gameState.sudokuCollectionName,
-    };
-    const nextRouteKey = createRouteSudokuKey(nextSearch);
+    const nextRoute = createRouteSearchForGameState(gameState, sudokuState, routeSudoku);
 
-    if (nextRouteKey !== routeSudoku?.key) {
-      syncedRouteKeyRef.current = nextRouteKey;
+    if (nextRoute.key !== routeSudoku?.key) {
+      syncedRouteKeyRef.current = nextRoute.key;
       navigate({
         replace: true,
         to: "/",
-        search: nextSearch,
+        search: nextRoute.search,
       });
     }
-  }, [gameState, sudokuState, initialized, currentPath, routeSudoku, navigate, saveDisabled]);
+  }, [gameState, sudokuState, initialized, currentPath, routeSudoku, routeLoadFailed, navigate, saveDisabled]);
 
   React.useEffect(() => {
     if (currentPath !== "/") {
       return;
     }
 
-    if (!routeSudoku) {
+    if (!routeSudoku && !routeLoadFailed) {
       setInitialized(true);
       return;
     }
@@ -218,14 +299,6 @@ export function useGameRouteSync({
         userPreferencesState: currentUserPreferencesState,
         t: translate,
       } = latestStateRef.current;
-      const currentSudoku = cellsToSimpleSudoku(currentSudokuState.current);
-      if (stringifySudoku(currentSudoku) === routeSudoku.sudoku && !forceRestart) {
-        syncedRouteKeyRef.current = routeSudoku.key;
-        setInitialized(true);
-        return;
-      }
-
-      console.info("Loading sudoku from URL", routeSudoku.sudokuIndex, routeSudoku.sudoku, routeSudoku.sudokuCollectionName);
       const wasRunning = currentGameState.state === GameStateMachine.running;
       const pauseForDialog = () => {
         if (wasRunning) {
@@ -237,6 +310,32 @@ export function useGameRouteSync({
           continueGame();
         }
       };
+
+      if (routeLoadFailed || !routeSudoku) {
+        pauseForDialog();
+        await dialog.alert({message: translate("invalid_sudoku_url")});
+        if (cancelled) {
+          return;
+        }
+        setInitialized(true);
+        replaceRouteWithGameState(currentGameState, currentSudokuState);
+        resumeExistingGame();
+        return;
+      }
+
+      const currentSudoku = cellsToSimpleSudoku(currentSudokuState.current);
+      if (stringifySudoku(currentSudoku) === routeSudoku.sudoku && !routeSudoku.forceRestart) {
+        syncedRouteKeyRef.current = routeSudoku.key;
+        setInitialized(true);
+        navigate({
+          replace: true,
+          to: "/",
+          search: routeSudoku.search,
+        });
+        return;
+      }
+
+      console.info("Loading sudoku from URL", routeSudoku.sudokuIndex, routeSudoku.sudoku, routeSudoku.sudokuCollectionName);
 
       if (currentGameState.secondsPlayed > 5 && !currentGameState.won) {
         pauseForDialog();
@@ -261,9 +360,9 @@ export function useGameRouteSync({
 
       try {
         const parsedSudoku = parseSudoku(routeSudoku.sudoku);
-        const solvedSudoku = solve(parsedSudoku);
-        if (solvedSudoku.sudoku) {
-          setSudoku(parsedSudoku, solvedSudoku.sudoku);
+        const solvedSudoku = routeSudoku.solution ?? solve(parsedSudoku).sudoku;
+        if (solvedSudoku) {
+          setSudoku(parsedSudoku, solvedSudoku);
         } else {
           pauseForDialog();
           await dialog.alert({message: translate("invalid_sudoku_url")});
@@ -307,6 +406,11 @@ export function useGameRouteSync({
       }
       syncedRouteKeyRef.current = routeSudoku.key;
       setInitialized(true);
+      navigate({
+        replace: true,
+        to: "/",
+        search: routeSudoku.search,
+      });
     };
 
     void loadRouteSudoku();
@@ -317,7 +421,7 @@ export function useGameRouteSync({
   }, [
     currentPath,
     routeSudoku,
-    forceRestart,
+    routeLoadFailed,
     dialog,
     setGameState,
     setSudokuState,
@@ -326,6 +430,7 @@ export function useGameRouteSync({
     newGame,
     setSudoku,
     replaceRouteWithGameState,
+    navigate,
   ]);
 
   const openStoredSudoku = React.useCallback(

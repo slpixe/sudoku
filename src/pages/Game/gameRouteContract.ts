@@ -154,3 +154,15 @@ export function createGameRouteSudokuKey({
 }) {
   return JSON.stringify([collectionId, puzzleNumber, sudoku]);
 }
+
+export function shouldUseCompactGameSearch({
+  sudoku,
+  collectionSudoku,
+  hasPuzzleMetadata,
+}: {
+  sudoku: string;
+  collectionSudoku: string | undefined;
+  hasPuzzleMetadata: boolean;
+}) {
+  return hasPuzzleMetadata && collectionSudoku === sudoku;
+}
