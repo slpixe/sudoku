@@ -14,6 +14,20 @@ import {solve} from "src/lib/engine/solverAC3";
 
 import GameTimer from "./GameTimer";
 
+const PauseIcon = () => (
+  <svg aria-hidden="true" className="h-4 w-4 sm:h-5 sm:w-5" fill="currentColor" viewBox="0 0 24 24">
+    <path d="M7 5h3v14H7zM14 5h3v14h-3z" />
+  </svg>
+);
+
+const ResumeIcon = () => (
+  <svg aria-hidden="true" className="h-4 w-4 sm:h-5 sm:w-5" fill="currentColor" viewBox="0 0 24 24">
+    <path d="M8 5l11 7-11 7z" />
+  </svg>
+);
+
+const topBarActionButtonClass = "inline-flex h-8 shrink-0 min-h-0 items-center justify-center leading-none";
+
 function PauseButton({
   disabled,
   paused,
@@ -27,8 +41,14 @@ function PauseButton({
 }) {
   const {t} = useTranslation();
   return (
-    <Button disabled={disabled} onClick={paused ? continueGame : pauseGame}>
-      {paused ? t("continue") : t("pause")}
+    <Button
+      aria-label={paused ? t("continue") : t("pause")}
+      className={topBarActionButtonClass}
+      disabled={disabled}
+      onClick={paused ? continueGame : pauseGame}
+    >
+      <span className="sr-only">{paused ? t("continue") : t("pause")}</span>
+      {paused ? <ResumeIcon /> : <PauseIcon />}
     </Button>
   );
 }
@@ -53,8 +73,8 @@ const ClearGameButton: React.FC<{
     clearGame();
   };
 
-  return (
-    <Button disabled={disabled} onClick={clearGameLocal}>
+    return (
+    <Button className={topBarActionButtonClass} disabled={disabled} onClick={clearGameLocal}>
       {t("clear")}
     </Button>
   );
@@ -72,7 +92,10 @@ const NewGameButton: React.FC<{pauseGame: () => void}> = ({pauseGame}) => {
   };
 
   return (
-    <Button className="bg-teal-600 dark:bg-teal-600 text-white" onClick={pauseAndChoose}>
+    <Button
+      className={`bg-teal-600 dark:bg-teal-600 text-white ${topBarActionButtonClass}`}
+      onClick={pauseAndChoose}
+    >
       {t("new_game")}
     </Button>
   );
