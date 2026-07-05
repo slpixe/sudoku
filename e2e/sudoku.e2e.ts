@@ -42,9 +42,20 @@ async function expectGameSearch(page: Page, sudoku: string, sudokuIndex: number,
           ? window.location.hash.split("?")[1]
           : window.location.search.replace(/^\?/, "");
         const params = new URLSearchParams(search);
+        const sudokuParam = params.get("sudoku");
+        let normalizedSudokuParam = sudokuParam;
+
+        if (sudokuParam) {
+          try {
+            const parsedSudokuParam: unknown = JSON.parse(sudokuParam);
+            normalizedSudokuParam = typeof parsedSudokuParam === "string" ? parsedSudokuParam : sudokuParam;
+          } catch {
+            normalizedSudokuParam = sudokuParam;
+          }
+        }
 
         return {
-          sudoku: params.get("sudoku"),
+          sudoku: normalizedSudokuParam,
           sudokuIndex: params.get("sudokuIndex"),
           sudokuCollectionName: params.get("sudokuCollectionName"),
         };
@@ -633,4 +644,32 @@ test("changes games through the selection screen", async ({page}) => {
 
   await expect(page.getByTestId("current-game-label")).toHaveText("Medium #1");
   await expect(page).toHaveURL(/sudokuCollectionName=medium/);
+});
+
+test("locks older tabs when another tab claims a different active puzzle", async ({context, page}) => {
+  const pageA = page;
+  const pageB = await context.newPage();
+
+  await openGame(pageA, FIRST_PUZZLE, 1, "easy", "Easy");
+  await openGame(pageB, MEDIUM_FIRST_PUZZLE, 1, "medium", "Medium");
+
+  await expect(pageA.getByTestId("active-game-lock-overlay")).toBeVisible();
+  await expect(cellValue(pageA, 0, 0)).toHaveText("");
+  await expect(pageA.getByTestId("sudoku-number-1")).toBeDisabled();
+
+  await pageA.getByTestId("active-game-lock-switch").click();
+  await expect(pageA.getByTestId("active-game-lock-overlay")).toHaveCount(0);
+  await expect(pageA.getByTestId("current-game-label")).toHaveText("Medium #1");
+  await expectGameSearch(pageA, MEDIUM_FIRST_PUZZLE, 1, "medium");
+
+  await pageA.goto(gameUrl(FIRST_PUZZLE, 1, "easy"));
+  await expect(pageA.getByTestId("current-game-label")).toHaveText("Easy #1");
+  await expect(pageB.getByTestId("active-game-lock-overlay")).toBeVisible();
+
+  await pageB.getByTestId("active-game-lock-resume").click();
+  await expect(pageB.getByTestId("active-game-lock-overlay")).toHaveCount(0);
+  await expect(pageB.getByTestId("current-game-label")).toHaveText("Medium #1");
+  await expect(pageA.getByTestId("active-game-lock-overlay")).toBeVisible();
+
+  await pageB.close();
 });
