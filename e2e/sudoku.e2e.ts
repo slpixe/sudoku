@@ -582,10 +582,21 @@ test("supports number entry, erase, undo, redo, notes, hints, and keyboard short
   await expect(cellNotes(page, 0, 1)).toContainText("3");
   await expect(cellNotes(page, 0, 1)).toContainText("4");
 
-  await page.keyboard.press("n");
+  await page.keyboard.down("Shift");
+  await page.keyboard.up("Shift");
+  await expect(cell(page, 0, 1)).toHaveAttribute("data-cell-notes-mode", "false");
   await page.keyboard.press("5");
   await expect(cellValue(page, 0, 1)).toHaveText("5");
   await expect(cellNotes(page, 0, 1)).toHaveText("");
+
+  await selectCell(page, 2, 1);
+  await page.keyboard.down("Shift");
+  await expect(cell(page, 2, 1)).toHaveAttribute("data-cell-notes-mode", "true");
+  await page.keyboard.press("1");
+  await expect(cellValue(page, 2, 1)).toHaveText("");
+  await expect(cellNotes(page, 2, 1)).toContainText("1");
+  await page.keyboard.up("Shift");
+  await expect(cell(page, 2, 1)).toHaveAttribute("data-cell-notes-mode", "false");
 
   await page.keyboard.press("Escape");
   await expect(page.getByTestId("sudoku-action-pause")).toHaveAttribute("aria-label", "Continue");

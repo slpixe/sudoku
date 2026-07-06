@@ -33,41 +33,65 @@
 Extend `test("supports number entry, erase, undo, redo, notes, hints, and keyboard shortcuts", ...)` in `e2e/sudoku.e2e.ts` after the existing manual note copy/paste assertions:
 
 ```ts
-  await selectCell(page, 1, 1);
   await page.keyboard.down("Shift");
-  await expect(cell(page, 1, 1)).toHaveAttribute("data-cell-notes-mode", "true");
-  await page.keyboard.press("1");
-  await expect(cellValue(page, 1, 1)).toHaveText("");
-  await expect(cellNotes(page, 1, 1)).toContainText("1");
   await page.keyboard.up("Shift");
-  await expect(cell(page, 1, 1)).toHaveAttribute("data-cell-notes-mode", "false");
+  await expect(cell(page, 0, 1)).toHaveAttribute("data-cell-notes-mode", "false");
+  await page.keyboard.press("5");
+  await expect(cellValue(page, 0, 1)).toHaveText("5");
+  await expect(cellNotes(page, 0, 1)).toHaveText("");
 
-  await page.keyboard.press("n");
-  await expect(cell(page, 1, 1)).toHaveAttribute("data-cell-notes-mode", "true");
+  await selectCell(page, 2, 1);
   await page.keyboard.down("Shift");
+  await expect(cell(page, 2, 1)).toHaveAttribute("data-cell-notes-mode", "true");
+  await page.keyboard.press("1");
+  await expect(cellValue(page, 2, 1)).toHaveText("");
+  await expect(cellNotes(page, 2, 1)).toContainText("1");
   await page.keyboard.up("Shift");
-  await expect(cell(page, 1, 1)).toHaveAttribute("data-cell-notes-mode", "false");
+  await expect(cell(page, 2, 1)).toHaveAttribute("data-cell-notes-mode", "false");
 ```
 
 - [ ] **Step 2: Run the focused failing e2e test**
 
 Run: `pnpm exec playwright test e2e/sudoku.e2e.ts --grep "supports number entry" --project=chromium-light`
 
-Expected before implementation: FAIL because Shift does not activate notes mode.
+Expected before implementation: FAIL because Shift does not drive notes mode.
 
 - [ ] **Step 3: Implement Shift key bindings**
 
-In `src/pages/Game/shortcuts/GridShortcuts.tsx`, add game-scoped Shift handlers next to the `n` note-mode shortcut:
+In `src/pages/Game/shortcuts/GridShortcuts.tsx`, add a Shift event helper above the component:
 
 ```ts
-    hotkeys("shift", ShortcutScope.Game, () => {
-      stateRef.current.activateNotesMode();
-      return false;
+function isShiftKeyEvent(event: KeyboardEvent) {
+  return event.key === "Shift" || event.keyCode === 16;
+}
+```
+
+Add game-scoped wildcard Shift handlers next to the `n` note-mode shortcut because hotkeys-js does not call modifier-only handlers while the modifier is active:
+
+```ts
+    hotkeys("*", {keydown: true, keyup: false, scope: ShortcutScope.Game}, (event) => {
+      if (isShiftKeyEvent(event)) {
+        stateRef.current.activateNotesMode();
+        return false;
+      }
+      return undefined;
     });
 
-    hotkeys("shift", {keyup: true, keydown: false, scope: ShortcutScope.Game}, () => {
-      stateRef.current.deactivateNotesMode();
-      return false;
+    hotkeys("*", {keyup: true, keydown: false, scope: ShortcutScope.Game}, (event) => {
+      if (isShiftKeyEvent(event)) {
+        stateRef.current.deactivateNotesMode();
+        return false;
+      }
+      return undefined;
+    });
+```
+
+Extract the existing number-entry body to `handleNumberShortcut(number: number)` and include Shift variants in each digit binding:
+
+```ts
+    SUDOKU_NUMBERS.forEach((n) => {
+      const keys = [String(n), `num_${n}`, `shift+${n}`, `shift+num_${n}`].join(",");
+      hotkeys(keys, ShortcutScope.Game, () => handleNumberShortcut(n));
     });
 ```
 
