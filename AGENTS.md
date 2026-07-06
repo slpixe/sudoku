@@ -36,6 +36,10 @@ This project is a React, TypeScript, Vite, and Tailwind Sudoku web app based on 
 - Before starting a dev or preview server for browser/manual checks, check whether the user already has one running, commonly at `http://localhost:3000`, and reuse it when possible.
 - Do not start a second Vite server on `5173` or another fallback port unless the user asks for it or the existing server is unavailable for the task; if a temporary server is necessary, stop it when finished.
 - The exception is `pnpm run test:e2e`, which intentionally starts an isolated preview server on port `4179` through Playwright.
+- After implementing a user-visible feature in a worktree, ask whether the user wants that worktree started on a host-mode web server for manual review before merge/push/cleanup.
+- For a non-default manual-review port, prefer `pnpm exec vite --host 0.0.0.0 --port <port> --strictPort` from the target worktree. Do not rely on extra args passing through `pnpm start`.
+- Verify manual-review servers with both `lsof -nP -iTCP:<port> -sTCP:LISTEN` and `curl -I --max-time 5 http://127.0.0.1:<port>/`; report the Vite network URL for phone/tablet testing.
+- Stop any temporary manual-review server before removing its worktree.
 
 # Testing Notes
 
@@ -46,6 +50,14 @@ This project is a React, TypeScript, Vite, and Tailwind Sudoku web app based on 
 - Run `pnpm run test:e2e` after changes that affect routing, game interactions, persistence, puzzle selection, sharing, or other user-visible app flows.
 - Local artifact directories such as `.worktrees/` and `.pnpm-store/` can affect repo-wide commands. If `pnpm run lint` or `pnpm test` reports failures from those paths, first check tool ignore/discovery config before treating the output as a feature regression.
 - `eslint.config.js` ignores `.worktrees/**` and `.pnpm-store/**`; keep that coverage if lint config is refactored. Vitest may still discover tests in those local artifact paths, so use or add explicit test exclude config if duplicate local test execution becomes noisy or slow.
+- For touch or multi-finger behavior, do not rely only on Playwright `click()`. Add pointer-event coverage for the relevant touch path, including secondary touches when the feature depends on more than one finger.
+- When touch hold state drops unexpectedly, investigate `pointercancel`, `pointerleave`, viewport scaling, and CSS `touch-action` before changing app state logic.
+- For touch interactions that should not trigger browser gestures, assert the relevant `touch-action` behavior in e2e coverage.
+
+# Git and Worktree Notes
+
+- Git metadata writes may require sandbox escalation, including `git add`, `git commit`, `git merge`, `git push`, `git worktree remove`, `git branch -d`, and `git worktree prune`.
+- When cleaning up a merged worktree, stop any dev server running from that worktree, remove the worktree, delete the merged local branch, prune worktree metadata, and verify `git worktree list` and `git status --short --branch`.
 
 # Sudoku Data Notes
 
