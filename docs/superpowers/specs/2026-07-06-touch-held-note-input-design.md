@@ -11,7 +11,7 @@ In scope:
 - Holding the `Note` control with touch or pen input enables a transient note-entry modifier.
 - While the transient modifier is held, the board, number pad, and note button use note-mode visuals.
 - Tapping a number while the transient modifier is held writes a note through the existing note-entry path.
-- Releasing the `Note` control after a transient note entry leaves persistent notes mode off.
+- Releasing the `Note` control after a held note entry does not toggle persistent notes mode.
 - A normal tap on the `Note` control keeps the existing persistent notes-mode toggle behavior.
 - Existing keyboard `N` and Shift behavior remains unchanged.
 
@@ -43,5 +43,6 @@ Add failing coverage before production changes:
 
 - Extend Playwright coverage with a touch-held note interaction: dispatch touch pointer down on `Note`, tap a digit, release `Note`, dispatch the synthesized note-button click, then assert note mode remains off and the digit was written as a note.
 - Assert a subsequent digit tap writes a normal value, proving the held interaction did not leave persistent note mode on.
+- Assert a simple touch tap on `Note` still toggles persistent note mode.
 
 After implementation, run focused e2e coverage first, then the relevant project checks: `pnpm run typecheck`, `pnpm run lint`, `pnpm test`, `pnpm build`, and `pnpm run test:e2e`.

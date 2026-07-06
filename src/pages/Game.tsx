@@ -107,6 +107,32 @@ const GameInner: React.FC<{
   const displayedSudoku = hideBoardForPause || hideBoardForLock ? emptyGrid : sudoku;
   const displayedBoardData = hideBoardForPause || hideBoardForLock ? emptyBoardData : boardData;
   const lockedGameRef = React.useRef(lockedGame);
+  const [notesHeld, setNotesHeld] = React.useState(false);
+  const noteHoldUsedRef = React.useRef(false);
+  const effectiveNotesMode = game.notesMode || notesHeld;
+
+  const startNoteHold = React.useCallback(() => {
+    noteHoldUsedRef.current = false;
+    setNotesHeld(true);
+  }, []);
+
+  const stopNoteHold = React.useCallback(() => {
+    setNotesHeld(false);
+  }, []);
+
+  const markNoteHoldUsed = React.useCallback(() => {
+    if (notesHeld) {
+      noteHoldUsedRef.current = true;
+    }
+  }, [notesHeld]);
+
+  const consumeNoteHoldClick = React.useCallback(() => {
+    if (!noteHoldUsedRef.current) {
+      return false;
+    }
+    noteHoldUsedRef.current = false;
+    return true;
+  }, []);
 
   React.useEffect(() => {
     lockedGameRef.current = lockedGame;
@@ -205,7 +231,7 @@ const GameInner: React.FC<{
                 showWrongEntries={userPreferencesState.showWrongEntries && game.state === GameStateMachine.running}
                 showConflicts={userPreferencesState.showConflicts && game.state === GameStateMachine.running}
                 showMatchingNumbers={userPreferencesState.showMatchingNumbers && game.state === GameStateMachine.running}
-                notesMode={game.notesMode}
+                notesMode={effectiveNotesMode}
                 shouldShowMenu={
                   !lockedGame &&
                   game.showMenu &&
@@ -240,19 +266,21 @@ const GameInner: React.FC<{
                 <div className="sudoku-number-pad min-w-0">
                   <SudokuMenuNumbers
                     layout="row"
-                    notesMode={game.notesMode}
+                    notesMode={effectiveNotesMode}
                     disabled={pausedGame || lockedGame}
                     showOccurrences={userPreferencesState.showOccurrences}
                     activeCell={game.activeCellCoordinates}
                     boardData={boardData}
                     showHints={userPreferencesState.showHints}
+                    onNoteInput={markNoteHoldUsed}
                     setNumber={setNumber}
                     setNotes={setNotes}
                   />
                 </div>
                 <div className="sudoku-control-pad min-w-0">
                   <SudokuMenuControls
-                    notesMode={game.notesMode}
+                    notesMode={effectiveNotesMode}
+                    persistentNotesMode={game.notesMode}
                     activeCellCoordinates={game.activeCellCoordinates}
                     disabled={pausedGame || lockedGame}
                     showConflicts={userPreferencesState.showConflicts}
@@ -261,6 +289,9 @@ const GameInner: React.FC<{
                     clearCell={clearCell}
                     activateNotesMode={activateNotesMode}
                     deactivateNotesMode={deactivateNotesMode}
+                    onNoteHoldStart={startNoteHold}
+                    onNoteHoldEnd={stopNoteHold}
+                    shouldSuppressToggleClick={consumeNoteHoldClick}
                     toggleShowConflicts={toggleShowConflicts}
                     toggleShowOccurrences={toggleShowOccurrences}
                     toggleShowMatchingNumbers={toggleShowMatchingNumbers}

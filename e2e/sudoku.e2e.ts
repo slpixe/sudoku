@@ -613,6 +613,34 @@ test("supports number entry, erase, undo, redo, notes, hints, and keyboard short
   await expect(page.getByTestId("sudoku-action-pause")).toHaveAttribute("aria-label", "Pause");
 });
 
+test("supports touch-held note entry without toggling persistent note mode", async ({page}) => {
+  await openGame(page);
+
+  await selectCell(page, 5, 0);
+  const notesButton = page.getByTestId("sudoku-control-notes");
+
+  await notesButton.dispatchEvent("pointerdown", {pointerId: 11, pointerType: "touch", isPrimary: true});
+  await expect(cell(page, 5, 0)).toHaveAttribute("data-cell-notes-mode", "true");
+  await page.getByTestId("sudoku-number-1").click();
+  await expect(cellValue(page, 5, 0)).toHaveText("");
+  await expect(cellNotes(page, 5, 0)).toContainText("1");
+
+  await notesButton.dispatchEvent("pointerup", {pointerId: 11, pointerType: "touch", isPrimary: true});
+  await notesButton.click();
+  await expect(cell(page, 5, 0)).toHaveAttribute("data-cell-notes-mode", "false");
+
+  await page.getByTestId("sudoku-number-2").click();
+  await expect(cellValue(page, 5, 0)).toHaveText("2");
+  await expect(cellNotes(page, 5, 0)).toHaveText("");
+
+  await notesButton.dispatchEvent("pointerdown", {pointerId: 12, pointerType: "touch", isPrimary: true});
+  await notesButton.dispatchEvent("pointerup", {pointerId: 12, pointerType: "touch", isPrimary: true});
+  await notesButton.click();
+  await expect(cell(page, 5, 0)).toHaveAttribute("data-cell-notes-mode", "true");
+  await notesButton.click();
+  await expect(cell(page, 5, 0)).toHaveAttribute("data-cell-notes-mode", "false");
+});
+
 test("keeps the game layout visible in constrained viewports", async ({page}) => {
   await page.addInitScript(() => {
     localStorage.setItem(

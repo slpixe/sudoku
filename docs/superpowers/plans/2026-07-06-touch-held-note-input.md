@@ -4,7 +4,7 @@
 
 **Goal:** Let touchscreen players hold `Note`, tap a digit as a note, and release without toggling persistent notes mode on.
 
-**Architecture:** Keep persistent notes mode in `game.notesMode` and add transient held-note state in `GameInner`. Pass `effectiveNotesMode = game.notesMode || notesHeld` to board and number inputs, and suppress the note button's synthesized click only after a held-note digit was entered.
+**Architecture:** Keep persistent notes mode in `game.notesMode` and add transient held-note state in `GameInner`. Pass `effectiveNotesMode = game.notesMode || notesHeld` to board and number inputs, and suppress the note button's synthesized click after a held-note digit was entered.
 
 **Tech Stack:** React 18, TypeScript, Vite, Tailwind CSS, Playwright, Vitest, pnpm.
 
@@ -51,6 +51,13 @@ test("supports touch-held note entry without toggling persistent note mode", asy
   await page.getByTestId("sudoku-number-2").click();
   await expect(cellValue(page, 5, 0)).toHaveText("2");
   await expect(cellNotes(page, 5, 0)).toHaveText("");
+
+  await notesButton.dispatchEvent("pointerdown", {pointerId: 12, pointerType: "touch", isPrimary: true});
+  await notesButton.dispatchEvent("pointerup", {pointerId: 12, pointerType: "touch", isPrimary: true});
+  await notesButton.click();
+  await expect(cell(page, 5, 0)).toHaveAttribute("data-cell-notes-mode", "true");
+  await notesButton.click();
+  await expect(cell(page, 5, 0)).toHaveAttribute("data-cell-notes-mode", "false");
 });
 ```
 
@@ -90,10 +97,10 @@ In `src/pages/Game.tsx`, add refs and callbacks after `lockedGameRef`:
   }, []);
 
   const markNoteHoldUsed = React.useCallback(() => {
-    if (notesHeld && !game.notesMode) {
+    if (notesHeld) {
       noteHoldUsedRef.current = true;
     }
-  }, [notesHeld, game.notesMode]);
+  }, [notesHeld]);
 
   const consumeNoteHoldClick = React.useCallback(() => {
     if (!noteHoldUsedRef.current) {
@@ -111,6 +118,7 @@ Then pass `effectiveNotesMode` instead of `game.notesMode` to `<Sudoku>` and `<S
 In `src/components/sudoku/SudokuMenuControls.tsx`, add these optional props to `NotesButton`:
 
 ```tsx
+  persistentNotesMode?: boolean;
   onNoteHoldStart?: () => void;
   onNoteHoldEnd?: () => void;
   shouldSuppressToggleClick?: () => boolean;
@@ -131,7 +139,7 @@ Update the note button event handlers:
         if (shouldSuppressToggleClick?.()) {
           return;
         }
-        if (notesMode) {
+        if (persistentNotesMode) {
           deactivateNotesMode();
         } else {
           activateNotesMode();

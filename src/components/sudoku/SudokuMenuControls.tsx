@@ -10,6 +10,10 @@ const toggleStatusClass = "rounded-full px-2 text-[0.625rem] font-bold leading-3
 const toggleStatusOnClass = "bg-teal-700 text-white dark:bg-teal-600";
 const toggleStatusOffClass = "bg-gray-700 text-white dark:bg-gray-600";
 
+function isHoldPointer(event: React.PointerEvent<HTMLButtonElement>) {
+  return event.pointerType === "touch" || event.pointerType === "pen";
+}
+
 export const UndoButton: React.FC<{
   canUndo: boolean;
   className?: string;
@@ -50,16 +54,58 @@ export const EraseButton: React.FC<{
 
 const NotesButton: React.FC<{
   notesMode: boolean;
+  persistentNotesMode?: boolean;
   disabled?: boolean;
   activateNotesMode: () => void;
   deactivateNotesMode: () => void;
-}> = ({notesMode, disabled = false, activateNotesMode, deactivateNotesMode}) => {
+  onNoteHoldStart?: () => void;
+  onNoteHoldEnd?: () => void;
+  shouldSuppressToggleClick?: () => boolean;
+}> = ({
+  notesMode,
+  persistentNotesMode = notesMode,
+  disabled = false,
+  activateNotesMode,
+  deactivateNotesMode,
+  onNoteHoldStart,
+  onNoteHoldEnd,
+  shouldSuppressToggleClick,
+}) => {
   const {t} = useTranslation();
   return (
     <Button
       data-testid="sudoku-control-notes"
       disabled={disabled}
-      onClick={() => (notesMode ? deactivateNotesMode() : activateNotesMode())}
+      onClick={() => {
+        if (shouldSuppressToggleClick?.()) {
+          return;
+        }
+        if (persistentNotesMode) {
+          deactivateNotesMode();
+        } else {
+          activateNotesMode();
+        }
+      }}
+      onPointerCancel={(event) => {
+        if (isHoldPointer(event)) {
+          onNoteHoldEnd?.();
+        }
+      }}
+      onPointerDown={(event) => {
+        if (isHoldPointer(event)) {
+          onNoteHoldStart?.();
+        }
+      }}
+      onPointerLeave={(event) => {
+        if (isHoldPointer(event)) {
+          onNoteHoldEnd?.();
+        }
+      }}
+      onPointerUp={(event) => {
+        if (isHoldPointer(event)) {
+          onNoteHoldEnd?.();
+        }
+      }}
       className={`${controlButtonClass} flex-col gap-0.5 py-1 md:py-1`}
     >
       <div className="flex items-center justify-center gap-1 leading-4">
@@ -136,6 +182,7 @@ const PreferenceToggleButton: React.FC<{
 
 const SudokuMenuControls: React.FC<{
   notesMode: boolean;
+  persistentNotesMode?: boolean;
   activeCellCoordinates: CellCoordinates | undefined;
   disabled?: boolean;
   showConflicts: boolean;
@@ -144,6 +191,9 @@ const SudokuMenuControls: React.FC<{
   clearCell: (cellCoordinates: CellCoordinates) => void;
   activateNotesMode: () => void;
   deactivateNotesMode: () => void;
+  onNoteHoldStart?: () => void;
+  onNoteHoldEnd?: () => void;
+  shouldSuppressToggleClick?: () => boolean;
   toggleShowConflicts: () => void;
   toggleShowOccurrences: () => void;
   toggleShowMatchingNumbers: () => void;
@@ -152,6 +202,7 @@ const SudokuMenuControls: React.FC<{
   undo: () => void;
 }> = ({
   notesMode,
+  persistentNotesMode,
   activeCellCoordinates,
   disabled = false,
   showConflicts,
@@ -160,6 +211,9 @@ const SudokuMenuControls: React.FC<{
   clearCell,
   activateNotesMode,
   deactivateNotesMode,
+  onNoteHoldStart,
+  onNoteHoldEnd,
+  shouldSuppressToggleClick,
   toggleShowConflicts,
   toggleShowOccurrences,
   toggleShowMatchingNumbers,
@@ -179,9 +233,13 @@ const SudokuMenuControls: React.FC<{
       />
       <NotesButton
         notesMode={notesMode}
+        persistentNotesMode={persistentNotesMode}
         disabled={disabled}
         activateNotesMode={activateNotesMode}
         deactivateNotesMode={deactivateNotesMode}
+        onNoteHoldStart={onNoteHoldStart}
+        onNoteHoldEnd={onNoteHoldEnd}
+        shouldSuppressToggleClick={shouldSuppressToggleClick}
       />
       <HintButton activeCellCoordinates={activeCellCoordinates} disabled={disabled} getHint={getHint} />
       <PreferenceToggleButton

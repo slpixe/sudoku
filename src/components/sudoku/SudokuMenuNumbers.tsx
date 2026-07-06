@@ -13,6 +13,7 @@ export interface SudokuMenuNumbersProps {
   showOccurrences: boolean;
   showHints: boolean;
   layout?: "side" | "row";
+  onNoteInput?: () => void;
   setNumber: (cellCoordinates: CellCoordinates, number: number) => void;
   setNotes: (cellCoordinates: CellCoordinates, notes: number[]) => void;
 }
@@ -25,6 +26,7 @@ const SudokuMenuNumbers: React.FC<SudokuMenuNumbersProps> = ({
   showOccurrences,
   showHints,
   layout = "side",
+  onNoteInput,
   setNumber,
   setNotes,
 }) => {
@@ -54,6 +56,7 @@ const SudokuMenuNumbers: React.FC<SudokuMenuNumbersProps> = ({
 
             const newNotes = startingNotes.includes(n) ? startingNotes.filter((note) => note !== n) : [...userNotes, n];
             setNotes(activeCell, newNotes);
+            onNoteInput?.();
           } else {
             setNumber(activeCell, n);
           }
