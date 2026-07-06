@@ -1,6 +1,9 @@
 {
   "welcome": "欢迎",
   "new_game": "新游戏",
+  "install_app": "安装",
+  "install_app_title": "安装 Sudoku",
+  "install_app_message": "添加到主屏幕以便更快打开。",
   "pause": "暂停",
   "continue": "继续",
   "active_game_locked_title": "Game active in another tab",

@@ -1,6 +1,9 @@
 {
   "welcome": "Willkommen",
   "new_game": "Neues Spiel",
+  "install_app": "Installieren",
+  "install_app_title": "Sudoku installieren",
+  "install_app_message": "Zum Startbildschirm hinzufügen für schnelleren Zugriff.",
   "pause": "Pause",
   "continue": "Weiter",
   "active_game_locked_title": "Game active in another tab",

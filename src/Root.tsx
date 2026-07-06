@@ -3,6 +3,7 @@ import * as React from "react";
 import {createHashHistory, createRootRoute, createRoute, createRouter, RouterProvider} from "@tanstack/react-router";
 
 import {AppDialogProvider} from "./components/AppDialog";
+import {InstallAppPrompt} from "./components/pwa/InstallAppPrompt";
 
 const LazyGame = React.lazy(() => import("./pages/Game"));
 const LazySelectGame = React.lazy(() => import("./pages/SelectGame"));
@@ -112,6 +113,7 @@ const App = () => {
         <React.Suspense fallback={routeFallback}>
           <RouterProvider router={router} />
         </React.Suspense>
+        <InstallAppPrompt />
       </AppDialogProvider>
     </ErrorBoundary>
   );

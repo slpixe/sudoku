@@ -3,6 +3,8 @@ import tsconfigPaths from "vite-tsconfig-paths";
 import {VitePWA} from "vite-plugin-pwa";
 import {configDefaults, defineConfig} from "vitest/config";
 
+import {pwaManifest} from "./src/pwa/manifest";
+
 // https://vitejs.dev/config/
 export default defineConfig(() => ({
   plugins: [
@@ -26,28 +28,7 @@ export default defineConfig(() => ({
           },
         ],
       },
-      manifest: {
-        name: "Sudoku",
-        short_name: "Sudoku",
-        description: "Play over 3,000 Sudoku puzzles from easy to evil. Open source and free with no tracking.",
-        theme_color: "#1F2937",
-        background_color: "#1F2937",
-        display: "standalone",
-        start_url: "/",
-        scope: "/",
-        icons: [
-          {
-            src: "/android-chrome-192x192.png",
-            sizes: "192x192",
-            type: "image/png",
-          },
-          {
-            src: "/android-chrome-512x512.png",
-            sizes: "512x512",
-            type: "image/png",
-          },
-        ],
-      },
+      manifest: pwaManifest,
     }),
   ],
   // define:

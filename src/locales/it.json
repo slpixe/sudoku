@@ -1,6 +1,9 @@
 {
   "welcome": "Benvenuto",
   "new_game": "Nuova partita",
+  "install_app": "Installa",
+  "install_app_title": "Installa Sudoku",
+  "install_app_message": "Aggiungilo alla schermata iniziale per un accesso più rapido.",
   "pause": "Pausa",
   "continue": "Continua",
   "active_game_locked_title": "Game active in another tab",
