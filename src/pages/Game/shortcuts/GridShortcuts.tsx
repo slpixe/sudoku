@@ -5,6 +5,10 @@ import {Cell} from "src/lib/engine/types";
 import {ShortcutScope} from "./ShortcutScope";
 import {DerivedBoardData, getCellIndex} from "src/lib/game/deriveBoardData";
 
+function isShiftKeyEvent(event: KeyboardEvent) {
+  return event.key === "Shift" || event.keyCode === 16;
+}
+
 const GridShortcuts: React.FC<{
   continueGame: () => void;
   pauseGame: () => void;
@@ -117,6 +121,41 @@ const GridShortcuts: React.FC<{
       return false;
     });
 
+    hotkeys("*", {keydown: true, keyup: false, scope: ShortcutScope.Game}, (event) => {
+      if (isShiftKeyEvent(event)) {
+        stateRef.current.activateNotesMode();
+        return false;
+      }
+      return undefined;
+    });
+
+    hotkeys("*", {keyup: true, keydown: false, scope: ShortcutScope.Game}, (event) => {
+      if (isShiftKeyEvent(event)) {
+        stateRef.current.deactivateNotesMode();
+        return false;
+      }
+      return undefined;
+    });
+
+    const handleNumberShortcut = (number: number) => {
+      const {activeCell, boardData, notesMode, showHints, setNumber, setNotes} = stateRef.current;
+      if (activeCell && !activeCell.initial) {
+        if (notesMode) {
+          const userNotes = activeCell.notes;
+          const autoNotes = showHints ? boardData.notePossibilities[getCellIndex(activeCell)] ?? [] : [];
+          const notesToUse = userNotes.length === 0 && autoNotes.length > 0 ? autoNotes : userNotes;
+
+          const newNotes = notesToUse.includes(number)
+            ? notesToUse.filter((note) => note !== number)
+            : [...userNotes, number];
+          setNotes(activeCell, newNotes);
+        } else {
+          setNumber(activeCell, number);
+        }
+      }
+      return false;
+    };
+
     hotkeys("up", ShortcutScope.Game, () => {
       const currentCell = stateRef.current.activeCell;
       if (currentCell === undefined) {
@@ -166,22 +205,8 @@ const GridShortcuts: React.FC<{
     });
 
     SUDOKU_NUMBERS.forEach((n) => {
-      const keys = [String(n), `num_${n}`].join(",");
-      hotkeys(keys, ShortcutScope.Game, () => {
-        const {activeCell, boardData, notesMode, showHints, setNumber, setNotes} = stateRef.current;
-        if (activeCell && !activeCell.initial) {
-          if (notesMode) {
-            const userNotes = activeCell.notes;
-            const autoNotes = showHints ? boardData.notePossibilities[getCellIndex(activeCell)] ?? [] : [];
-            const notesToUse = userNotes.length === 0 && autoNotes.length > 0 ? autoNotes : userNotes;
-
-            const newNotes = notesToUse.includes(n) ? notesToUse.filter((note) => note !== n) : [...userNotes, n];
-            setNotes(activeCell, newNotes);
-          } else {
-            setNumber(activeCell, n);
-          }
-        }
-      });
+      const keys = [String(n), `num_${n}`, `shift+${n}`, `shift+num_${n}`].join(",");
+      hotkeys(keys, ShortcutScope.Game, () => handleNumberShortcut(n));
     });
 
     hotkeys("backspace,num_subtract", ShortcutScope.Game, () => {
