@@ -1,13 +1,22 @@
+import React from "react";
+import {renderToString} from "react-dom/server";
 import {describe, expect, it} from "vitest";
 
 import {DEFAULT_USER_PREFERENCES} from "src/lib/database/userPreferences";
-import {gameReducer, GameState, GameStateMachine, INITIAL_GAME_STATE} from "./GameContext";
+import {GameProvider, gameReducer, GameState, GameStateMachine, INITIAL_GAME_STATE, useGame} from "./GameContext";
+
+function NotesModeProbe() {
+  const {state} = useGame();
+
+  return React.createElement("span", null, state.notesMode ? "notes-on" : "notes-off");
+}
 
 describe("gameReducer", () => {
   it("starts a new running game with puzzle progress", () => {
     const next = gameReducer(
       {
         ...INITIAL_GAME_STATE,
+        notesMode: true,
         secondsPlayed: 55,
         won: true,
       },
@@ -28,8 +37,42 @@ describe("gameReducer", () => {
       previousTimes: [90, 110],
       secondsPlayed: 0,
       won: false,
+      notesMode: false,
       state: GameStateMachine.running,
     });
+  });
+
+  it("opens restored game state with notes mode disabled", () => {
+    const restoredState: GameState = {
+      ...INITIAL_GAME_STATE,
+      notesMode: true,
+      secondsPlayed: 60,
+      timesSolved: 1,
+      previousTimes: [45],
+    };
+
+    const next = gameReducer(INITIAL_GAME_STATE, {type: "game/SET_GAME_STATE", state: restoredState});
+
+    expect(next).toMatchObject({
+      notesMode: false,
+      secondsPlayed: 60,
+      timesSolved: 1,
+      previousTimes: [45],
+    });
+  });
+
+  it("initializes restored provider state with notes mode disabled", () => {
+    const html = renderToString(
+      React.createElement(GameProvider, {
+        initialState: {
+          ...INITIAL_GAME_STATE,
+          notesMode: true,
+        },
+        children: React.createElement(NotesModeProbe),
+      }),
+    );
+
+    expect(html).toContain("notes-off");
   });
 
   it("records a win once and keeps won games paused", () => {
@@ -74,6 +117,37 @@ describe("gameReducer", () => {
       state: GameStateMachine.running,
       timesSolved: 3,
       previousTimes: [40, 50, 60],
+      notesMode: false,
+    });
+  });
+
+  it("restarts puzzles with notes mode disabled", () => {
+    const state: GameState = {
+      ...INITIAL_GAME_STATE,
+      notesMode: true,
+      secondsPlayed: 120,
+      won: true,
+      timesSolved: 3,
+      previousTimes: [40, 50, 60],
+    };
+
+    const restarted = gameReducer(state, {
+      type: "game/RESTART_GAME",
+      sudokuIndex: 2,
+      sudokuCollectionName: "medium",
+      timesSolved: 3,
+      previousTimes: [40, 50, 60],
+    });
+
+    expect(restarted).toMatchObject({
+      sudokuIndex: 2,
+      sudokuCollectionName: "medium",
+      secondsPlayed: 0,
+      won: false,
+      state: GameStateMachine.running,
+      timesSolved: 3,
+      previousTimes: [40, 50, 60],
+      notesMode: false,
     });
   });
 });

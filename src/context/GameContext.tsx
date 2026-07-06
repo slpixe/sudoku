@@ -38,6 +38,13 @@ export const INITIAL_GAME_STATE: GameState = {
   clipboardNotes: null,
 };
 
+function openGameState(state: GameState): GameState {
+  return {
+    ...state,
+    notesMode: false,
+  };
+}
+
 // Action types
 const NEW_GAME = "game/NEW_GAME";
 const WON_GAME = "game/WON_GAME";
@@ -86,7 +93,7 @@ type GameAction =
 export function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
     case SET_GAME_STATE:
-      return action.state;
+      return openGameState(action.state);
     case NEW_GAME:
       return {
         ...INITIAL_GAME_STATE,
@@ -130,6 +137,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         previousTimes: action.previousTimes,
         state: GameStateMachine.running,
         won: false,
+        notesMode: false,
       };
     case SHOW_MENU:
       return {
@@ -169,6 +177,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         secondsPlayed: 0,
         state: GameStateMachine.running,
         won: false,
+        notesMode: false,
       };
     case COPY_NOTES:
       return {
@@ -217,7 +226,7 @@ interface GameProviderProps {
 }
 
 export function GameProvider({children, initialState = INITIAL_GAME_STATE}: GameProviderProps) {
-  const [state, dispatch] = useReducer(gameReducer, initialState);
+  const [state, dispatch] = useReducer(gameReducer, initialState, openGameState);
 
   const newGame = useCallback(
     (
