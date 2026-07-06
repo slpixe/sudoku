@@ -106,7 +106,7 @@ const NotesButton: React.FC<{
           onNoteHoldEnd?.();
         }
       }}
-      className={`${controlButtonClass} flex-col gap-0.5 py-1 md:py-1`}
+      className={`${controlButtonClass} touch-none select-none flex-col gap-0.5 py-1 md:py-1`}
     >
       <div className="flex items-center justify-center gap-1 leading-4">
         <span>{t("note_btn")}</span>

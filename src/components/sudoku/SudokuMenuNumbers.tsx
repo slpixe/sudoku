@@ -18,6 +18,10 @@ export interface SudokuMenuNumbersProps {
   setNotes: (cellCoordinates: CellCoordinates, notes: number[]) => void;
 }
 
+function isTouchLikePointer(event: React.PointerEvent<HTMLButtonElement>) {
+  return event.pointerType === "touch" || event.pointerType === "pen";
+}
+
 const SudokuMenuNumbers: React.FC<SudokuMenuNumbersProps> = ({
   notesMode,
   activeCell,
@@ -34,6 +38,7 @@ const SudokuMenuNumbers: React.FC<SudokuMenuNumbersProps> = ({
   const activeCellData = boardData.activeCell;
   const userNotes = activeCellData?.notes ?? [];
   const autoNotes = activeCellIndex !== undefined && showHints ? boardData.notePossibilities[activeCellIndex] ?? [] : [];
+  const touchPointerHandledRef = React.useRef<{number: number; handledAt: number} | undefined>(undefined);
 
   return (
     <div
@@ -48,7 +53,7 @@ const SudokuMenuNumbers: React.FC<SudokuMenuNumbersProps> = ({
 
         const setNumberOrNote = () => {
           if (!activeCell) {
-            return;
+            return false;
           }
 
           if (notesMode) {
@@ -60,12 +65,28 @@ const SudokuMenuNumbers: React.FC<SudokuMenuNumbersProps> = ({
           } else {
             setNumber(activeCell, n);
           }
+          return true;
+        };
+
+        const shouldSuppressClick = () => {
+          const handled = touchPointerHandledRef.current;
+          if (!handled || handled.number !== n) {
+            return false;
+          }
+
+          if (Date.now() - handled.handledAt > 750) {
+            touchPointerHandledRef.current = undefined;
+            return false;
+          }
+
+          touchPointerHandledRef.current = undefined;
+          return true;
         };
 
         return (
           <Button
             aria-label={`Set ${n}`}
-            className={clsx("relative flex items-center justify-center font-bold", {
+            className={clsx("relative flex touch-none select-none items-center justify-center font-bold", {
               "aspect-square p-0 text-base sm:text-lg md:text-xl": layout === "row",
               "bg-red-400 dark:bg-red-400": showOccurrences && occurrences > 9,
               "bg-emerald-600 text-white dark:bg-emerald-500":
@@ -80,7 +101,22 @@ const SudokuMenuNumbers: React.FC<SudokuMenuNumbersProps> = ({
             })}
             data-testid={`sudoku-number-${n}`}
             disabled={disabled}
-            onClick={setNumberOrNote}
+            onClick={() => {
+              if (shouldSuppressClick()) {
+                return;
+              }
+              setNumberOrNote();
+            }}
+            onPointerUp={(event) => {
+              if (!isTouchLikePointer(event) || event.isPrimary || !notesMode) {
+                return;
+              }
+
+              event.preventDefault();
+              if (setNumberOrNote()) {
+                touchPointerHandledRef.current = {number: n, handledAt: Date.now()};
+              }
+            }}
             key={n}
           >
             <span

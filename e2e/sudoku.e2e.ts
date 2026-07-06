@@ -618,11 +618,17 @@ test("supports touch-held note entry without toggling persistent note mode", asy
 
   await selectCell(page, 5, 0);
   const notesButton = page.getByTestId("sudoku-control-notes");
+  const oneButton = page.getByTestId("sudoku-number-1");
 
+  await expect(notesButton).toHaveCSS("touch-action", "none");
+  await expect(oneButton).toHaveCSS("touch-action", "none");
   await notesButton.dispatchEvent("pointerdown", {pointerId: 11, pointerType: "touch", isPrimary: true});
   await expect(cell(page, 5, 0)).toHaveAttribute("data-cell-notes-mode", "true");
-  await page.getByTestId("sudoku-number-1").click();
+  await oneButton.dispatchEvent("pointerdown", {pointerId: 12, pointerType: "touch", isPrimary: false});
+  await oneButton.dispatchEvent("pointerup", {pointerId: 12, pointerType: "touch", isPrimary: false});
   await expect(cellValue(page, 5, 0)).toHaveText("");
+  await expect(cellNotes(page, 5, 0)).toContainText("1");
+  await oneButton.click();
   await expect(cellNotes(page, 5, 0)).toContainText("1");
 
   await notesButton.dispatchEvent("pointerup", {pointerId: 11, pointerType: "touch", isPrimary: true});
@@ -639,6 +645,17 @@ test("supports touch-held note entry without toggling persistent note mode", asy
   await expect(cell(page, 5, 0)).toHaveAttribute("data-cell-notes-mode", "true");
   await notesButton.click();
   await expect(cell(page, 5, 0)).toHaveAttribute("data-cell-notes-mode", "false");
+});
+
+test("disables app-level pinch zoom while preserving pan gestures", async ({page}) => {
+  await openGame(page);
+
+  const viewportContent = await page.locator('meta[name="viewport"]').getAttribute("content");
+  expect(viewportContent).toContain("width=device-width");
+  expect(viewportContent).toContain("initial-scale=1");
+  expect(viewportContent).toContain("maximum-scale=1");
+  expect(viewportContent).toContain("user-scalable=no");
+  await expect(page.locator("body")).toHaveCSS("touch-action", "pan-x pan-y");
 });
 
 test("keeps the game layout visible in constrained viewports", async ({page}) => {
