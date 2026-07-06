@@ -55,7 +55,7 @@ export default defineConfig({
   ],
   webServer: {
     command: `pnpm run build && pnpm exec vite preview --host 127.0.0.1 --port ${e2ePort}`,
-    reuseExistingServer: process.env.CI ? false : true,
+    reuseExistingServer: false,
     timeout: 120_000,
     url: e2eBaseURL,
   },
