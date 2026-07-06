@@ -62,7 +62,21 @@ const NotesButton: React.FC<{
       onClick={() => (notesMode ? deactivateNotesMode() : activateNotesMode())}
       className={`${controlButtonClass} flex-col gap-0.5 py-1 md:py-1`}
     >
-      <div className="leading-4">{t("note_btn")}</div>
+      <div className="flex items-center justify-center gap-1 leading-4">
+        <span>{t("note_btn")}</span>
+        <span
+          aria-hidden="true"
+          className="sudoku-notes-key-hints hidden items-center gap-0.5 text-[0.55rem] font-bold leading-none opacity-80 sm:inline-flex"
+          data-testid="sudoku-control-notes-key-hints"
+        >
+          <span className="rounded-sm bg-gray-200 px-1 py-0.5 text-gray-800 dark:bg-gray-700 dark:text-gray-100">
+            N
+          </span>
+          <span className="rounded-sm bg-gray-200 px-1 py-0.5 text-gray-800 dark:bg-gray-700 dark:text-gray-100">
+            ^
+          </span>
+        </span>
+      </div>
       <div
         className={clsx(toggleStatusClass, {
           [toggleStatusOffClass]: !notesMode,

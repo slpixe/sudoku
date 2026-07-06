@@ -223,6 +223,12 @@ body,
   }
 }
 
+@media (pointer: coarse), (max-width: 640px) {
+  .sudoku-notes-key-hints {
+    display: none;
+  }
+}
+
 @media (orientation: portrait) and (max-width: 420px) {
   .sudoku-number-pad > div {
     gap: 0.125rem;

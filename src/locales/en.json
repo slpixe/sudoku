@@ -50,7 +50,7 @@
   "sudoku": "Sudoku",
   "erase_btn": "Erase",
   "undo_btn": "Undo",
-  "note_btn": "Notes",
+  "note_btn": "Note",
   "hint_btn": "Hint",
   "hint_btn_target": "Active cell",
   "conflicts_btn": "Clash",

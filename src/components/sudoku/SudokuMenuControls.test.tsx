@@ -95,4 +95,15 @@ describe("SudokuMenuControls", () => {
     expect(count.find("div").last().attr("class")).toContain("bg-gray-700");
     expect(match.find("div").last().attr("class")).toContain("bg-teal-700");
   });
+
+  it("shows compact keyboard hints on the note control without replacing status", () => {
+    const html = renderControls({notesMode: false});
+    const notes = renderedButton(html, "note_btn");
+
+    expect(notes.text()).toContain("note_btn");
+    expect(notes.text()).toContain("N");
+    expect(notes.text()).toContain("^");
+    expect(notes.find('[data-testid="sudoku-control-notes-key-hints"]').length).toBe(1);
+    expect(notes.find("div").last().text()).toBe("OFF");
+  });
 });
