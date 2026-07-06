@@ -7,6 +7,7 @@ body,
 #root {
   min-height: 100vh;
   min-height: 100dvh;
+  touch-action: pan-x pan-y;
   @apply bg-gray-800 dark:bg-gray-900;
 }
 
