@@ -4,7 +4,7 @@ import {describe, expect, it, vi} from "vitest";
 
 import {pwaManifest} from "src/pwa/manifest";
 
-import {createInstallPromptController, InstallAppPromptView} from "./InstallAppPrompt";
+import {createInstallPromptController, INSTALL_PROMPT_AUTO_HIDE_MS, InstallAppPromptView} from "./InstallAppPrompt";
 
 function createBeforeInstallPromptEvent(prompt = vi.fn(() => Promise.resolve())) {
   const event = new Event("beforeinstallprompt", {cancelable: true});
@@ -42,7 +42,7 @@ describe("InstallAppPromptView", () => {
     expect(html).toBe("");
   });
 
-  it("renders a dismissible floating install prompt when installable", () => {
+  it("renders a branded dismissible install prompt when installable", () => {
     const html = renderToStaticMarkup(
       <InstallAppPromptView
         installLabel="Install"
@@ -55,9 +55,21 @@ describe("InstallAppPromptView", () => {
     );
 
     expect(html).toContain('data-testid="pwa-install-toast"');
+    expect(html).toContain('data-testid="pwa-install-icon"');
+    expect(html).toContain('src="/android-chrome-192x192.png"');
     expect(html).toContain('data-testid="pwa-install-action"');
     expect(html).toContain('data-testid="pwa-install-dismiss"');
+    expect(html).toContain("bottom-0");
+    expect(html).toContain("sm:bottom-[calc(env(safe-area-inset-bottom)+13rem)]");
+    expect(html).toContain("bg-teal-600");
+    expect(html).not.toContain("bg-amber");
     expect(html).toContain("Install Sudoku");
+  });
+});
+
+describe("INSTALL_PROMPT_AUTO_HIDE_MS", () => {
+  it("keeps the prompt visible long enough to read", () => {
+    expect(INSTALL_PROMPT_AUTO_HIDE_MS).toBe(15_000);
   });
 });
 

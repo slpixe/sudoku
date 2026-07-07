@@ -2,7 +2,7 @@ import * as React from "react";
 import {useTranslation} from "react-i18next";
 
 const INSTALL_PROMPT_DISMISSED_KEY = "sudoku.pwaInstallPromptDismissed";
-const AUTO_HIDE_MS = 8_000;
+export const INSTALL_PROMPT_AUTO_HIDE_MS = 15_000;
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<unknown>;
@@ -152,26 +152,24 @@ export function InstallAppPromptView({
   }
 
   return (
-    <div className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+13rem)] z-50 flex justify-center px-4 pointer-events-none">
+    <div className="fixed inset-x-0 bottom-0 sm:bottom-[calc(env(safe-area-inset-bottom)+13rem)] z-50 flex justify-center px-0 pointer-events-none sm:px-4">
       <aside
         aria-live="polite"
-        className="pointer-events-auto w-full max-w-sm rounded-md border border-teal-300/60 bg-gray-900 p-3 text-white shadow-2xl"
+        className="pointer-events-auto w-full max-w-none rounded-t-lg border border-b-0 border-teal-300/60 bg-gray-900 p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] text-white shadow-2xl sm:max-w-md sm:rounded-md sm:border sm:p-3"
         data-testid="pwa-install-toast"
       >
         <div className="flex items-start gap-3">
+          <img
+            alt=""
+            aria-hidden="true"
+            className="h-11 w-11 shrink-0 rounded-sm"
+            data-testid="pwa-install-icon"
+            src="/android-chrome-192x192.png"
+          />
           <div className="min-w-0 flex-1">
             <div className="text-sm font-bold leading-5">{title}</div>
             <div className="mt-1 text-xs leading-5 text-gray-200">{message}</div>
           </div>
-          <button
-            aria-label={installLabel}
-            className="mt-0.5 inline-flex h-7 shrink-0 items-center rounded-sm bg-amber-400 px-3 text-xs font-bold text-gray-950 shadow-sm touch-manipulation hover:brightness-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
-            data-testid="pwa-install-action"
-            onClick={onInstall}
-            type="button"
-          >
-            {installLabel}
-          </button>
           <button
             aria-label="Close install prompt"
             className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-sm text-gray-200 touch-manipulation hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
@@ -182,6 +180,17 @@ export function InstallAppPromptView({
             <svg aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
             </svg>
+          </button>
+        </div>
+        <div className="mt-3 flex justify-end">
+          <button
+            aria-label={installLabel}
+            className="inline-flex h-9 w-full items-center justify-center rounded-sm bg-teal-600 px-4 text-sm font-bold text-white shadow-sm touch-manipulation hover:bg-teal-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300 sm:w-auto"
+            data-testid="pwa-install-action"
+            onClick={onInstall}
+            type="button"
+          >
+            {installLabel}
           </button>
         </div>
       </aside>
@@ -220,7 +229,7 @@ export function InstallAppPrompt() {
 
     const timeoutId = window.setTimeout(() => {
       controllerRef.current?.hideForSession();
-    }, AUTO_HIDE_MS);
+    }, INSTALL_PROMPT_AUTO_HIDE_MS);
 
     return () => {
       window.clearTimeout(timeoutId);

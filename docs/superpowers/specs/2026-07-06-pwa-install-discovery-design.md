@@ -22,7 +22,7 @@ The install prompt state should stay local to the app shell. It should not affec
 
 ## User Experience
 
-When the browser determines that the app can be installed, a compact toast appears near the bottom of the viewport with an `Install` action and a close control. Selecting `Install` calls the browser prompt from the captured `beforeinstallprompt` event. The toast hides after a few seconds, after the prompt is used, when closed, or after the app is installed.
+When the browser determines that the app can be installed, a branded prompt appears with the app icon, a short explanation, a green `Install` action that matches the app controls, and a close control. On phones it attaches to the bottom edge like a lightweight bottom sheet. On larger viewports it floats above the input controls. Selecting `Install` calls the browser prompt from the captured `beforeinstallprompt` event. The prompt hides after 15 seconds, after the prompt is used, when closed, or after the app is installed.
 
 Closing the toast stores a local dismissal flag so it does not keep reappearing. Invoking the browser install prompt also stores the dismissal flag so users are not repeatedly asked after dismissing the browser-native dialog.
 

@@ -41,7 +41,7 @@ Expected: FAIL because `InstallAppPrompt` does not exist.
 
 - [ ] **Step 3: Implement minimal component**
 
-Create `InstallAppPrompt` with local state for the deferred event, `beforeinstallprompt` and `appinstalled` listeners, a floating toast, a close button that persists dismissal, an auto-hide timeout, and an install action that calls `prompt()` from a user click.
+Create `InstallAppPrompt` with local state for the deferred event, `beforeinstallprompt` and `appinstalled` listeners, a branded prompt with the app icon, a green install action, a close button that persists dismissal, a 15 second auto-hide timeout, and an install action that calls `prompt()` from a user click. Use bottom-sheet placement on phones and floating placement above the input controls on larger viewports.
 
 - [ ] **Step 4: Place component in the app root**
 
