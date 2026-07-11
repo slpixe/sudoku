@@ -234,7 +234,7 @@ git rev-parse 165dcdb
 git rev-list --count 165dcdb..master
 ```
 
-Expected: clean working tree; local `master` is ahead of `origin/master` only by the approved design and cleanup commits; upstream boundary resolves to `165dcdba85f01624faf2acfd1524fdd8ac8bef63`; the incremental count is 93 after the cleanup commit.
+Expected: clean working tree; local `master` is ahead of `origin/master` only by the approved planning and cleanup commits; upstream boundary resolves to `165dcdba85f01624faf2acfd1524fdd8ac8bef63`. Record the reported incremental count as `INCREMENTAL_COUNT` for the candidate comparison.
 
 - [ ] **Step 2: Create the backup ref**
 
@@ -278,7 +278,7 @@ git switch -c codex/curated-history master
 git rebase --rebase-merges --onto ROOT_COMMIT 165dcdb
 ```
 
-Expected: Git replays the 93 incremental Dean commits onto the new root. If a conflict occurs, resolve only mechanical history-replay conflicts; abort and return to the backup branch if the intended final content is uncertain.
+Expected: Git replays `INCREMENTAL_COUNT` Dean commits onto the new root. If a conflict occurs, resolve only mechanical history-replay conflicts; abort and return to the backup branch if the intended final content is uncertain.
 
 - [ ] **Step 6: Prove final-tree equality and inspect history**
 
@@ -293,7 +293,7 @@ git log --reverse --format='%h %an <%ae> %s' codex/curated-history
 git shortlog -sne codex/curated-history
 ```
 
-Expected: no tree diff; identical tree hashes; 94 total commits; the first subject is `init`; every commit author is Dean Quinney; all post-root subjects match the original incremental history.
+Expected: no tree diff; identical tree hashes; `INCREMENTAL_COUNT + 1` total commits; the first subject is `init`; every commit author is Dean Quinney; all post-root subjects match the original incremental history.
 
 ### Task 3: Verify the complete curated candidate and audit public-readiness
 
