@@ -1,5 +1,12 @@
 # Project Notes
 
+## Presentation and Provenance
+
+- The canonical public application URL is `https://sudoku.slpixe.com`.
+- The application was originally created by Tom Nick and is substantially modernized and maintained by Dean Quinney; preserve that attribution in public documentation and the MIT license.
+- The imported upstream history through `165dcdb` is represented by a single attributed `init` baseline; Dean's work begins at the original commit `ace4f79`.
+- Automatic container-image publishing is retired. Keep the Dockerfile for local or self-hosted builds, but do not restore registry publishing unless explicitly requested.
+
 This project is a React, TypeScript, Vite, and Tailwind Sudoku web app based on an upstream Sudoku app by TN1ck. It includes a Sudoku game UI, puzzle collections, solver/generator logic, local progress persistence, internationalization, PWA support, unit tests, and Playwright e2e coverage.
 
 # Current Goals

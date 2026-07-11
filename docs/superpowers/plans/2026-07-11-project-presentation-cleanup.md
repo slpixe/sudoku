@@ -60,6 +60,10 @@ A fast, offline-ready Sudoku game with thousands of puzzles, touch-friendly cont
 
 ![Sudoku running on desktop](public/screenshots/sudoku-desktop.png)
 
+<p align="center">
+  <img src="public/screenshots/sudoku-mobile.png" alt="Sudoku running on mobile" width="320">
+</p>
+
 ## Highlights
 
 - More than 3,000 puzzles across five difficulty levels
@@ -166,7 +170,7 @@ Insert after `# Project Notes`:
 - The canonical public application URL is `https://sudoku.slpixe.com`.
 - The application was originally created by Tom Nick and is substantially modernized and maintained by Dean Quinney; preserve that attribution in public documentation and the MIT license.
 - The imported upstream history through `165dcdb` is represented by a single attributed `init` baseline; Dean's work begins at the original commit `ace4f79`.
-- GitHub Container Registry publishing is retired. Keep the Dockerfile for local or self-hosted builds, but do not restore automatic GHCR publishing unless explicitly requested.
+- Automatic container-image publishing is retired. Keep the Dockerfile for local or self-hosted builds, but do not restore registry publishing unless explicitly requested.
 ```
 
 - [ ] **Step 6: Remove the container-publishing workflow**

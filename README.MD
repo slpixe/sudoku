@@ -1,136 +1,87 @@
-# Sudoku 🧩
+# Sudoku
 
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://sudoku.tn1ck.com)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Node.js](https://img.shields.io/badge/node-%3E%3D24-brightgreen.svg)](https://nodejs.org/)
+[![CI](https://github.com/slpixe/sudoku/actions/workflows/run_tests.yaml/badge.svg)](https://github.com/slpixe/sudoku/actions/workflows/run_tests.yaml)
+[![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Node.js 24+](https://img.shields.io/badge/node-%3E%3D24-brightgreen.svg)](https://nodejs.org/)
 
-**A feature-rich, open-source Sudoku game that rivals commercial applications**
+A fast, offline-ready Sudoku game with thousands of puzzles, touch-friendly controls, keyboard shortcuts, and local progress saving.
 
-🌐 **Live Demo**: [https://sudoku.tn1ck.com](https://sudoku.tn1ck.com)
+**Play it:** [sudoku.slpixe.com](https://sudoku.slpixe.com)
 
-![Screenshot of the sudoku app](./docs/screenshot-app-2025-06-24.png)
+![Sudoku running on desktop](public/screenshots/sudoku-desktop.png)
 
-## ✨ Why Sudoku?
+<p align="center">
+  <img src="public/screenshots/sudoku-mobile.png" alt="Sudoku running on mobile" width="320">
+</p>
 
-Born from a simple request - my Grandma wanted to play Sudoku, but I wasn't satisfied with the available options. This project aims to create an open-source Sudoku experience that matches or exceeds commercial applications, making quality puzzle gaming accessible to everyone.
+## Highlights
 
-## 🚀 Key Features
+- More than 3,000 puzzles across five difficulty levels
+- Full notes workflow with automatic notes, custom notes, and conflict highlighting
+- Undo and redo, hints, completion statistics, and per-puzzle progress
+- Installable PWA with offline play and update handling
+- Responsive layouts and polished touch controls for phones and tablets
+- Keyboard and number-pad navigation, including held-key note entry
+- Light and dark themes with accessible controls
+- Internationalized interface with automatic browser-language selection
+- Custom puzzle creation with validation and solving support
 
-### 🎮 **Core Gameplay**
-- **Over 3,000 Puzzles**: Carefully created puzzles across 5 difficulty levels
-- **Smart Hints**: Get help when you're stuck without spoiling the challenge
-- **Undo/Redo**: Full history tracking with CMD/CTRL + Z & Y shortcuts
-- **Progress Saving**: Never lose your place - automatic save functionality
-- **Create your own**: Design custom puzzles with built-in validation checking
+## Technical overview
 
-### 📝 **Advanced Note System**
-- **Smart Notes**: Automatic note generation and management
-- **Custom Notes**: Add your own annotations and strategies
-- **Conflict Detection**: Real-time highlighting of errors and conflicts
-- **Number Tracking**: Visual indicators showing number occurrences
+The application is built with React, TypeScript, Vite, and Tailwind CSS. Game progress and preferences are persisted locally, while routing supports compact, shareable puzzle URLs. The test suite combines Vitest unit coverage with Playwright end-to-end checks across light and dark themes, responsive viewports, persistence, gameplay, and PWA behavior.
 
-### ⌨️ **Keyboard Shortcuts**
-| Action | Key |
-|--------|-----|
-| **Navigate** | Arrow Keys |
-| **Input Numbers** | 1-9 Keys |
-| **Delete** | Backspace |
-| **Pause/Resume** | Escape |
-| **Get Hint** | H |
-| **Toggle Notes** | N |
-| **Undo/Redo** | CMD/CTRL + Z/Y |
-| **Copy/Paste Notes** | CMD/CTRL + C/V |
+Recent modernization work includes:
 
-### 🎯 **Smart Features**
-- **Auto-save**: Your progress is automatically saved
-- **Difficulty Progression**: Start easy, work your way up
-- **Clean Interface**: Distraction-free, modern design
-- **Mobile Responsive**: Play on any device
+- pnpm-based local, CI, Docker, and Playwright workflows
+- separated persistence, routing, and active-game ownership boundaries
+- optimized rendering and code-split application bundles
+- robust multi-tab game locking and recovery
+- expanded accessibility, touch, keyboard, and offline coverage
 
-## 🛠️ Development Setup
+## Development
 
-### Prerequisites
-- **Node.js** (version 24 or higher) - [Download here](https://nodejs.org/en/download/package-manager/)
-- **pnpm** (Corepack uses the version pinned in `package.json`)
+### Requirements
 
-### Quick Start
+- Node.js 24 or newer
+- Corepack with the package-manager version pinned in `package.json`
+
 ```bash
-# Clone the repository
 git clone https://github.com/slpixe/sudoku.git
 cd sudoku
-
-# Enable pnpm through Corepack
 corepack enable
-
-# Install dependencies
-pnpm install
-
-# Start development server
+pnpm install --frozen-lockfile
 pnpm start
 ```
 
-The app will be available at [http://127.0.0.1:3000](http://127.0.0.1:3000)
+The development server listens on [http://127.0.0.1:3000](http://127.0.0.1:3000) and is available to other devices on the local network.
 
-### Build for Production
+### Verification
+
 ```bash
+pnpm run typecheck
+pnpm run lint
+pnpm test
 pnpm build
+pnpm run test:e2e
 ```
-Generated files will be in the `dist` directory.
 
-## 🐳 Docker Deployment
+### Docker
 
-### Quick Docker Setup
+Build and run an optional self-hosted container locally:
+
 ```bash
-# Build the image
 docker build -t sudoku:latest .
-
-# Run the container (map to your preferred port)
-docker run -p 8081:80 sudoku:latest
+docker run --rm -p 8081:80 sudoku:latest
 ```
 
-### Pre-built Images
-Ready-to-use images are available at [GitHub Container Registry](https://github.com/slpixe/sudoku/pkgs/container/sudoku).
+## Project history
 
-## 🧩 Puzzle Generation
+Sudoku was originally created by [Tom Nick](https://github.com/TN1ck). This version is substantially modernized and maintained by [Dean Quinney](https://github.com/slpixe), with a focus on architecture, reliability, accessibility, touch interaction, PWA behavior, and automated testing.
 
-Sudoku includes a sophisticated puzzle generation system based on research from "Rating and Generating Sudoku Puzzles Based On Constraint Satisfaction Problems."
+The imported upstream baseline remains covered by its original MIT copyright notice. Dean's subsequent modifications are also released under the MIT License.
 
-### Generation Tools
-- **`generate_sudokus.ts`**: Generate new puzzles by difficulty level
+## License
 
-### Future Plans
-- User interface for custom puzzle generation
-- Community puzzle sharing
-- Advanced difficulty algorithms
+Licensed under the [MIT License](LICENSE).
 
-## 🤝 Contributing
-
-We welcome contributions! Here's how you can help:
-
-1. **Fork** the repository
-2. **Create** a feature branch (`git checkout -b feature/amazing-feature`)
-3. **Commit** your changes (`git commit -m 'Add amazing feature'`)
-4. **Push** to the branch (`git push origin feature/amazing-feature`)
-5. **Open** a Pull Request
-
-### Areas for Contribution
-- 🎨 UI/UX improvements
-- 🧩 New puzzle generation algorithms
-- 🐛 Bug fixes
-- 📱 Mobile optimization
-- 🌍 Internationalization
-- 🎮 New game modes
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- Research paper: "Rating and Generating Sudoku Puzzles Based On Constraint Satisfaction Problems"
-- The open-source community for inspiration and tools
-- My Grandma for the original motivation! ❤️
-
----
-
-**Missing a feature?** [Open an issue](https://github.com/slpixe/sudoku/issues) and let us know!
+Found a problem or have an idea? [Open an issue](https://github.com/slpixe/sudoku/issues).
