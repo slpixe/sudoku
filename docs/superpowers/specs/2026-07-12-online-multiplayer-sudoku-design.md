@@ -49,7 +49,7 @@ The Select Game page begins with three explicit actions:
 
 Solo / offline preserves the current difficulty tabs and puzzle grid. Puzzle cards continue showing local progress, last and best times, solve counts, Continue, and Restart information.
 
-Create online room also shows the difficulty tabs and puzzle grid, but its cards are clean. They do not show the creator's solo progress or times because selecting a card always creates a fresh collaborative room. Selecting a puzzle sends its collection identifier and index to the backend; the backend resolves and verifies the canonical puzzle, creates the room, and joins the creator.
+Create online room also shows the difficulty tabs and puzzle grid, but its cards are clean. They do not show the creator's solo progress or times because selecting a card always creates a fresh collaborative room. This mode offers the five server-known built-in collections (`easy`, `medium`, `hard`, `expert`, and `evil`) only; browser-local custom collections remain Solo-only. Selecting a puzzle sends its collection identifier and index to the backend; the backend resolves and verifies the canonical puzzle, creates the room, and joins the creator.
 
 Join existing room hides the difficulty tabs and puzzle grid completely. It shows a room-code field and Join action. Codes are case-insensitive and normalized before submission. The app retains its established hash-router contract, so a share link such as `https://sudoku.slpixe.com/#/room/ABC234` attempts to join that room directly and shows the same inline error treatment if joining fails.
 
@@ -216,6 +216,7 @@ Fly Managed Postgres has a higher baseline cost than this early workload needs, 
 - Competitive race rooms in which each participant solves a separate board.
 - Login profiles, cross-device histories, friends, rankings, or permanent statistics.
 - Converting an in-progress solo game into a multiplayer room.
+- Creating online rooms from browser-local custom collections.
 - More than two concurrently connected distinct guests in one room.
 - Chat, reactions, player colors, action attribution, host privileges, kicking, or moderation.
 - Public room discovery or matchmaking.
