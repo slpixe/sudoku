@@ -40,22 +40,24 @@ jobs:
       run: pnpm run test:e2e
     - name: Upload Playwright HTML report
       id: upload-playwright-report
-      if: always()
+      if: failure()
+      continue-on-error: true
       uses: actions/upload-artifact@v4
       with:
         name: playwright-report
         path: playwright-report/
         if-no-files-found: ignore
-        retention-days: 14
+        retention-days: 3
     - name: Upload Playwright traces and videos
       id: upload-playwright-results
-      if: always()
+      if: failure()
+      continue-on-error: true
       uses: actions/upload-artifact@v4
       with:
         name: playwright-results
         path: test-results/
         if-no-files-found: ignore
-        retention-days: 14
+        retention-days: 3
     - name: Summarize Playwright e2e results
       if: always()
       env:
