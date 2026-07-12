@@ -1,8 +1,16 @@
 import groupBy from "lodash-es/groupBy";
 import sortBy from "lodash-es/sortBy";
-import {SimpleSudoku, Cell} from "./types";
-export const SUDOKU_COORDINATES = [0, 1, 2, 3, 4, 5, 6, 7, 8];
-export const SUDOKU_NUMBERS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+import {SUDOKU_COORDINATES} from "@sudoku/core";
+
+import {Cell, SimpleSudoku} from "./types";
+
+export {
+  parseSudoku,
+  SUDOKU_COORDINATES,
+  SUDOKU_NUMBERS,
+  squareIndex,
+  stringifySudoku,
+} from "@sudoku/core";
 
 // SQUARE TABLE
 /*
@@ -36,10 +44,6 @@ export const SQUARE_TABLE = (function () {
   );
   return squares;
 })();
-
-export function squareIndex(x: number, y: number): number {
-  return Math.floor(y / 3) * 3 + Math.floor(x / 3);
-}
 
 export function simpleSudokuToCells(grid: SimpleSudoku, solution?: SimpleSudoku): Cell[] {
   return ([] as Cell[]).concat(
@@ -76,71 +80,4 @@ export function cellsToSimpleSudoku(cells: Cell[]): SimpleSudoku {
     }
   });
   return simple;
-}
-
-export function stringifySudoku(grid: SimpleSudoku) {
-  return grid
-    .map((row) => {
-      return row.map((c) => (c === 0 ? "0" : c.toString())).join("");
-    })
-    .join("");
-}
-
-export function parseSudoku(sudoku: string): SimpleSudoku {
-  // Handle multi-line format with underscores (for tests)
-  if (sudoku.includes("\n")) {
-    const lines = sudoku.split("\n").filter((line) => line.trim() !== "");
-    if (lines.length !== 9) {
-      throw new Error(`Wrong number of lines! Only 9 allowed: ${sudoku}`);
-    }
-    return lines.map((line) => {
-      const characters = line.split("");
-      if (characters.length !== 9) {
-        throw new Error(`Wrong number of characters in line! Only 9 allowed: ${line} - ${sudoku}`);
-      }
-      return characters.map((c) => {
-        if (c === "_" || c === "0") {
-          return 0;
-        }
-        const number = Number(c);
-        if (isNaN(number) || number < 1 || number > 9) {
-          throw new Error(`The input data is incorrect, only 1-9 and _/0 allowed, but found ${c}`);
-        }
-        return number;
-      });
-    });
-  }
-
-  // Handle single string format (for production)
-  if (sudoku.length !== 9 * 9) {
-    throw new Error(
-      `The input data is incorrect, only 81 characters allowed, but found ${sudoku.length} characters. Input: ${sudoku}`,
-    );
-  }
-
-  for (const char of sudoku) {
-    if (["0"].concat(SUDOKU_NUMBERS.map((n) => String(n))).indexOf(char) < 0) {
-      throw new Error(`The input data is incorrect, only 0-9 allowed, but found ${char}`);
-    }
-  }
-
-  const lines = [];
-  for (let i = 0; i < 9; i++) {
-    lines.push(sudoku.slice(i * 9, (i + 1) * 9));
-  }
-
-  if (lines.length !== 9) {
-    throw new Error(`Wrong number of lines! Only 9 allowed: ${sudoku}`);
-  }
-
-  return lines.map((line) => {
-    const characters = line.split("");
-    if (characters.length !== 9) {
-      throw new Error(`Wrong number of characters in line! Only 9 allowed: ${line} - ${sudoku}`);
-    }
-    return characters.map((c) => {
-      const number = c === "0" ? 0 : Number(c);
-      return number;
-    });
-  });
 }

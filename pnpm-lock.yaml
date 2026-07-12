@@ -22,6 +22,9 @@ importers:
 
   .:
     dependencies:
+      '@sudoku/core':
+        specifier: workspace:*
+        version: link:packages/sudoku-core
       '@tanstack/react-router':
         specifier: 1.121.34
         version: 1.121.34(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -146,6 +149,15 @@ importers:
       workbox-window:
         specifier: 7.4.1
         version: 7.4.1
+
+  packages/sudoku-core:
+    devDependencies:
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: 3.2.6
+        version: 3.2.6(@types/node@24.3.1)(jiti@1.21.7)(terser@5.43.1)(yaml@2.8.3)
 
 packages:
 
