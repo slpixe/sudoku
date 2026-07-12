@@ -150,6 +150,22 @@ importers:
         specifier: 7.4.1
         version: 7.4.1
 
+  packages/multiplayer-protocol:
+    dependencies:
+      '@sudoku/core':
+        specifier: workspace:*
+        version: link:../sudoku-core
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
+    devDependencies:
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: 3.2.6
+        version: 3.2.6(@types/node@24.3.1)(jiti@1.21.7)(terser@5.43.1)(yaml@2.8.3)
+
   packages/sudoku-core:
     devDependencies:
       typescript:
@@ -3246,6 +3262,9 @@ packages:
   yocto-queue@0.1.0:
     resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==}
     engines: {node: '>=10'}
+
+  zod@4.4.3:
+    resolution: {integrity: sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ==}
 
 snapshots:
 
@@ -6642,3 +6661,5 @@ snapshots:
   yn@3.1.1: {}
 
   yocto-queue@0.1.0: {}
+
+  zod@4.4.3: {}
