@@ -9,8 +9,9 @@
     "node": ">=24"
   },
   "scripts": {
+    "build:core": "pnpm --filter @sudoku/core build",
     "build:web": "vite build",
-    "build": "pnpm --filter @sudoku/core build && pnpm run build:web",
+    "build": "pnpm run build:core && pnpm run build:web",
     "preview": "vite preview",
     "clean": "rm -rf dist/",
     "test:web": "vitest run",
@@ -24,12 +25,12 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "prettier:write": "prettier --write './src/**/*.ts' './src/**/*.tsx'",
-    "fetch-sudokus": "node --import ./scripts/register_ts_node.mjs --experimental-specifier-resolution=node ./scripts/fetch_sudokus.ts -l 6 -n 100 -p sudokuDotCom",
-    "generate-easy-sudokus": "node --import ./scripts/register_ts_node.mjs --experimental-specifier-resolution=node ./scripts/generate_sudokus.ts -d easy -n 500",
-    "generate-medium-sudokus": "node --import ./scripts/register_ts_node.mjs --experimental-specifier-resolution=node ./scripts/generate_sudokus.ts -d medium -n 500",
-    "generate-hard-sudokus": "node --import ./scripts/register_ts_node.mjs --experimental-specifier-resolution=node ./scripts/generate_sudokus.ts -d hard -n 500",
-    "generate-expert-sudokus": "node --import ./scripts/register_ts_node.mjs --experimental-specifier-resolution=node ./scripts/generate_sudokus.ts -d expert -n 500",
-    "generate-evil-sudokus": "node --import ./scripts/register_ts_node.mjs --experimental-specifier-resolution=node ./scripts/generate_sudokus.ts -d evil -n 500"
+    "fetch-sudokus": "pnpm run build:core && node --import ./scripts/register_ts_node.mjs --experimental-specifier-resolution=node ./scripts/fetch_sudokus.ts -l 6 -n 100 -p sudokuDotCom",
+    "generate-easy-sudokus": "pnpm run build:core && node --import ./scripts/register_ts_node.mjs --experimental-specifier-resolution=node ./scripts/generate_sudokus.ts -d easy -n 500",
+    "generate-medium-sudokus": "pnpm run build:core && node --import ./scripts/register_ts_node.mjs --experimental-specifier-resolution=node ./scripts/generate_sudokus.ts -d medium -n 500",
+    "generate-hard-sudokus": "pnpm run build:core && node --import ./scripts/register_ts_node.mjs --experimental-specifier-resolution=node ./scripts/generate_sudokus.ts -d hard -n 500",
+    "generate-expert-sudokus": "pnpm run build:core && node --import ./scripts/register_ts_node.mjs --experimental-specifier-resolution=node ./scripts/generate_sudokus.ts -d expert -n 500",
+    "generate-evil-sudokus": "pnpm run build:core && node --import ./scripts/register_ts_node.mjs --experimental-specifier-resolution=node ./scripts/generate_sudokus.ts -d evil -n 500"
   },
   "keywords": [
     "sudoku",
