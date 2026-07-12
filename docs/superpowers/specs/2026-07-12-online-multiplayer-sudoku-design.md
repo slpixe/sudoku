@@ -51,7 +51,7 @@ Solo / offline preserves the current difficulty tabs and puzzle grid. Puzzle car
 
 Create online room also shows the difficulty tabs and puzzle grid, but its cards are clean. They do not show the creator's solo progress or times because selecting a card always creates a fresh collaborative room. Selecting a puzzle sends its collection identifier and index to the backend; the backend resolves and verifies the canonical puzzle, creates the room, and joins the creator.
 
-Join existing room hides the difficulty tabs and puzzle grid completely. It shows a room-code field and Join action. Codes are case-insensitive and normalized before submission. A share link such as `https://sudoku.slpixe.com/room/ABC234` attempts to join that room directly and shows the same inline error treatment if joining fails.
+Join existing room hides the difficulty tabs and puzzle grid completely. It shows a room-code field and Join action. Codes are case-insensitive and normalized before submission. The app retains its established hash-router contract, so a share link such as `https://sudoku.slpixe.com/#/room/ABC234` attempts to join that room directly and shows the same inline error treatment if joining fails.
 
 When the browser is offline, Solo / offline remains available. The two online actions show that a connection is required and offer retry once connectivity returns.
 
