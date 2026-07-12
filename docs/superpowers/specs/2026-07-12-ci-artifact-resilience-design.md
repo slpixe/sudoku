@@ -13,9 +13,10 @@ The workflow runs lint, unit tests, type checks, and 82 Playwright end-to-end te
 - Run lint, unit tests, type checks, and Playwright end-to-end tests exactly as today.
 - Attempt Playwright artifact uploads only when an earlier workflow step has failed.
 - Mark each artifact-upload step `continue-on-error: true` so optional diagnostics cannot change the job conclusion.
-- Keep the existing 14-day artifact retention setting.
+- Retain future failure-only artifacts for three days instead of fourteen days.
 - Keep summary generation and pull-request commenting behavior unchanged.
-- Do not delete Actions artifacts or change account billing/storage settings as part of this fix.
+- Delete the repository's 110 existing Actions artifacts, which currently occupy 2,550,053,140 bytes (about 2.55 GB).
+- Do not change account billing or storage settings as part of this fix.
 
 ## Failure semantics
 
@@ -23,11 +24,14 @@ Test, lint, typecheck, build, and Playwright failures remain fatal and keep the 
 
 ## Implementation
 
-In `.github/workflows/run_tests.yaml`, change both Playwright artifact upload steps from `if: always()` to `if: failure()` and add `continue-on-error: true`. No application source or dependency changes are required.
+In `.github/workflows/run_tests.yaml`, change both Playwright artifact upload steps from `if: always()` to `if: failure()`, add `continue-on-error: true`, and change `retention-days` from `14` to `3`. No application source or dependency changes are required.
+
+Delete the existing artifacts through GitHub's repository Actions Artifacts API after recording their count and total size. Deletion is limited to artifacts returned for `slpixe/sudoku`; artifacts belonging to other repositories remain untouched. Verify that the Sudoku artifact count reaches zero before triggering the replacement CI run.
 
 ## Verification
 
 - Parse and inspect the workflow diff to confirm only the two upload steps changed.
+- Confirm the existing inventory is 110 artifacts totaling 2,550,053,140 bytes, then delete those artifacts and verify the repository artifact count is zero.
 - Run `pnpm run lint`, `pnpm test`, `pnpm run typecheck`, and `pnpm run test:e2e` locally.
 - Push the workflow commit to `master`.
 - Confirm the resulting `Run tests` workflow succeeds on GitHub.
@@ -35,7 +39,6 @@ In `.github/workflows/run_tests.yaml`, change both Playwright artifact upload st
 
 ## Out of scope
 
-- Deleting existing GitHub Actions artifacts.
 - Increasing GitHub storage quota.
 - Changing test coverage or application behavior.
 - Removing Playwright diagnostic artifacts entirely.
