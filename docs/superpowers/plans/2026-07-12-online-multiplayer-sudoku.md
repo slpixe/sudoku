@@ -15,6 +15,7 @@
 - Use the existing hash-router contract; room links are `https://sudoku.slpixe.com/#/room/<CODE>`.
 - Solo must remain fully playable from the warmed PWA cache with no backend connection.
 - Create Online offers only `easy`, `medium`, `hard`, `expert`, and `evil`; custom local collections remain Solo-only.
+- Treat existing built-in puzzle lines as immutable identities; append new puzzles only. Room creation sends the selected puzzle's 81-character givens fingerprint and rejects a mismatch with the server catalog.
 - Rooms allow two concurrently connected distinct `guestId` values; same-guest tabs share a seat and disconnected seats remain reserved for 60 seconds.
 - Persist rooms for 24 hours after the last participant disconnects; never expire a room with an active connection.
 - Keep givens white, entered values orange, and notes green; do not add player attribution or player-specific colors.
@@ -406,7 +407,7 @@ Update the root static-app Dockerfile install layer to copy all three workspace 
 
 - [ ] **Step 2: Write catalog and code tests**
 
-Test `easy` puzzle 1 against the first line in `sudokus/easy.txt`, reject puzzle zero/out-of-range/custom collection IDs, assert the solution contains digits 1–9 only, and inject deterministic random bytes to assert a six-character code using `23456789ABCDEFGHJKLMNPQRSTUVWXYZ`.
+Test `easy` puzzle 1 against the first line in `sudokus/easy.txt`, expose its exact 81-character fingerprint, reject puzzle zero/out-of-range/custom collection IDs, assert the solution contains digits 1–9 only, and inject deterministic random bytes to assert a six-character code using `23456789ABCDEFGHJKLMNPQRSTUVWXYZ`.
 
 - [ ] **Step 3: Run tests and verify failure**
 
@@ -577,6 +578,7 @@ git commit -m "feat: persist multiplayer rooms in postgres"
 Cover these exact behaviours:
 
 - creation starts with revision 0, empty editable values, no running timestamp, and 24-hour expiry;
+- creation rejects a client fingerprint that differs from the independently loaded catalog givens;
 - first board mutation starts the timer;
 - pause accumulates elapsed time and clears `runningSince`;
 - resume restarts from the fake clock;
@@ -642,7 +644,7 @@ git commit -m "feat: add authoritative multiplayer room service"
   - client: `room:create`, `room:join`, `room:command`, `room:leave`
   - server: `room:snapshot`, `room:event`, `room:presence`, `room:error`
 - Acknowledgements use `{ok: true, snapshot}` or `{ok: false, error: {code, message}}`.
-- Error codes: `INVALID_REQUEST`, `ROOM_NOT_FOUND`, `ROOM_EXPIRED`, `ROOM_FULL`, `COMMAND_REJECTED`, `VERSION_MISMATCH`, and `SERVICE_UNAVAILABLE`.
+- Error codes: `INVALID_REQUEST`, `ROOM_NOT_FOUND`, `ROOM_EXPIRED`, `ROOM_FULL`, `COMMAND_REJECTED`, `VERSION_MISMATCH`, `PUZZLE_VERSION_MISMATCH`, and `SERVICE_UNAVAILABLE`.
 - Every Socket.IO handshake supplies `MULTIPLAYER_PROTOCOL_VERSION`; reject mismatches before room events are accepted.
 
 Define:
@@ -655,6 +657,7 @@ export type RoomErrorCode =
   | "ROOM_FULL"
   | "COMMAND_REJECTED"
   | "VERSION_MISMATCH"
+  | "PUZZLE_VERSION_MISMATCH"
   | "SERVICE_UNAVAILABLE";
 export interface RoomError {
   code: RoomErrorCode;
@@ -665,6 +668,7 @@ export interface CreateRoomRequest {
   connectionId: string;
   collectionId: import("@sudoku/core").BaseCollectionId;
   puzzleNumber: number;
+  puzzleFingerprint: string;
 }
 export interface JoinRoomRequest {
   guestId: string;
@@ -978,7 +982,7 @@ Expected: FAIL because the new controls are missing.
 
 - [ ] **Step 3: Implement the three explicit actions**
 
-Use accessible pressed-state buttons/cards for Solo / offline, Create online room, and Join existing room. Preserve the approved layout B. In Create Online, selecting a puzzle dynamically imports the Socket.IO client, calls the backend create flow, disconnects that temporary selection socket after acknowledgement, and navigates to the returned code; show a disabled/loading state to prevent duplicate rooms. This keeps ordinary Solo selection from opening a socket or eagerly evaluating multiplayer transport code.
+Use accessible pressed-state buttons/cards for Solo / offline, Create online room, and Join existing room. Preserve the approved layout B. In Create Online, selecting a puzzle computes its fingerprint with `stringifySudoku`, dynamically imports the Socket.IO client, calls the backend create flow with collection, index, and fingerprint, disconnects that temporary selection socket after acknowledgement, and navigates to the returned code; show a disabled/loading state to prevent duplicate rooms. This keeps ordinary Solo selection from opening a socket or eagerly evaluating multiplayer transport code.
 
 - [ ] **Step 4: Add the lazy room route**
 

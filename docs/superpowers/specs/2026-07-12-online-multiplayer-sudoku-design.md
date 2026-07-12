@@ -14,6 +14,7 @@ Collaborative play is the first multiplayer mode. A competitive race mode may re
 - Joining must not require registration, a name, or any other form input beyond a room code.
 - Shared gameplay should retain the existing visual language: white givens, orange entered values, and small green notes. Player-specific colors and action attribution are intentionally omitted.
 - The first release should use one small backend instance and no Redis. The architecture may scale later without introducing multi-instance complexity now.
+- Existing built-in puzzle lines are immutable catalog identities. New puzzles may be appended, but deployed lines must not be reordered or replaced.
 
 ## Repository and deployment boundaries
 
@@ -49,7 +50,7 @@ The Select Game page begins with three explicit actions:
 
 Solo / offline preserves the current difficulty tabs and puzzle grid. Puzzle cards continue showing local progress, last and best times, solve counts, Continue, and Restart information.
 
-Create online room also shows the difficulty tabs and puzzle grid, but its cards are clean. They do not show the creator's solo progress or times because selecting a card always creates a fresh collaborative room. This mode offers the five server-known built-in collections (`easy`, `medium`, `hard`, `expert`, and `evil`) only; browser-local custom collections remain Solo-only. Selecting a puzzle sends its collection identifier and index to the backend; the backend resolves and verifies the canonical puzzle, creates the room, and joins the creator.
+Create online room also shows the difficulty tabs and puzzle grid, but its cards are clean. They do not show the creator's solo progress or times because selecting a card always creates a fresh collaborative room. This mode offers the five server-known built-in collections (`easy`, `medium`, `hard`, `expert`, and `evil`) only; browser-local custom collections remain Solo-only. Selecting a puzzle sends its collection identifier, index, and 81-character givens fingerprint to the backend. The backend independently resolves the canonical puzzle, compares the fingerprint, rejects stale catalog clients, creates the room, and joins the creator.
 
 Join existing room hides the difficulty tabs and puzzle grid completely. It shows a room-code field and Join action. Codes are case-insensitive and normalized before submission. The app retains its established hash-router contract, so a share link such as `https://sudoku.slpixe.com/#/room/ABC234` attempts to join that room directly and shows the same inline error treatment if joining fails.
 
@@ -89,7 +90,7 @@ Each room stores:
 - accumulated elapsed time and the server timestamp at which the current running interval began;
 - creation, last-activity, and expiry timestamps.
 
-Storing the starting puzzle and solution with the room prevents a future puzzle-catalog edit from changing a live room. The server never trusts a starting grid or solution supplied by a client.
+Storing the starting puzzle and solution with the room prevents a future puzzle-catalog edit from changing a live room. The server never trusts a starting grid or solution supplied by a client. The client fingerprint is only a version-consistency assertion and must exactly match the server-resolved canonical givens.
 
 Active cell selection, open menus, notes-entry mode, copied notes, theme, conflict highlighting, occurrence counts, and matching-number preferences remain local UI state. Only actual cell values and notes are shared.
 
@@ -137,7 +138,7 @@ When the WebSocket connection drops, the client:
 
 The client does not persist a multiplayer board into the solo played-puzzle repository. It may store recent room codes and links locally for convenience.
 
-Join failures distinguish invalid code, expired room, full room, version incompatibility, and temporarily unavailable service. Invalid or expired rooms return the user to the Join Existing state with the entered code preserved. Backend or database unavailability leaves Solo usable and gives Online a retry action.
+Join and creation failures distinguish invalid code, expired room, full room, protocol incompatibility, puzzle-catalog mismatch, and temporarily unavailable service. Invalid or expired rooms return the user to the Join Existing state with the entered code preserved. A puzzle-catalog mismatch asks the creator to refresh before retrying. Backend or database unavailability leaves Solo usable and gives Online a retry action.
 
 The server commits before broadcasting. If persistence fails, it rejects the command and no other participant observes it as accepted. After a Fly restart, Socket.IO presence is rebuilt from reconnecting sockets and rooms load from Neon.
 
@@ -147,6 +148,7 @@ Deep-linked room routes still load the cached PWA shell offline, but clearly rep
 
 - Validate every event and payload on the server with strict size and value limits.
 - Resolve puzzles and solutions on the server; never accept authoritative puzzle data from the browser.
+- Compare the client-supplied givens fingerprint with the independently resolved catalog puzzle before room creation.
 - Enforce the two-guest limit, editable-cell rules, paused/completed restrictions, and allowed command kinds server-side.
 - Restrict production browser origins and use TLS/WSS exclusively.
 - Rate-limit room creation, failed joins, and mutation bursts by connection and network source.
