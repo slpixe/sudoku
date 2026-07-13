@@ -109,7 +109,7 @@ export class InMemoryRoomRepository implements RoomRepository {
 
   async recordDisconnectExpiry(code: string, expiresAt: Date): Promise<void> {
     const stored = this.#rooms.get(code);
-    if (stored) {
+    if (stored && expiresAt.getTime() > Date.parse(stored.snapshot.expiresAt)) {
       stored.snapshot.expiresAt = expiresAt.toISOString();
     }
   }

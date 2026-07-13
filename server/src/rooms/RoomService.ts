@@ -66,6 +66,23 @@ function eventFrom(room: RoomSnapshot, command: RoomCommand, now: Date): RoomEve
   };
 }
 
+function snapshotFromEvent(room: RoomSnapshot, event: RoomEvent): RoomSnapshot {
+  return {
+    roomCode: room.roomCode,
+    collectionId: room.collectionId,
+    puzzleNumber: room.puzzleNumber,
+    board: cloneBoard(event.board),
+    revision: event.revision,
+    status: event.status,
+    elapsedMs: event.elapsedMs,
+    runningSince: event.runningSince,
+    serverNow: event.serverNow,
+    canUndo: event.canUndo,
+    connectedGuests: room.connectedGuests,
+    expiresAt: new Date(event.serverNow + ROOM_LIFETIME_MS).toISOString(),
+  };
+}
+
 function isBoardAction(action: RoomCommand["action"]): action is BoardAction {
   return (
     action.type === "setNumber" || action.type === "setNotes" || action.type === "clearCell" || action.type === "hint"
@@ -170,8 +187,9 @@ export class RoomService {
       const now = this.clock.now();
       let event: RoomEvent | null = null;
       let duplicate = false;
+      let duplicateSnapshot: RoomSnapshot | null = null;
 
-      const snapshot = await this.repository.mutate(command.roomCode, now, async (room, helpers) => {
+      const currentSnapshot = await this.repository.mutate(command.roomCode, now, async (room, helpers) => {
         if (Date.parse(room.expiresAt) <= now.getTime()) {
           throw new Error(`Room ${command.roomCode} has expired`);
         }
@@ -180,6 +198,7 @@ export class RoomService {
         if (receipt) {
           event = receipt;
           duplicate = true;
+          duplicateSnapshot = snapshotFromEvent(room, receipt);
           return room;
         }
 
@@ -204,10 +223,10 @@ export class RoomService {
         return room;
       });
 
-      if (!snapshot || !event) {
+      if (!currentSnapshot || !event) {
         throw new Error(`Room ${command.roomCode} was not found`);
       }
-      return {snapshot, event, duplicate};
+      return {snapshot: duplicateSnapshot ?? currentSnapshot, event, duplicate};
     });
   }
 

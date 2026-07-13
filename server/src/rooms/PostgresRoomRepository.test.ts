@@ -170,7 +170,7 @@ describe("PostgresRoomRepository", () => {
     expect(receipt).not.toBeNull();
   });
 
-  it("updates disconnect expiry and deletes expired inactive rooms with cascades", async () => {
+  it("updates disconnect expiry monotonically and deletes expired inactive rooms with cascades", async () => {
     await repository.create({id: roomId, snapshot: createSnapshot(), now});
     await repository.mutate("ABC234", now, async (room, helpers) => {
       room.revision = 1;
@@ -179,10 +179,14 @@ describe("PostgresRoomRepository", () => {
       return room;
     });
 
-    const expiresAt = new Date("2026-07-13T10:05:00.000Z");
-    await repository.recordDisconnectExpiry("ABC234", expiresAt);
-    await expect(repository.getSnapshot("ABC234", now)).resolves.toMatchObject({expiresAt: expiresAt.toISOString()});
-    await expect(repository.deleteExpired(new Date("2026-07-13T10:06:00.000Z"), new Set(["OTHER1"]))).resolves.toBe(1);
+    const newerExpiry = new Date("2026-07-14T10:10:00.000Z");
+    const staleExpiry = new Date("2026-07-14T10:05:00.000Z");
+    await repository.recordDisconnectExpiry("ABC234", newerExpiry);
+    await repository.recordDisconnectExpiry("ABC234", staleExpiry);
+    await expect(repository.getSnapshot("ABC234", now)).resolves.toMatchObject({
+      expiresAt: newerExpiry.toISOString(),
+    });
+    await expect(repository.deleteExpired(new Date("2026-07-14T10:11:00.000Z"), new Set(["OTHER1"]))).resolves.toBe(1);
 
     const childCounts = await database.query<{commands: string; undo: string}>(
       `SELECT

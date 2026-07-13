@@ -167,7 +167,7 @@ describe("RoomService", () => {
   it("clears board, timer, completion and undo while retaining command receipts", async () => {
     const {clock, repository, service} = setup();
     const room = await create(service);
-    await service.execute(command(room.roomCode, 1, {type: "setNotes", cellIndex: 1, notes: [2, 4]}));
+    const original = await service.execute(command(room.roomCode, 1, {type: "setNotes", cellIndex: 1, notes: [2, 4]}));
     clock.advance(1_000);
     const cleared = await service.execute(command(room.roomCode, 2, {type: "clear"}, 1));
 
@@ -177,10 +177,17 @@ describe("RoomService", () => {
     expect(repository.processedCommandCount(room.roomCode)).toBe(2);
     expect(repository.undoCount(room.roomCode)).toBe(0);
 
+    clock.advance(1_000);
+    const later = await service.execute(command(room.roomCode, 3, {type: "setNumber", cellIndex: 1, number: 9}));
+
     const duplicate = await service.execute(command(room.roomCode, 1, {type: "setNumber", cellIndex: 1, number: 9}));
     expect(duplicate.duplicate).toBe(true);
-    expect(duplicate.event.action).toEqual({type: "setNotes", cellIndex: 1, notes: [2, 4]});
-    expect(duplicate.snapshot.revision).toBe(2);
+    expect(duplicate.event).toEqual(original.event);
+    expect(duplicate.snapshot).toEqual(original.snapshot);
+    await expect(repository.getSnapshot(room.roomCode, clock.now())).resolves.toMatchObject({
+      revision: later.snapshot.revision,
+      board: {values: later.snapshot.board.values},
+    });
   });
 
   it("accepts valid stale intentions and applies same-cell commands in arrival order", async () => {
@@ -253,6 +260,20 @@ describe("RoomService", () => {
     clock.advance(DAY_MS + 1);
     await expect(service.deleteExpiredRooms(new Set([room.roomCode]))).resolves.toBe(0);
     await expect(service.deleteExpiredRooms(new Set())).resolves.toBe(1);
+  });
+
+  it("does not let a delayed disconnect shorten a newer activity expiry", async () => {
+    const {clock, repository, service} = setup();
+    const room = await create(service);
+    clock.advance(10_000);
+    const changed = await service.execute(command(room.roomCode, 1, {type: "setNotes", cellIndex: 1, notes: [4]}));
+
+    clock.advance(-5_000);
+    await service.markRoomInactive(room.roomCode);
+
+    await expect(repository.getSnapshot(room.roomCode, clock.now())).resolves.toMatchObject({
+      expiresAt: changed.snapshot.expiresAt,
+    });
   });
 
   it("allows only resume while paused and rejects no-op state controls", async () => {

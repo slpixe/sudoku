@@ -136,14 +136,17 @@ export class PostgresRoomRepository implements RoomRepository {
   }
 
   async recordDisconnectExpiry(code: string, expiresAt: Date): Promise<void> {
-    await this.database.query("UPDATE rooms SET expires_at = $2 WHERE code = $1", [code, expiresAt]);
+    await this.database.query("UPDATE rooms SET expires_at = GREATEST(expires_at, $2) WHERE code = $1", [
+      code,
+      expiresAt,
+    ]);
   }
 
   async deleteExpired(now: Date, activeRoomCodes: ReadonlySet<string>): Promise<number> {
-    const result = await this.database.query(
-      "DELETE FROM rooms WHERE expires_at <= $1 AND code <> ALL($2::text[])",
-      [now, [...activeRoomCodes]],
-    );
+    const result = await this.database.query("DELETE FROM rooms WHERE expires_at <= $1 AND code <> ALL($2::text[])", [
+      now,
+      [...activeRoomCodes],
+    ]);
     return result.rowCount;
   }
 
