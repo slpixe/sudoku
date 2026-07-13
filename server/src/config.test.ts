@@ -25,6 +25,20 @@ describe("loadServerConfig", () => {
     ).toThrow(/DATABASE_URL/);
   });
 
+  it.each(["postgres:local", "postgresql:db", "postgres:///sudoku", "postgresql:/sudoku"])(
+    "rejects PostgreSQL URLs without a hostname: %s",
+    (databaseUrl) => {
+      expect(() => loadServerConfig({DATABASE_URL: databaseUrl})).toThrow(/DATABASE_URL/);
+    },
+  );
+
+  it.each(["postgres://database.example.com/sudoku", "postgresql://database.example.com/sudoku"])(
+    "accepts a hierarchical PostgreSQL URL: %s",
+    (databaseUrl) => {
+      expect(loadServerConfig({NODE_ENV: "production", DATABASE_URL: databaseUrl}).databaseUrl).toBe(databaseUrl);
+    },
+  );
+
   it("rejects invalid numeric values and malformed origins", () => {
     expect(() => loadServerConfig({PORT: "0"})).toThrow(/PORT/);
     expect(() => loadServerConfig({ROOM_TTL_HOURS: "NaN"})).toThrow(/ROOM_TTL_HOURS/);

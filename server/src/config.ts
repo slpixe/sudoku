@@ -3,7 +3,8 @@ import {z} from "zod";
 const postgresUrlSchema = z.string().trim().min(1).refine(
   (value) => {
     try {
-      return ["postgres:", "postgresql:"].includes(new URL(value).protocol);
+      const url = new URL(value);
+      return ["postgres:", "postgresql:"].includes(url.protocol) && url.hostname.length > 0;
     } catch {
       return false;
     }
