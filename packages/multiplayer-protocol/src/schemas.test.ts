@@ -1,6 +1,7 @@
 import {describe, expect, it} from "vitest";
 
 import {roomCommandSchema} from "./schemas.js";
+import {createRoomRequestSchema, joinRoomRequestSchema, leaveRoomRequestSchema} from "./socketEvents.js";
 
 const commandId = "123e4567-e89b-42d3-a456-426614174000";
 
@@ -63,5 +64,32 @@ describe("roomCommandSchema", () => {
     {type: "clear", unexpected: true},
   ])("rejects a malformed $type action", (action) => {
     expect(() => roomCommandSchema.parse(command(action))).toThrow();
+  });
+});
+
+describe("socket request schemas", () => {
+  const guestId = "123e4567-e89b-42d3-a456-426614174000";
+  const connectionId = "123e4567-e89b-42d3-a456-426614174001";
+
+  it("accepts the exact create, join, and leave request shapes", () => {
+    expect(
+      createRoomRequestSchema.parse({
+        guestId,
+        connectionId,
+        collectionId: "easy",
+        puzzleNumber: 1,
+        puzzleFingerprint: "0".repeat(81),
+      }),
+    ).toMatchObject({guestId, connectionId});
+    expect(joinRoomRequestSchema.parse({guestId, connectionId, roomCode: "ABC234"})).toMatchObject({roomCode: "ABC234"});
+    expect(leaveRoomRequestSchema.parse({connectionId, roomCode: "ABC234"})).toMatchObject({roomCode: "ABC234"});
+  });
+
+  it.each([
+    {guestId: "guest", connectionId, collectionId: "easy", puzzleNumber: 1, puzzleFingerprint: "0".repeat(81)},
+    {guestId, connectionId, collectionId: "easy", puzzleNumber: 1, puzzleFingerprint: "0".repeat(80)},
+    {guestId, connectionId, collectionId: "easy", puzzleNumber: 1, puzzleFingerprint: "0".repeat(81), extra: true},
+  ])("strictly rejects malformed create requests", (request) => {
+    expect(() => createRoomRequestSchema.parse(request)).toThrow();
   });
 });
