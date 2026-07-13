@@ -13,7 +13,17 @@ export interface PresenceUpdate {
   reservationExpiresAt: number | null;
 }
 
-export type PresenceConnectResult = ({ok: true} | {ok: false}) & Pick<PresenceUpdate, "connectedGuests">;
+export interface PresenceRollbackToken {
+  readonly roomCode: string;
+  readonly guestId: string;
+  readonly connectionId: string;
+  readonly connectionWasAdded: boolean;
+  readonly previousReservationExpiresAt: number | null;
+}
+
+export type PresenceConnectResult =
+  | {ok: true; connectedGuests: 0 | 1 | 2; rollback: PresenceRollbackToken}
+  | {ok: false; connectedGuests: 0 | 1 | 2};
 
 function presenceCount(guests: ReadonlyMap<string, GuestPresence>): 0 | 1 | 2 {
   let connected = 0;
@@ -37,9 +47,15 @@ export class PresenceService {
     const guests = this.#pruneRoom(roomCode);
     const existing = guests.get(guestId);
     if (existing) {
+      const previousReservationExpiresAt = existing.reservationExpiresAt;
+      const connectionWasAdded = !existing.connectionIds.has(connectionId);
       existing.connectionIds.add(connectionId);
       existing.reservationExpiresAt = null;
-      return {ok: true, connectedGuests: presenceCount(guests)};
+      return {
+        ok: true,
+        connectedGuests: presenceCount(guests),
+        rollback: {roomCode, guestId, connectionId, connectionWasAdded, previousReservationExpiresAt},
+      };
     }
     if (guests.size >= 2) {
       return {ok: false, connectedGuests: presenceCount(guests)};
@@ -47,7 +63,17 @@ export class PresenceService {
 
     guests.set(guestId, {connectionIds: new Set([connectionId]), reservationExpiresAt: null});
     this.#rooms.set(roomCode, guests);
-    return {ok: true, connectedGuests: presenceCount(guests)};
+    return {
+      ok: true,
+      connectedGuests: presenceCount(guests),
+      rollback: {
+        roomCode,
+        guestId,
+        connectionId,
+        connectionWasAdded: true,
+        previousReservationExpiresAt: null,
+      },
+    };
   }
 
   disconnect(roomCode: string, guestId: string, connectionId: string): PresenceUpdate {
@@ -68,17 +94,27 @@ export class PresenceService {
     };
   }
 
-  rollback(roomCode: string, guestId: string, connectionId: string): PresenceUpdate {
-    const guests = this.#pruneRoom(roomCode);
-    const guest = guests.get(guestId);
-    if (guest) {
-      guest.connectionIds.delete(connectionId);
-      if (guest.connectionIds.size === 0) {
-        guests.delete(guestId);
+  rollback(token: PresenceRollbackToken): PresenceUpdate {
+    const guests = this.#rooms.get(token.roomCode) ?? new Map<string, GuestPresence>();
+    const guest = guests.get(token.guestId);
+    if (!guest || !token.connectionWasAdded || !guest.connectionIds.delete(token.connectionId)) {
+      return {connectedGuests: presenceCount(guests), reservationExpiresAt: null};
+    }
+
+    let reservationExpiresAt: number | null = null;
+    if (guest.connectionIds.size === 0) {
+      if (
+        token.previousReservationExpiresAt !== null &&
+        token.previousReservationExpiresAt > this.clock.now().getTime()
+      ) {
+        guest.reservationExpiresAt = token.previousReservationExpiresAt;
+        reservationExpiresAt = token.previousReservationExpiresAt;
+      } else {
+        guests.delete(token.guestId);
       }
     }
-    this.#deleteEmptyRoom(roomCode, guests);
-    return {connectedGuests: presenceCount(guests), reservationExpiresAt: null};
+    this.#deleteEmptyRoom(token.roomCode, guests);
+    return {connectedGuests: presenceCount(guests), reservationExpiresAt};
   }
 
   expireReservation(roomCode: string, guestId: string, expectedExpiresAt: number): PresenceUpdate {

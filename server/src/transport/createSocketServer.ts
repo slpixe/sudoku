@@ -17,16 +17,31 @@ import {z} from "zod";
 
 import type {Clock} from "../rooms/Clock.js";
 import {SystemClock} from "../rooms/Clock.js";
-import type {PresenceService, PresenceUpdate} from "../rooms/PresenceService.js";
+import type {
+  PresenceRollbackToken,
+  PresenceService,
+  PresenceUpdate,
+} from "../rooms/PresenceService.js";
 import type {RoomService} from "../rooms/RoomService.js";
 import {TokenBucketRateLimiter} from "./rateLimit.js";
 
 const MAX_HTTP_BUFFER_SIZE = 16 * 1024;
 
-interface Membership {
+interface MembershipIdentity {
   readonly guestId: string;
   readonly clientConnectionId: string;
 }
+
+interface PendingMembership extends MembershipIdentity {
+  readonly state: "pending";
+  readonly rollback: PresenceRollbackToken;
+}
+
+interface LiveMembership extends MembershipIdentity {
+  readonly state: "live";
+}
+
+type Membership = PendingMembership | LiveMembership;
 
 interface SocketData {
   memberships: Map<string, Membership>;
@@ -40,6 +55,12 @@ export interface CreateSocketServerOptions {
   nodeEnv?: "development" | "test" | "production";
   allowedOrigins?: readonly string[];
   clock?: Clock;
+  onError?: (error: unknown, context: TransportErrorContext) => void;
+}
+
+export interface TransportErrorContext {
+  operation: "room:leave" | "disconnect";
+  roomCode: string;
 }
 
 const protocolHandshakeSchema = z
@@ -92,7 +113,7 @@ export function createSocketServer(httpServer: HttpServer, options: CreateSocket
   const clock = options.clock ?? new SystemClock();
   const allowedOrigins = new Set(options.allowedOrigins ?? []);
   const isAllowedOrigin = (origin: string | undefined): boolean =>
-    options.nodeEnv !== "production" || origin === undefined || allowedOrigins.has(origin);
+    options.nodeEnv !== "production" || (origin !== undefined && allowedOrigins.has(origin));
 
   const io: TypedServer = new Server(httpServer, {
     maxHttpBufferSize: MAX_HTTP_BUFFER_SIZE,
@@ -129,6 +150,14 @@ export function createSocketServer(httpServer: HttpServer, options: CreateSocket
       io.to(roomCode).emit("room:presence", {connectedGuests});
     };
 
+    const reportError = (error: unknown, context: TransportErrorContext): void => {
+      try {
+        options.onError?.(error, context);
+      } catch {
+        // Error reporting must never create a second unhandled failure.
+      }
+    };
+
     const scheduleReservationExpiry = (
       roomCode: string,
       guestId: string,
@@ -143,7 +172,31 @@ export function createSocketServer(httpServer: HttpServer, options: CreateSocket
       timer.unref();
     };
 
-    const finishDisconnect = async (
+    const rollbackPresence = (membership: PendingMembership): PresenceUpdate => {
+      const update = options.presence.rollback(membership.rollback);
+      scheduleReservationExpiry(
+        membership.rollback.roomCode,
+        membership.guestId,
+        update.reservationExpiresAt,
+      );
+      return update;
+    };
+
+    const releasePendingIfOwned = (
+      roomCode: string,
+      membership: PendingMembership,
+    ): PresenceUpdate | null => {
+      if (socket.data.memberships.get(roomCode) !== membership) {
+        return null;
+      }
+      socket.data.memberships.delete(roomCode);
+      return rollbackPresence(membership);
+    };
+
+    const ownsPending = (roomCode: string, membership: PendingMembership): boolean =>
+      socket.connected && socket.data.memberships.get(roomCode) === membership;
+
+    const finishCleanup = async (
       roomCode: string,
       membership: Membership,
       update: PresenceUpdate,
@@ -153,8 +206,9 @@ export function createSocketServer(httpServer: HttpServer, options: CreateSocket
       if (leaveSocketRoom) {
         await socket.leave(roomCode);
       }
-      broadcastPresence(roomCode, update.connectedGuests);
-      if (update.connectedGuests === 0) {
+      const connectedGuests = options.presence.connectedGuests(roomCode);
+      broadcastPresence(roomCode, connectedGuests);
+      if (membership.state === "live" && connectedGuests === 0) {
         await options.roomService.markRoomInactive(roomCode);
       }
     };
@@ -170,32 +224,53 @@ export function createSocketServer(httpServer: HttpServer, options: CreateSocket
         return;
       }
 
-      let reservedRoom: string | null = null;
+      let pending: PendingMembership | null = null;
+      let roomCode: string | null = null;
       try {
         const snapshot = await options.roomService.createRoom({
           collectionId: parsed.data.collectionId,
           puzzleNumber: parsed.data.puzzleNumber,
           givensFingerprint: parsed.data.puzzleFingerprint,
         });
+        roomCode = snapshot.roomCode;
+        if (!socket.connected) {
+          return;
+        }
+        if (socket.data.memberships.has(snapshot.roomCode)) {
+          acknowledge(ack, {ok: false, error: invalidRequest("This socket already joined the room")});
+          return;
+        }
         const connected = options.presence.connect(snapshot.roomCode, parsed.data.guestId, socket.id);
         if (!connected.ok) {
           acknowledge(ack, {ok: false, error: roomError("ROOM_FULL", "This room already has two guests")});
           return;
         }
-        reservedRoom = snapshot.roomCode;
+        pending = {
+          state: "pending",
+          guestId: parsed.data.guestId,
+          clientConnectionId: parsed.data.connectionId,
+          rollback: connected.rollback,
+        };
+        socket.data.memberships.set(snapshot.roomCode, pending);
         await socket.join(snapshot.roomCode);
+        if (!ownsPending(snapshot.roomCode, pending)) {
+          releasePendingIfOwned(snapshot.roomCode, pending);
+          return;
+        }
         socket.data.memberships.set(snapshot.roomCode, {
+          state: "live",
           guestId: parsed.data.guestId,
           clientConnectionId: parsed.data.connectionId,
         });
-        reservedRoom = null;
-        const publicSnapshot = snapshotWithPresence(snapshot, connected.connectedGuests);
+        pending = null;
+        const connectedGuests = options.presence.connectedGuests(snapshot.roomCode);
+        const publicSnapshot = snapshotWithPresence(snapshot, connectedGuests);
         socket.emit("room:snapshot", publicSnapshot);
-        broadcastPresence(snapshot.roomCode, connected.connectedGuests);
+        broadcastPresence(snapshot.roomCode, connectedGuests);
         acknowledge(ack, {ok: true, snapshot: publicSnapshot});
       } catch (error) {
-        if (reservedRoom !== null) {
-          options.presence.rollback(reservedRoom, parsed.data.guestId, socket.id);
+        if (pending !== null && roomCode !== null) {
+          releasePendingIfOwned(roomCode, pending);
         }
         acknowledge(ack, {ok: false, error: createError(error)});
       }
@@ -209,17 +284,18 @@ export function createSocketServer(httpServer: HttpServer, options: CreateSocket
       }
 
       const request = parsed.data;
-      const existingMembership = socket.data.memberships.get(request.roomCode);
-      if (
-        existingMembership &&
-        (existingMembership.guestId !== request.guestId ||
-          existingMembership.clientConnectionId !== request.connectionId)
-      ) {
-        acknowledge(ack, {ok: false, error: invalidRequest("This socket already joined the room")});
+      if (!failedJoinLimiter.consume(networkSource)) {
+        acknowledge(ack, {ok: false, error: invalidRequest("Too many unsuccessful room joins")});
         return;
       }
-      if (!failedJoinLimiter.hasCapacity(networkSource)) {
-        acknowledge(ack, {ok: false, error: invalidRequest("Too many unsuccessful room joins")});
+      const existingMembership = socket.data.memberships.get(request.roomCode);
+      if (existingMembership) {
+        const message =
+          existingMembership.guestId !== request.guestId ||
+          existingMembership.clientConnectionId !== request.connectionId
+            ? "This socket cannot join the room as a different guest"
+            : "This socket already joined or is joining the room";
+        acknowledge(ack, {ok: false, error: invalidRequest(message)});
         return;
       }
 
@@ -228,12 +304,35 @@ export function createSocketServer(httpServer: HttpServer, options: CreateSocket
         acknowledge(ack, {ok: false, error: roomError("ROOM_FULL", "This room already has two guests")});
         return;
       }
+      const pending: PendingMembership = {
+        state: "pending",
+        guestId: request.guestId,
+        clientConnectionId: request.connectionId,
+        rollback: connected.rollback,
+      };
+      socket.data.memberships.set(request.roomCode, pending);
+
+      const continuePending = (): boolean => {
+        if (ownsPending(request.roomCode, pending)) {
+          return true;
+        }
+        releasePendingIfOwned(request.roomCode, pending);
+        if (socket.connected) {
+          acknowledge(ack, {
+            ok: false,
+            error: roomError("COMMAND_REJECTED", "The room join was cancelled"),
+          });
+        }
+        return false;
+      };
 
       try {
         const existing = await options.roomService.repository.getSnapshot(request.roomCode, clock.now());
+        if (!continuePending()) {
+          return;
+        }
         if (!existing || Date.parse(existing.expiresAt) <= clock.now().getTime()) {
-          options.presence.rollback(request.roomCode, request.guestId, socket.id);
-          failedJoinLimiter.consume(networkSource);
+          releasePendingIfOwned(request.roomCode, pending);
           const error = existing
             ? roomError("ROOM_EXPIRED", "The room has expired")
             : roomError("ROOM_NOT_FOUND", "The room was not found");
@@ -242,24 +341,32 @@ export function createSocketServer(httpServer: HttpServer, options: CreateSocket
         }
 
         const snapshot = await options.roomService.joinRoom(request.roomCode);
+        if (!continuePending()) {
+          return;
+        }
         if (!snapshot) {
-          options.presence.rollback(request.roomCode, request.guestId, socket.id);
-          failedJoinLimiter.consume(networkSource);
+          releasePendingIfOwned(request.roomCode, pending);
           acknowledge(ack, {ok: false, error: roomError("ROOM_NOT_FOUND", "The room was not found")});
           return;
         }
 
         await socket.join(request.roomCode);
+        if (!continuePending()) {
+          return;
+        }
         socket.data.memberships.set(request.roomCode, {
+          state: "live",
           guestId: request.guestId,
           clientConnectionId: request.connectionId,
         });
-        const publicSnapshot = snapshotWithPresence(snapshot, connected.connectedGuests);
+        failedJoinLimiter.refund(networkSource);
+        const connectedGuests = options.presence.connectedGuests(request.roomCode);
+        const publicSnapshot = snapshotWithPresence(snapshot, connectedGuests);
         socket.emit("room:snapshot", publicSnapshot);
-        broadcastPresence(request.roomCode, connected.connectedGuests);
+        broadcastPresence(request.roomCode, connectedGuests);
         acknowledge(ack, {ok: true, snapshot: publicSnapshot});
       } catch {
-        options.presence.rollback(request.roomCode, request.guestId, socket.id);
+        releasePendingIfOwned(request.roomCode, pending);
         acknowledge(ack, {
           ok: false,
           error: roomError("SERVICE_UNAVAILABLE", "The room service is temporarily unavailable"),
@@ -273,7 +380,7 @@ export function createSocketServer(httpServer: HttpServer, options: CreateSocket
         acknowledge(ack, {ok: false, error: invalidRequest()});
         return;
       }
-      if (!socket.data.memberships.has(parsed.data.roomCode)) {
+      if (socket.data.memberships.get(parsed.data.roomCode)?.state !== "live") {
         acknowledge(ack, {ok: false, error: roomError("COMMAND_REJECTED", "Join the room before changing it")});
         return;
       }
@@ -297,7 +404,7 @@ export function createSocketServer(httpServer: HttpServer, options: CreateSocket
       }
     });
 
-    socket.on("room:leave", async (unparsedRequest) => {
+    socket.on("room:leave", (unparsedRequest) => {
       const parsed = leaveRoomRequestSchema.safeParse(unparsedRequest);
       if (!parsed.success) {
         socket.emit("room:error", invalidRequest());
@@ -310,8 +417,29 @@ export function createSocketServer(httpServer: HttpServer, options: CreateSocket
       }
 
       socket.data.memberships.delete(parsed.data.roomCode);
-      const update = options.presence.disconnect(parsed.data.roomCode, membership.guestId, socket.id);
-      await finishDisconnect(parsed.data.roomCode, membership, update, true);
+      let update: PresenceUpdate;
+      try {
+        update =
+          membership.state === "pending"
+            ? rollbackPresence(membership)
+            : options.presence.disconnect(parsed.data.roomCode, membership.guestId, socket.id);
+      } catch (error) {
+        reportError(error, {operation: "room:leave", roomCode: parsed.data.roomCode});
+        socket.emit(
+          "room:error",
+          roomError("SERVICE_UNAVAILABLE", "The room service is temporarily unavailable"),
+        );
+        return;
+      }
+      void finishCleanup(parsed.data.roomCode, membership, update, true).catch((error: unknown) => {
+        reportError(error, {operation: "room:leave", roomCode: parsed.data.roomCode});
+        if (socket.connected) {
+          socket.emit(
+            "room:error",
+            roomError("SERVICE_UNAVAILABLE", "The room service is temporarily unavailable"),
+          );
+        }
+      });
     });
 
     socket.on("disconnect", () => {
@@ -319,8 +447,17 @@ export function createSocketServer(httpServer: HttpServer, options: CreateSocket
       const memberships = [...socket.data.memberships];
       socket.data.memberships.clear();
       for (const [roomCode, membership] of memberships) {
-        const update = options.presence.disconnect(roomCode, membership.guestId, socket.id);
-        void finishDisconnect(roomCode, membership, update, false);
+        try {
+          const update =
+            membership.state === "pending"
+              ? rollbackPresence(membership)
+              : options.presence.disconnect(roomCode, membership.guestId, socket.id);
+          void finishCleanup(roomCode, membership, update, false).catch((error: unknown) => {
+            reportError(error, {operation: "disconnect", roomCode});
+          });
+        } catch (error) {
+          reportError(error, {operation: "disconnect", roomCode});
+        }
       }
     });
   });

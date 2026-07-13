@@ -40,4 +40,18 @@ describe("TokenBucketRateLimiter", () => {
     expect(limiter.consume("source-a")).toBe(false);
     expect(limiter.consume("source-b")).toBe(true);
   });
+
+  it("atomically reserves a token and can refund a successful attempt", () => {
+    const limiter = new TokenBucketRateLimiter(1, 60_000, new FakeClock());
+
+    expect(limiter.consume("source-a")).toBe(true);
+    expect(limiter.consume("source-a")).toBe(false);
+    limiter.refund("source-a");
+    expect(limiter.consume("source-a")).toBe(true);
+
+    limiter.refund("source-a");
+    limiter.refund("source-a");
+    expect(limiter.consume("source-a")).toBe(true);
+    expect(limiter.consume("source-a")).toBe(false);
+  });
 });

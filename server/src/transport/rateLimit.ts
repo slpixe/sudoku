@@ -33,6 +33,11 @@ export class TokenBucketRateLimiter {
     return this.#refill(key).tokens >= 1;
   }
 
+  refund(key: string): void {
+    const bucket = this.#refill(key);
+    bucket.tokens = Math.min(this.capacity, bucket.tokens + 1);
+  }
+
   delete(key: string): void {
     this.#buckets.delete(key);
   }
