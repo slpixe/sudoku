@@ -3,9 +3,16 @@ import {SystemClock} from "./Clock.js";
 
 const DEFAULT_RECONNECT_GRACE_MS = 60_000;
 
+type ConnectionState = "pending" | "live";
+
+interface GuestConnection {
+  state: ConnectionState;
+  generation: number;
+}
+
 interface GuestPresence {
-  readonly connectionIds: Set<string>;
-  reservationExpiresAt: number | null;
+  readonly connections: Map<string, GuestConnection>;
+  fallbackReservationExpiresAt: number | null;
 }
 
 export interface PresenceUpdate {
@@ -13,22 +20,34 @@ export interface PresenceUpdate {
   reservationExpiresAt: number | null;
 }
 
-export interface PresenceRollbackToken {
+export interface PresenceConnectionToken {
   readonly roomCode: string;
   readonly guestId: string;
   readonly connectionId: string;
-  readonly connectionWasAdded: boolean;
-  readonly previousReservationExpiresAt: number | null;
+  readonly generation: number;
 }
 
 export type PresenceConnectResult =
-  | {ok: true; connectedGuests: 0 | 1 | 2; rollback: PresenceRollbackToken}
+  | {ok: true; connectedGuests: 0 | 1 | 2; token: PresenceConnectionToken}
   | {ok: false; connectedGuests: 0 | 1 | 2};
+
+export type PresenceCommitResult =
+  | {ok: true; connectedGuests: 0 | 1 | 2}
+  | {ok: false; connectedGuests: 0 | 1 | 2};
+
+function hasLiveConnection(guest: GuestPresence): boolean {
+  for (const connection of guest.connections.values()) {
+    if (connection.state === "live") {
+      return true;
+    }
+  }
+  return false;
+}
 
 function presenceCount(guests: ReadonlyMap<string, GuestPresence>): 0 | 1 | 2 {
   let connected = 0;
   for (const guest of guests.values()) {
-    if (guest.connectionIds.size > 0) {
+    if (hasLiveConnection(guest)) {
       connected += 1;
     }
   }
@@ -37,6 +56,7 @@ function presenceCount(guests: ReadonlyMap<string, GuestPresence>): 0 | 1 | 2 {
 
 export class PresenceService {
   readonly #rooms = new Map<string, Map<string, GuestPresence>>();
+  #nextGeneration = 1;
 
   constructor(
     readonly clock: Clock = new SystemClock(),
@@ -45,90 +65,101 @@ export class PresenceService {
 
   connect(roomCode: string, guestId: string, connectionId: string): PresenceConnectResult {
     const guests = this.#pruneRoom(roomCode);
-    const existing = guests.get(guestId);
+    let guest = guests.get(guestId);
+    if (!guest) {
+      if (guests.size >= 2) {
+        return {ok: false, connectedGuests: presenceCount(guests)};
+      }
+      guest = {connections: new Map(), fallbackReservationExpiresAt: null};
+      guests.set(guestId, guest);
+      this.#rooms.set(roomCode, guests);
+    }
+
+    const existing = guest.connections.get(connectionId);
     if (existing) {
-      const previousReservationExpiresAt = existing.reservationExpiresAt;
-      const connectionWasAdded = !existing.connectionIds.has(connectionId);
-      existing.connectionIds.add(connectionId);
-      existing.reservationExpiresAt = null;
       return {
         ok: true,
         connectedGuests: presenceCount(guests),
-        rollback: {roomCode, guestId, connectionId, connectionWasAdded, previousReservationExpiresAt},
+        token: {roomCode, guestId, connectionId, generation: existing.generation},
       };
     }
-    if (guests.size >= 2) {
-      return {ok: false, connectedGuests: presenceCount(guests)};
-    }
 
-    guests.set(guestId, {connectionIds: new Set([connectionId]), reservationExpiresAt: null});
-    this.#rooms.set(roomCode, guests);
+    const generation = this.#nextGeneration++;
+    guest.connections.set(connectionId, {state: "pending", generation});
     return {
       ok: true,
       connectedGuests: presenceCount(guests),
-      rollback: {
-        roomCode,
-        guestId,
-        connectionId,
-        connectionWasAdded: true,
-        previousReservationExpiresAt: null,
-      },
+      token: {roomCode, guestId, connectionId, generation},
+    };
+  }
+
+  commit(token: PresenceConnectionToken): PresenceCommitResult {
+    const guests = this.#pruneRoom(token.roomCode);
+    const guest = guests.get(token.guestId);
+    const connection = guest?.connections.get(token.connectionId);
+    if (!guest || !connection || connection.generation !== token.generation) {
+      return {ok: false, connectedGuests: presenceCount(guests)};
+    }
+
+    connection.state = "live";
+    guest.fallbackReservationExpiresAt = null;
+    return {ok: true, connectedGuests: presenceCount(guests)};
+  }
+
+  rollback(token: PresenceConnectionToken): PresenceUpdate {
+    const guests = this.#pruneRoom(token.roomCode);
+    const guest = guests.get(token.guestId);
+    const connection = guest?.connections.get(token.connectionId);
+    if (
+      guest &&
+      connection?.state === "pending" &&
+      connection.generation === token.generation
+    ) {
+      guest.connections.delete(token.connectionId);
+      this.#deleteGuestWithoutCapacity(token.roomCode, token.guestId, guest, guests);
+    }
+    return {
+      connectedGuests: presenceCount(guests),
+      reservationExpiresAt: guest?.fallbackReservationExpiresAt ?? null,
     };
   }
 
   disconnect(roomCode: string, guestId: string, connectionId: string): PresenceUpdate {
     const guests = this.#pruneRoom(roomCode);
     const guest = guests.get(guestId);
-    if (!guest || !guest.connectionIds.delete(connectionId)) {
-      return {connectedGuests: presenceCount(guests), reservationExpiresAt: null};
+    const connection = guest?.connections.get(connectionId);
+    if (!guest || !connection) {
+      return {
+        connectedGuests: presenceCount(guests),
+        reservationExpiresAt: guest?.fallbackReservationExpiresAt ?? null,
+      };
     }
 
-    if (guest.connectionIds.size > 0) {
-      return {connectedGuests: presenceCount(guests), reservationExpiresAt: null};
+    guest.connections.delete(connectionId);
+    if (connection.state === "live" && !hasLiveConnection(guest)) {
+      guest.fallbackReservationExpiresAt = this.clock.now().getTime() + this.reconnectGraceMs;
     }
-
-    guest.reservationExpiresAt = this.clock.now().getTime() + this.reconnectGraceMs;
+    this.#deleteGuestWithoutCapacity(roomCode, guestId, guest, guests);
     return {
       connectedGuests: presenceCount(guests),
-      reservationExpiresAt: guest.reservationExpiresAt,
+      reservationExpiresAt: guest.fallbackReservationExpiresAt,
     };
-  }
-
-  rollback(token: PresenceRollbackToken): PresenceUpdate {
-    const guests = this.#rooms.get(token.roomCode) ?? new Map<string, GuestPresence>();
-    const guest = guests.get(token.guestId);
-    if (!guest || !token.connectionWasAdded || !guest.connectionIds.delete(token.connectionId)) {
-      return {connectedGuests: presenceCount(guests), reservationExpiresAt: null};
-    }
-
-    let reservationExpiresAt: number | null = null;
-    if (guest.connectionIds.size === 0) {
-      if (
-        token.previousReservationExpiresAt !== null &&
-        token.previousReservationExpiresAt > this.clock.now().getTime()
-      ) {
-        guest.reservationExpiresAt = token.previousReservationExpiresAt;
-        reservationExpiresAt = token.previousReservationExpiresAt;
-      } else {
-        guests.delete(token.guestId);
-      }
-    }
-    this.#deleteEmptyRoom(token.roomCode, guests);
-    return {connectedGuests: presenceCount(guests), reservationExpiresAt};
   }
 
   expireReservation(roomCode: string, guestId: string, expectedExpiresAt: number): PresenceUpdate {
     const guests = this.#rooms.get(roomCode) ?? new Map<string, GuestPresence>();
     const guest = guests.get(guestId);
     if (
-      guest?.connectionIds.size === 0 &&
-      guest.reservationExpiresAt === expectedExpiresAt &&
+      guest?.fallbackReservationExpiresAt === expectedExpiresAt &&
       expectedExpiresAt <= this.clock.now().getTime()
     ) {
-      guests.delete(guestId);
+      guest.fallbackReservationExpiresAt = null;
+      this.#deleteGuestWithoutCapacity(roomCode, guestId, guest, guests);
     }
-    this.#deleteEmptyRoom(roomCode, guests);
-    return {connectedGuests: presenceCount(guests), reservationExpiresAt: null};
+    return {
+      connectedGuests: presenceCount(guests),
+      reservationExpiresAt: guest?.fallbackReservationExpiresAt ?? null,
+    };
   }
 
   connectedGuests(roomCode: string): 0 | 1 | 2 {
@@ -147,18 +178,25 @@ export class PresenceService {
     const now = this.clock.now().getTime();
     for (const [guestId, guest] of guests) {
       if (
-        guest.connectionIds.size === 0 &&
-        guest.reservationExpiresAt !== null &&
-        guest.reservationExpiresAt <= now
+        guest.fallbackReservationExpiresAt !== null &&
+        guest.fallbackReservationExpiresAt <= now
       ) {
-        guests.delete(guestId);
+        guest.fallbackReservationExpiresAt = null;
       }
+      this.#deleteGuestWithoutCapacity(roomCode, guestId, guest, guests);
     }
-    this.#deleteEmptyRoom(roomCode, guests);
     return guests;
   }
 
-  #deleteEmptyRoom(roomCode: string, guests: ReadonlyMap<string, GuestPresence>): void {
+  #deleteGuestWithoutCapacity(
+    roomCode: string,
+    guestId: string,
+    guest: GuestPresence,
+    guests: Map<string, GuestPresence>,
+  ): void {
+    if (guest.connections.size === 0 && guest.fallbackReservationExpiresAt === null) {
+      guests.delete(guestId);
+    }
     if (guests.size === 0) {
       this.#rooms.delete(roomCode);
     }

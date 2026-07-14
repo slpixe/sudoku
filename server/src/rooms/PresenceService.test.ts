@@ -1,7 +1,7 @@
 import {describe, expect, it} from "vitest";
 
 import type {Clock} from "./Clock.js";
-import {PresenceService} from "./PresenceService.js";
+import {PresenceService, type PresenceConnectionToken} from "./PresenceService.js";
 
 class FakeClock implements Clock {
   #now = new Date("2026-07-13T10:00:00.000Z");
@@ -15,41 +15,66 @@ class FakeClock implements Clock {
   }
 }
 
-describe("PresenceService", () => {
-  it("allows two distinct guests and rejects a third", () => {
-    const presence = new PresenceService(new FakeClock());
+function reserve(
+  presence: PresenceService,
+  roomCode: string,
+  guestId: string,
+  connectionId: string,
+): PresenceConnectionToken {
+  const result = presence.connect(roomCode, guestId, connectionId);
+  if (!result.ok) {
+    throw new Error("Expected the guest connection to be reserved");
+  }
+  return result.token;
+}
 
-    expect(presence.connect("ABC234", "guest-1", "connection-1")).toMatchObject({ok: true, connectedGuests: 1});
-    expect(presence.connect("ABC234", "guest-2", "connection-2")).toMatchObject({ok: true, connectedGuests: 2});
+function connectLive(
+  presence: PresenceService,
+  roomCode: string,
+  guestId: string,
+  connectionId: string,
+): PresenceConnectionToken {
+  const token = reserve(presence, roomCode, guestId, connectionId);
+  expect(presence.commit(token)).toMatchObject({ok: true});
+  return token;
+}
+
+describe("PresenceService", () => {
+  it("counts only committed guests while pending guests still consume capacity", () => {
+    const presence = new PresenceService(new FakeClock());
+    const first = reserve(presence, "ABC234", "guest-1", "connection-1");
+    const second = reserve(presence, "ABC234", "guest-2", "connection-2");
+
+    expect(presence.connectedGuests("ABC234")).toBe(0);
     expect(presence.connect("ABC234", "guest-3", "connection-3")).toEqual({
       ok: false,
-      connectedGuests: 2,
+      connectedGuests: 0,
     });
+    expect(presence.commit(first)).toMatchObject({ok: true, connectedGuests: 1});
+    expect(presence.commit(second)).toMatchObject({ok: true, connectedGuests: 2});
   });
 
-  it("uses one seat for multiple connections belonging to the same guest", () => {
+  it("uses one seat and one connected guest for multiple live tabs", () => {
     const presence = new PresenceService(new FakeClock());
-    presence.connect("ABC234", "guest-1", "connection-1");
+    const first = reserve(presence, "ABC234", "guest-1", "connection-1");
+    const second = reserve(presence, "ABC234", "guest-1", "connection-2");
 
-    expect(presence.connect("ABC234", "guest-1", "connection-2")).toMatchObject({
-      ok: true,
-      connectedGuests: 1,
-    });
-    expect(presence.disconnect("ABC234", "guest-1", "connection-1")).toMatchObject({
+    presence.commit(first);
+    presence.commit(second);
+    expect(presence.connectedGuests("ABC234")).toBe(1);
+    expect(presence.disconnect("ABC234", "guest-1", "connection-1")).toEqual({
       connectedGuests: 1,
       reservationExpiresAt: null,
     });
-    expect(presence.activeRoomCodes()).toEqual(new Set(["ABC234"]));
   });
 
-  it("reserves a final disconnected guest's seat for 60 seconds", () => {
+  it("reserves a final live disconnect for 60 seconds", () => {
     const clock = new FakeClock();
     const presence = new PresenceService(clock);
-    presence.connect("ABC234", "guest-1", "connection-1");
-    presence.connect("ABC234", "guest-2", "connection-2");
+    connectLive(presence, "ABC234", "guest-1", "connection-1");
+    connectLive(presence, "ABC234", "guest-2", "connection-2");
 
-    const disconnected = presence.disconnect("ABC234", "guest-1", "connection-1");
-    expect(disconnected).toEqual({
+    expect(presence.disconnect("ABC234", "guest-1", "connection-1")).toEqual({
       connectedGuests: 1,
       reservationExpiresAt: clock.now().getTime() + 60_000,
     });
@@ -58,54 +83,80 @@ describe("PresenceService", () => {
     clock.advance(60_001);
     expect(presence.connect("ABC234", "guest-3", "connection-3")).toMatchObject({
       ok: true,
-      connectedGuests: 2,
-    });
-  });
-
-  it("lets the same guest reclaim a reserved seat and ignores stale expiry callbacks", () => {
-    const clock = new FakeClock();
-    const presence = new PresenceService(clock);
-    presence.connect("ABC234", "guest-1", "connection-1");
-    const {reservationExpiresAt} = presence.disconnect("ABC234", "guest-1", "connection-1");
-
-    clock.advance(30_000);
-    expect(presence.connect("ABC234", "guest-1", "connection-2")).toMatchObject({ok: true, connectedGuests: 1});
-    clock.advance(30_001);
-    expect(presence.expireReservation("ABC234", "guest-1", reservationExpiresAt!)).toMatchObject({
       connectedGuests: 1,
     });
   });
 
-  it("rolls back a newly added guest without leaving a seat", () => {
-    const presence = new PresenceService(new FakeClock());
-    const connected = presence.connect("MNO789", "guest-1", "connection-1");
-    if (!connected.ok) {
-      throw new Error("Expected the guest connection to be reserved");
-    }
-
-    expect(presence.rollback(connected.rollback)).toEqual({
-      connectedGuests: 0,
-      reservationExpiresAt: null,
-    });
-    expect(presence.activeRoomCodes()).toEqual(new Set());
-  });
-
-  it("restores an unexpired reservation when a reconnect is rolled back", () => {
+  it.each([
+    ["first then second", 0, 1],
+    ["second then first", 1, 0],
+  ])("restores one reservation when simultaneous reconnects fail %s", (_description, firstIndex, secondIndex) => {
     const clock = new FakeClock();
     const presence = new PresenceService(clock);
-    presence.connect("ABC234", "guest-1", "connection-1");
+    connectLive(presence, "ABC234", "guest-1", "connection-1");
     const {reservationExpiresAt} = presence.disconnect("ABC234", "guest-1", "connection-1");
-    presence.connect("ABC234", "guest-2", "connection-2");
-    clock.advance(10_000);
+    connectLive(presence, "ABC234", "guest-2", "connection-2");
+    const reconnects = [
+      reserve(presence, "ABC234", "guest-1", "connection-3"),
+      reserve(presence, "ABC234", "guest-1", "connection-4"),
+    ];
 
-    const reconnect = presence.connect("ABC234", "guest-1", "connection-3");
-    if (!reconnect.ok) {
-      throw new Error("Expected the reconnect reservation to succeed");
-    }
-    expect(presence.rollback(reconnect.rollback)).toEqual({
+    clock.advance(10_000);
+    presence.rollback(reconnects[firstIndex]);
+    expect(presence.rollback(reconnects[secondIndex])).toEqual({
       connectedGuests: 1,
       reservationExpiresAt,
     });
+    expect(presence.connect("ABC234", "guest-3", "connection-5")).toMatchObject({ok: false});
+  });
+
+  it("clears fallback provenance when one reconnect commits", () => {
+    const clock = new FakeClock();
+    const presence = new PresenceService(clock);
+    connectLive(presence, "ABC234", "guest-1", "connection-1");
+    const {reservationExpiresAt} = presence.disconnect("ABC234", "guest-1", "connection-1");
+    const committed = reserve(presence, "ABC234", "guest-1", "connection-2");
+    const failed = reserve(presence, "ABC234", "guest-1", "connection-3");
+
+    expect(presence.commit(committed)).toMatchObject({ok: true, connectedGuests: 1});
+    clock.advance(60_001);
+    presence.expireReservation("ABC234", "guest-1", reservationExpiresAt!);
+    expect(presence.rollback(failed)).toEqual({connectedGuests: 1, reservationExpiresAt: null});
+  });
+
+  it("creates a fresh fallback when the final live tab leaves pending reconnects", () => {
+    const clock = new FakeClock();
+    const presence = new PresenceService(clock);
+    connectLive(presence, "ABC234", "guest-1", "connection-1");
+    const pending = reserve(presence, "ABC234", "guest-1", "connection-2");
+    connectLive(presence, "ABC234", "guest-2", "connection-3");
+    clock.advance(5_000);
+
+    const disconnected = presence.disconnect("ABC234", "guest-1", "connection-1");
+    expect(disconnected).toEqual({
+      connectedGuests: 1,
+      reservationExpiresAt: clock.now().getTime() + 60_000,
+    });
+    expect(presence.rollback(pending)).toEqual(disconnected);
     expect(presence.connect("ABC234", "guest-3", "connection-4")).toMatchObject({ok: false});
+  });
+
+  it("rolls back a new pending guest without leaving a seat", () => {
+    const presence = new PresenceService(new FakeClock());
+    const pending = reserve(presence, "MNO789", "guest-1", "connection-1");
+
+    expect(presence.rollback(pending)).toEqual({connectedGuests: 0, reservationExpiresAt: null});
+    expect(presence.activeRoomCodes()).toEqual(new Set());
+  });
+
+  it("rejects stale commit and rollback tokens", () => {
+    const presence = new PresenceService(new FakeClock());
+    const pending = reserve(presence, "ABC234", "guest-1", "connection-1");
+    presence.rollback(pending);
+    const replacement = reserve(presence, "ABC234", "guest-1", "connection-1");
+
+    expect(presence.commit(pending)).toMatchObject({ok: false, connectedGuests: 0});
+    presence.rollback(pending);
+    expect(presence.commit(replacement)).toMatchObject({ok: true, connectedGuests: 1});
   });
 });

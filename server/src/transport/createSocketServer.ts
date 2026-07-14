@@ -18,7 +18,7 @@ import {z} from "zod";
 import type {Clock} from "../rooms/Clock.js";
 import {SystemClock} from "../rooms/Clock.js";
 import type {
-  PresenceRollbackToken,
+  PresenceConnectionToken,
   PresenceService,
   PresenceUpdate,
 } from "../rooms/PresenceService.js";
@@ -34,7 +34,7 @@ interface MembershipIdentity {
 
 interface PendingMembership extends MembershipIdentity {
   readonly state: "pending";
-  readonly rollback: PresenceRollbackToken;
+  readonly token: PresenceConnectionToken;
 }
 
 interface LiveMembership extends MembershipIdentity {
@@ -55,7 +55,7 @@ export interface CreateSocketServerOptions {
   nodeEnv?: "development" | "test" | "production";
   allowedOrigins?: readonly string[];
   clock?: Clock;
-  onError?: (error: unknown, context: TransportErrorContext) => void;
+  onError?: (error: unknown, context: TransportErrorContext) => void | Promise<void>;
 }
 
 export interface TransportErrorContext {
@@ -152,7 +152,7 @@ export function createSocketServer(httpServer: HttpServer, options: CreateSocket
 
     const reportError = (error: unknown, context: TransportErrorContext): void => {
       try {
-        options.onError?.(error, context);
+        void Promise.resolve(options.onError?.(error, context)).catch(() => {});
       } catch {
         // Error reporting must never create a second unhandled failure.
       }
@@ -173,9 +173,9 @@ export function createSocketServer(httpServer: HttpServer, options: CreateSocket
     };
 
     const rollbackPresence = (membership: PendingMembership): PresenceUpdate => {
-      const update = options.presence.rollback(membership.rollback);
+      const update = options.presence.rollback(membership.token);
       scheduleReservationExpiry(
-        membership.rollback.roomCode,
+        membership.token.roomCode,
         membership.guestId,
         update.reservationExpiresAt,
       );
@@ -249,12 +249,21 @@ export function createSocketServer(httpServer: HttpServer, options: CreateSocket
           state: "pending",
           guestId: parsed.data.guestId,
           clientConnectionId: parsed.data.connectionId,
-          rollback: connected.rollback,
+          token: connected.token,
         };
         socket.data.memberships.set(snapshot.roomCode, pending);
         await socket.join(snapshot.roomCode);
         if (!ownsPending(snapshot.roomCode, pending)) {
           releasePendingIfOwned(snapshot.roomCode, pending);
+          return;
+        }
+        const committed = options.presence.commit(pending.token);
+        if (!committed.ok) {
+          releasePendingIfOwned(snapshot.roomCode, pending);
+          acknowledge(ack, {
+            ok: false,
+            error: roomError("SERVICE_UNAVAILABLE", "The room service is temporarily unavailable"),
+          });
           return;
         }
         socket.data.memberships.set(snapshot.roomCode, {
@@ -308,7 +317,7 @@ export function createSocketServer(httpServer: HttpServer, options: CreateSocket
         state: "pending",
         guestId: request.guestId,
         clientConnectionId: request.connectionId,
-        rollback: connected.rollback,
+        token: connected.token,
       };
       socket.data.memberships.set(request.roomCode, pending);
 
@@ -352,6 +361,15 @@ export function createSocketServer(httpServer: HttpServer, options: CreateSocket
 
         await socket.join(request.roomCode);
         if (!continuePending()) {
+          return;
+        }
+        const committed = options.presence.commit(pending.token);
+        if (!committed.ok) {
+          releasePendingIfOwned(request.roomCode, pending);
+          acknowledge(ack, {
+            ok: false,
+            error: roomError("SERVICE_UNAVAILABLE", "The room service is temporarily unavailable"),
+          });
           return;
         }
         socket.data.memberships.set(request.roomCode, {

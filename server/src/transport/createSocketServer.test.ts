@@ -109,7 +109,7 @@ async function startRuntime(
   options: {
     nodeEnv?: "test" | "production";
     allowedOrigins?: string[];
-    onError?: (error: unknown, context: TransportErrorContext) => void;
+    onError?: (error: unknown, context: TransportErrorContext) => void | Promise<void>;
   } = {},
 ): Promise<TestRuntime> {
   const httpServer = createServer();
@@ -310,8 +310,11 @@ describe("createSocketServer", () => {
       emitJoin(joining, {guestId: GUEST_THREE, connectionId: uuid(41), roomCode: created.snapshot.roomCode}),
     ).resolves.toMatchObject({ok: false, error: {code: "INVALID_REQUEST"}});
 
+    const correction = new Promise<{connectedGuests: number}>((resolve) =>
+      creator.once("room:presence", resolve),
+    );
     joining.close();
-    await waitFor(() => runtime.presence.connectedGuests(created.snapshot.roomCode) === 1);
+    await expect(correction).resolves.toEqual({connectedGuests: 1});
     deferred.release();
     await new Promise<void>((resolve) => setTimeout(resolve, 0));
     expect(runtime.presence.connectedGuests(created.snapshot.roomCode)).toBe(1);
@@ -338,8 +341,9 @@ describe("createSocketServer", () => {
       roomCode: created.snapshot.roomCode,
     });
     await deferred.started;
+    expect(runtime.presence.connectedGuests(created.snapshot.roomCode)).toBe(1);
     creator.emit("room:leave", {roomCode: created.snapshot.roomCode, connectionId: createRequest().connectionId});
-    await waitFor(() => runtime.presence.connectedGuests(created.snapshot.roomCode) === 1);
+    await waitFor(() => runtime.presence.connectedGuests(created.snapshot.roomCode) === 0);
     deferred.release();
     await expect(joined).resolves.toMatchObject({ok: true, snapshot: {connectedGuests: 1}});
   });
@@ -439,10 +443,14 @@ describe("createSocketServer", () => {
     ).resolves.toMatchObject({ok: false, error: {code: "INVALID_REQUEST"}});
   });
 
-  it("contains leave and disconnect persistence failures", async () => {
+  it("contains persistence failures and async error-hook rejection", async () => {
     const failures: TransportErrorContext[] = [];
     const runtime = await startRuntime(new FailingDisconnectRepository(), {
-      onError: (_error, context) => failures.push(context),
+      onError: async (_error, context) => {
+        failures.push(context);
+        await Promise.resolve();
+        throw new Error("error hook rejected");
+      },
     });
     const socket = await connect(runtime.url);
     const first = await emitCreate(socket, createRequest());
