@@ -77,5 +77,22 @@
   "dialog_confirmation": "确认",
   "dialog_message": "消息",
   "dialog_ok": "确定",
-  "dialog_cancel": "取消"
+  "dialog_cancel": "取消",
+  "select_game_mode": "游戏模式",
+  "select_mode_solo": "单人 / 离线",
+  "select_mode_create_online": "创建在线房间",
+  "select_mode_join_online": "加入现有房间",
+  "multiplayer_room_code": "房间代码",
+  "multiplayer_join": "加入",
+  "multiplayer_creating": "正在创建房间…",
+  "multiplayer_online_required": "创建或加入在线房间需要网络连接。离线时仍可进行单人游戏。",
+  "multiplayer_invalid_room_code": "请输入有效的六位房间代码。",
+  "multiplayer_room_invalid_or_expired": "房间代码无效或房间已过期。",
+  "multiplayer_room_full": "该房间已有两位参与者。",
+  "multiplayer_puzzle_version_mismatch": "请刷新应用后再创建此房间。",
+  "multiplayer_service_unavailable": "在线游戏暂时不可用，请重试。",
+  "multiplayer_reconnecting": "正在重新连接…",
+  "multiplayer_connected_count": "已连接 {{count}}/2",
+  "multiplayer_copy_link": "复制链接",
+  "multiplayer_leave_room": "离开房间"
 }

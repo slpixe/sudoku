@@ -76,5 +76,22 @@
   "dialog_confirmation": "Confirmation",
   "dialog_message": "Message",
   "dialog_ok": "OK",
-  "dialog_cancel": "Annuler"
+  "dialog_cancel": "Annuler",
+  "select_game_mode": "Mode de jeu",
+  "select_mode_solo": "Solo / hors ligne",
+  "select_mode_create_online": "Créer une salle en ligne",
+  "select_mode_join_online": "Rejoindre une salle",
+  "multiplayer_room_code": "Code de la salle",
+  "multiplayer_join": "Rejoindre",
+  "multiplayer_creating": "Création de la salle…",
+  "multiplayer_online_required": "Une connexion internet est nécessaire pour créer ou rejoindre une salle. Le mode solo reste disponible hors ligne.",
+  "multiplayer_invalid_room_code": "Saisissez un code de salle valide de six caractères.",
+  "multiplayer_room_invalid_or_expired": "Ce code est invalide ou la salle a expiré.",
+  "multiplayer_room_full": "Cette salle compte déjà deux participants.",
+  "multiplayer_puzzle_version_mismatch": "Actualisez l’application avant de créer cette salle.",
+  "multiplayer_service_unavailable": "Le jeu en ligne est temporairement indisponible. Réessayez.",
+  "multiplayer_reconnecting": "Reconnexion…",
+  "multiplayer_connected_count": "{{count}}/2 connectés",
+  "multiplayer_copy_link": "Copier le lien",
+  "multiplayer_leave_room": "Quitter la salle"
 }

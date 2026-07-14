@@ -77,5 +77,22 @@
   "dialog_confirmation": "Confirmation",
   "dialog_message": "Message",
   "dialog_ok": "OK",
-  "dialog_cancel": "Cancel"
+  "dialog_cancel": "Cancel",
+  "select_game_mode": "Play mode",
+  "select_mode_solo": "Solo / offline",
+  "select_mode_create_online": "Create online room",
+  "select_mode_join_online": "Join existing room",
+  "multiplayer_room_code": "Room code",
+  "multiplayer_join": "Join",
+  "multiplayer_creating": "Creating room…",
+  "multiplayer_online_required": "An internet connection is required to create or join an online room. Solo play remains available offline.",
+  "multiplayer_invalid_room_code": "Enter a valid six-character room code.",
+  "multiplayer_room_invalid_or_expired": "That room code is invalid or the room has expired.",
+  "multiplayer_room_full": "That room already has two guests.",
+  "multiplayer_puzzle_version_mismatch": "Refresh the app before creating this room.",
+  "multiplayer_service_unavailable": "Online play is temporarily unavailable. Please try again.",
+  "multiplayer_reconnecting": "Reconnecting…",
+  "multiplayer_connected_count": "{{count}}/2 connected",
+  "multiplayer_copy_link": "Copy link",
+  "multiplayer_leave_room": "Leave room"
 }

@@ -52,10 +52,11 @@ export default class SudokuPreview extends React.PureComponent<{
   darken?: boolean;
   size?: number;
   ariaLabel?: string;
+  disabled?: boolean;
   onClick: () => void;
 }> {
   render() {
-    const {sudoku, id, onClick, size = 150, ariaLabel} = this.props;
+    const {sudoku, id, onClick, size = 150, ariaLabel, disabled = false} = this.props;
     const containerHeight = size;
     const containerWidth = size;
     const height = 100;
@@ -68,8 +69,9 @@ export default class SudokuPreview extends React.PureComponent<{
     return (
       <button
         aria-label={ariaLabel ?? `Select sudoku ${id}`}
-        className="user-select-none group block border-0 bg-transparent p-0 text-left touch-manipulation hover:cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-800"
+        className="user-select-none group block border-0 bg-transparent p-0 text-left touch-manipulation hover:cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-800 disabled:cursor-wait disabled:opacity-60"
         data-testid={`sudoku-preview-${id}`}
+        disabled={disabled}
         onClick={onClick}
         type="button"
       >

@@ -13,6 +13,8 @@ import {useTranslation} from "react-i18next";
 import {useAppDialog} from "src/components/AppDialog";
 import {appPersistence, StoredPlayedSudokuState} from "src/lib/persistence/appPersistence";
 import {createCompactGameSearch} from "./gameRouteContract";
+import {isBaseCollectionId} from "src/lib/game/baseCollections";
+import type {PuzzleSelection} from "./selectGameMode";
 
 const TabItem = ({active, children, ...props}: React.ButtonHTMLAttributes<HTMLButtonElement> & {active: boolean}) => (
   <button
@@ -107,11 +109,15 @@ const SudokuToSelect = ({
   index,
   sudokuCollectionName,
   storedSudoku,
+  disabled,
+  onSelect,
 }: {
   sudoku: SudokuRaw;
   storedSudoku: StoredPlayedSudokuState | undefined;
   index: number;
   sudokuCollectionName: string;
+  disabled?: boolean;
+  onSelect?: (selection: PuzzleSelection) => void;
 }) => {
   const localSudoku = storedSudoku;
   const unfinished = localSudoku && !localSudoku.game.won;
@@ -121,6 +127,10 @@ const SudokuToSelect = ({
   const dialog = useAppDialog();
 
   const choose = async () => {
+    if (onSelect) {
+      onSelect({collectionId: sudokuCollectionName, puzzleNumber: index + 1});
+      return;
+    }
     if (finished) {
       const areYouSure = await dialog.confirm({message: t("confirm_restart_finished")});
       if (!areYouSure) {
@@ -175,6 +185,7 @@ const SudokuToSelect = ({
           onClick={choose}
           id={index + 1}
           ariaLabel={t("select_sudoku", {sudokuIndex: index + 1})}
+          disabled={disabled}
           sudoku={finished ? sudoku.solution : sudoku.sudoku}
           darken
         />
@@ -187,10 +198,16 @@ const GameIndex = ({
   pageSudokus,
   pageStart,
   sudokuCollectionName,
+  onSelect,
+  selectionDisabled,
+  showProgress,
 }: {
   pageSudokus: SudokuRaw[];
   pageStart: number;
   sudokuCollectionName: string;
+  onSelect?: (selection: PuzzleSelection) => void;
+  selectionDisabled: boolean;
+  showProgress: boolean;
 }) => {
   const {t} = useTranslation();
 
@@ -203,8 +220,9 @@ const GameIndex = ({
       <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4" data-testid="select-game-grid">
         {pageSudokus.map((sudoku, index) => {
           const globalIndex = pageStart + index;
-          const sudokuKey = stringifySudoku(sudoku.sudoku);
-          const storedSudoku = appPersistence.playedSudokus.load(sudokuKey);
+          const storedSudoku = showProgress
+            ? appPersistence.playedSudokus.load(stringifySudoku(sudoku.sudoku))
+            : undefined;
 
           return (
             <SudokuToSelect
@@ -213,6 +231,8 @@ const GameIndex = ({
               index={globalIndex}
               sudokuCollectionName={sudokuCollectionName}
               storedSudoku={storedSudoku}
+              disabled={selectionDisabled}
+              onSelect={onSelect}
             />
           );
         })}
@@ -225,12 +245,29 @@ const usePaginatedSudokus = (collection: Collection, page: number, pageSize: num
   return getSudokusPaginated(collection, page, pageSize);
 };
 
-const GameSelect: React.FC = () => {
-  const {activeCollection, setActiveCollectionId, collections} = useSudokuCollections();
+interface GameSelectProps {
+  baseCollectionsOnly?: boolean;
+  onSelect?: (selection: PuzzleSelection) => void;
+  selectionDisabled?: boolean;
+  showProgress?: boolean;
+}
+
+const GameSelect: React.FC<GameSelectProps> = ({
+  baseCollectionsOnly = false,
+  onSelect,
+  selectionDisabled = false,
+  showProgress = true,
+}) => {
+  const {activeCollection, getCollection, setActiveCollectionId, collections} = useSudokuCollections();
   const [page, setPage] = useState(0);
+  const visibleCollections = baseCollectionsOnly
+    ? collections.filter((collection) => isBaseCollectionId(collection.id))
+    : collections;
+  const displayedCollection =
+    baseCollectionsOnly && !isBaseCollectionId(activeCollection.id) ? getCollection("easy") : activeCollection;
 
   const pageSize = 12;
-  const {sudokus: pageSudokus, totalPages: pageCount} = usePaginatedSudokus(activeCollection, page, pageSize);
+  const {sudokus: pageSudokus, totalPages: pageCount} = usePaginatedSudokus(displayedCollection, page, pageSize);
   const pageStart = page * pageSize;
 
   const setActiveCollectionAndResetPage = (collection: string) => {
@@ -242,10 +279,10 @@ const GameSelect: React.FC = () => {
     <div className="mt-8">
       <div className="flex justify-between items-center  mb-8">
         <div className="flex flex-wrap gap-2">
-          {collections.map((collection) => (
+          {visibleCollections.map((collection) => (
             <TabItem
               key={collection.id}
-              active={activeCollection.id === collection.id}
+              active={displayedCollection.id === collection.id}
               data-testid={`select-game-collection-${collection.id}`}
               onClick={() => setActiveCollectionAndResetPage(collection.id)}
             >
@@ -254,7 +291,14 @@ const GameSelect: React.FC = () => {
           ))}
         </div>
       </div>
-      <GameIndex pageSudokus={pageSudokus} pageStart={pageStart} sudokuCollectionName={activeCollection.id} />
+      <GameIndex
+        pageSudokus={pageSudokus}
+        pageStart={pageStart}
+        selectionDisabled={selectionDisabled}
+        showProgress={showProgress}
+        sudokuCollectionName={displayedCollection.id}
+        onSelect={onSelect}
+      />
       {pageCount > 1 && <PageSelector page={page} pageCount={pageCount} setPage={setPage} />}
     </div>
   );

@@ -77,5 +77,22 @@
   "dialog_confirmation": "Conferma",
   "dialog_message": "Messaggio",
   "dialog_ok": "OK",
-  "dialog_cancel": "Annulla"
+  "dialog_cancel": "Annulla",
+  "select_game_mode": "Modalità di gioco",
+  "select_mode_solo": "Singolo / offline",
+  "select_mode_create_online": "Crea stanza online",
+  "select_mode_join_online": "Entra in una stanza",
+  "multiplayer_room_code": "Codice stanza",
+  "multiplayer_join": "Entra",
+  "multiplayer_creating": "Creazione stanza…",
+  "multiplayer_online_required": "Serve una connessione internet per creare o entrare in una stanza. La modalità singola resta disponibile offline.",
+  "multiplayer_invalid_room_code": "Inserisci un codice stanza valido di sei caratteri.",
+  "multiplayer_room_invalid_or_expired": "Il codice non è valido o la stanza è scaduta.",
+  "multiplayer_room_full": "La stanza ha già due partecipanti.",
+  "multiplayer_puzzle_version_mismatch": "Aggiorna l’app prima di creare questa stanza.",
+  "multiplayer_service_unavailable": "Il gioco online è temporaneamente non disponibile. Riprova.",
+  "multiplayer_reconnecting": "Riconnessione…",
+  "multiplayer_connected_count": "{{count}}/2 connessi",
+  "multiplayer_copy_link": "Copia link",
+  "multiplayer_leave_room": "Lascia la stanza"
 }

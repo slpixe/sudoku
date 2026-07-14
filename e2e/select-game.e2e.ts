@@ -139,6 +139,58 @@ async function seedSelectGameStates(page: Page) {
   );
 }
 
+test("switches between Solo, Create Online, and Join Existing", async ({page}) => {
+  await seedSelectGameStates(page);
+  await page.goto("/#/select-game");
+
+  const solo = page.getByRole("button", {name: "Solo / offline"});
+  const createOnline = page.getByRole("button", {name: "Create online room"});
+  const joinExisting = page.getByRole("button", {name: "Join existing room"});
+
+  await expect(solo).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByTestId("select-game-card-status-1")).toBeVisible();
+
+  await createOnline.click();
+  await expect(createOnline).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByTestId("select-game-grid")).toBeVisible();
+  await expect(page.getByTestId("select-game-card-status-1")).toHaveCount(0);
+
+  await joinExisting.click();
+  await expect(joinExisting).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByTestId("select-game-grid")).toHaveCount(0);
+  await expect(page.getByLabel("Room code")).toBeVisible();
+});
+
+test("validates and normalizes room codes before hash-route navigation", async ({page}) => {
+  await page.goto("/#/select-game");
+  await page.getByRole("button", {name: "Join existing room"}).click();
+
+  const roomCode = page.getByLabel("Room code");
+  await roomCode.fill("abc01!");
+  await page.getByRole("button", {name: "Join", exact: true}).click();
+  await expect(page.getByRole("alert")).toContainText("Enter a valid six-character room code.");
+  await expect(page).toHaveURL(/#\/select-game$/);
+
+  await roomCode.fill("abc234");
+  await expect(roomCode).toHaveValue("ABC234");
+  await page.getByRole("button", {name: "Join", exact: true}).click();
+  await expect(page).toHaveURL(/#\/room\/ABC234$/);
+  await expect(page.getByText("Reconnecting…")).toBeVisible();
+});
+
+test("keeps Solo available and disables online actions while offline", async ({page, context}) => {
+  await page.goto("/#/select-game");
+  await context.setOffline(true);
+
+  await expect(page.getByRole("button", {name: "Solo / offline"})).toBeEnabled();
+  await expect(page.getByRole("button", {name: "Create online room"})).toBeDisabled();
+  await expect(page.getByRole("button", {name: "Join existing room"})).toBeDisabled();
+  await expect(page.getByText(/internet connection is required/i)).toBeVisible();
+  await expect(page.getByTestId("select-game-grid")).toBeVisible();
+
+  await context.setOffline(false);
+});
+
 test("shows restart confirmation dialog for finished games on select screen", async ({page}) => {
   await seedSelectGameStates(page);
   await page.goto("/#/select-game");
