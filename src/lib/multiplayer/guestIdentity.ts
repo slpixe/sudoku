@@ -17,14 +17,26 @@ const fallbackStorage: Storage = {
   setItem: (key, value) => void fallbackStorageValues.set(key, value),
 };
 
+function getOrCreateFallbackGuestId(): string {
+  const storedGuestId = fallbackStorage.getItem(GUEST_ID_STORAGE_KEY);
+  if (guestIdSchema.safeParse(storedGuestId).success) {
+    return storedGuestId as string;
+  }
+  const guestId = crypto.randomUUID();
+  guestIdSchema.parse(guestId);
+  fallbackStorage.setItem(GUEST_ID_STORAGE_KEY, guestId);
+  return guestId;
+}
+
 export function getOrCreateGuestId(storage: Storage): string {
+  let storedGuestId: string | null;
   try {
-    const storedGuestId = storage.getItem(GUEST_ID_STORAGE_KEY);
-    if (guestIdSchema.safeParse(storedGuestId).success) {
-      return storedGuestId as string;
-    }
+    storedGuestId = storage.getItem(GUEST_ID_STORAGE_KEY);
   } catch {
-    // Storage can be unavailable even when the browser exposes the API.
+    return getOrCreateFallbackGuestId();
+  }
+  if (guestIdSchema.safeParse(storedGuestId).success) {
+    return storedGuestId as string;
   }
 
   const guestId = crypto.randomUUID();
@@ -33,7 +45,7 @@ export function getOrCreateGuestId(storage: Storage): string {
   try {
     storage.setItem(GUEST_ID_STORAGE_KEY, guestId);
   } catch {
-    // The in-memory identity still permits this tab to join a room.
+    return getOrCreateFallbackGuestId();
   }
 
   return guestId;
@@ -41,11 +53,11 @@ export function getOrCreateGuestId(storage: Storage): string {
 
 export function getOrCreateBrowserGuestId(): string {
   if (typeof window === "undefined") {
-    return getOrCreateGuestId(fallbackStorage);
+    return getOrCreateFallbackGuestId();
   }
   try {
     return getOrCreateGuestId(window.localStorage);
   } catch {
-    return getOrCreateGuestId(fallbackStorage);
+    return getOrCreateFallbackGuestId();
   }
 }

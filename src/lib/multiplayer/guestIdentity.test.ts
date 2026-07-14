@@ -60,4 +60,25 @@ describe("getOrCreateGuestId", () => {
     expect(uuidSchema.parse(guestId)).toBe(guestId);
     expect(storage.getItem(GUEST_ID_STORAGE_KEY)).toBe(guestId);
   });
+
+  it("reuses the module fallback identity when storage methods throw", () => {
+    const getFailure = createStorage();
+    getFailure.getItem = () => {
+      throw new DOMException("Storage read denied", "SecurityError");
+    };
+    const remountedGetFailure = createStorage();
+    remountedGetFailure.getItem = getFailure.getItem;
+    const setFailure = createStorage();
+    setFailure.setItem = () => {
+      throw new DOMException("Storage write denied", "SecurityError");
+    };
+
+    const firstGuestId = getOrCreateGuestId(getFailure);
+    const remountedGuestId = getOrCreateGuestId(remountedGetFailure);
+    const writeFailureGuestId = getOrCreateGuestId(setFailure);
+
+    expect(uuidSchema.parse(firstGuestId)).toBe(firstGuestId);
+    expect(remountedGuestId).toBe(firstGuestId);
+    expect(writeFailureGuestId).toBe(firstGuestId);
+  });
 });

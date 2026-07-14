@@ -60,6 +60,19 @@ export function useMultiplayerRoom(
   const clientStateRef = React.useRef(clientState);
   const submitCommandRef = React.useRef<(command: RoomCommand) => void>(() => {});
   const lastReplayKeyRef = React.useRef<string | null>(null);
+  const activeRoomCodeRef = React.useRef(roomCode);
+
+  let renderedClientState = clientState;
+  let renderedPresence = presence;
+  if (activeRoomCodeRef.current !== roomCode) {
+    activeRoomCodeRef.current = roomCode;
+    const maskedState = createMultiplayerClientState();
+    clientStateRef.current = maskedState;
+    submitCommandRef.current = () => {};
+    lastReplayKeyRef.current = null;
+    renderedClientState = maskedState;
+    renderedPresence = 0;
+  }
 
   const dispatch = React.useCallback((action: MultiplayerClientAction): MultiplayerClientState => {
     const nextState = multiplayerClientReducer(clientStateRef.current, action);
@@ -77,9 +90,12 @@ export function useMultiplayerRoom(
 
     let active = true;
     let terminal = false;
+    let snapshotRequestGeneration = 0;
+
+    const ownsActiveRoom = (): boolean => active && activeRoomCodeRef.current === roomCode;
 
     const restartForSnapshot = (): void => {
-      if (!active || terminal) {
+      if (!ownsActiveRoom() || terminal) {
         return;
       }
       lastReplayKeyRef.current = null;
@@ -88,7 +104,7 @@ export function useMultiplayerRoom(
     };
 
     const handleCommandAcknowledgement = (command: RoomCommand, result: RoomAck): void => {
-      if (!active) {
+      if (!ownsActiveRoom()) {
         return;
       }
       if (result.ok) {
@@ -97,6 +113,10 @@ export function useMultiplayerRoom(
           commandId: command.commandId,
           snapshot: result.snapshot,
         });
+        if (nextState.requiredRevision !== null) {
+          restartForSnapshot();
+          return;
+        }
         if (nextState.confirmed === result.snapshot) {
           setPresence(result.snapshot.connectedGuests);
         }
@@ -128,12 +148,16 @@ export function useMultiplayerRoom(
     };
 
     const handleSnapshot = (snapshot: RoomSnapshot): void => {
-      if (!active || terminal || snapshot.roomCode !== roomCode) {
+      if (!ownsActiveRoom() || terminal || snapshot.roomCode !== roomCode) {
         return;
       }
       const previousState = clientStateRef.current;
       const nextState = dispatch({type: "snapshotReceived", snapshot});
-      if (nextState === previousState || nextState.confirmed === null || nextState.syncStatus !== "synced") {
+      if (nextState.requiredRevision !== null) {
+        restartForSnapshot();
+        return;
+      }
+      if (nextState === previousState || nextState.confirmed === null) {
         return;
       }
       setPresence(nextState.confirmed.connectedGuests);
@@ -141,11 +165,12 @@ export function useMultiplayerRoom(
     };
 
     const requestSnapshot = (): void => {
-      if (!active || terminal) {
+      if (!ownsActiveRoom() || terminal) {
         return;
       }
+      const requestGeneration = ++snapshotRequestGeneration;
       socket.emit("room:join", {guestId, connectionId, roomCode}, (result) => {
-        if (!active || terminal) {
+        if (!ownsActiveRoom() || terminal || requestGeneration !== snapshotRequestGeneration) {
           return;
         }
         if (result.ok) {
@@ -166,13 +191,13 @@ export function useMultiplayerRoom(
     };
 
     const handleDisconnect = (): void => {
-      if (active && !terminal) {
+      if (ownsActiveRoom() && !terminal) {
         dispatch({type: "connectionStatusChanged", status: "reconnecting"});
       }
     };
 
     const handleConnectError = (error: Error): void => {
-      if (!active) {
+      if (!ownsActiveRoom()) {
         return;
       }
       const roomError = connectionError(error);
@@ -187,7 +212,7 @@ export function useMultiplayerRoom(
     };
 
     const handleRoomEvent = (event: RoomEvent): void => {
-      if (!active) {
+      if (!ownsActiveRoom()) {
         return;
       }
       const currentRevision = clientStateRef.current.confirmed?.revision;
@@ -199,13 +224,13 @@ export function useMultiplayerRoom(
     };
 
     const handlePresence = (nextPresence: {connectedGuests: 0 | 1 | 2}): void => {
-      if (active) {
+      if (ownsActiveRoom()) {
         setPresence(nextPresence.connectedGuests);
       }
     };
 
     const handleRoomError = (error: RoomError): void => {
-      if (active) {
+      if (ownsActiveRoom()) {
         dispatch({type: "errorReceived", error});
       }
     };
@@ -250,18 +275,22 @@ export function useMultiplayerRoom(
     [dispatch, roomCode],
   );
 
-  const confirmed = clientState.confirmed;
-  const pending = clientState.pending;
+  const confirmed = renderedClientState.confirmed;
+  const pending = renderedClientState.pending;
   const projected = React.useMemo(() => projectMultiplayerBoard({confirmed, pending}), [confirmed, pending]);
   const status: MultiplayerRoomStatus =
-    clientState.syncStatus === "resyncing" ? "resyncing" : clientState.connectionStatus;
+    renderedClientState.connectionStatus === "disconnected"
+      ? "disconnected"
+      : renderedClientState.syncStatus === "resyncing"
+        ? "resyncing"
+        : renderedClientState.connectionStatus;
 
   return {
     confirmed,
     projected,
     status,
-    presence,
-    error: clientState.error,
+    presence: renderedPresence,
+    error: renderedClientState.error,
     send,
   };
 }

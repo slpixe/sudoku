@@ -16,6 +16,7 @@ export interface MultiplayerClientState {
   pending: RoomCommand[];
   connectionStatus: ConnectionStatus;
   syncStatus: SynchronizationStatus;
+  requiredRevision: number | null;
   error: RoomError | null;
 }
 
@@ -36,6 +37,7 @@ export function createMultiplayerClientState(): MultiplayerClientState {
     pending: [],
     connectionStatus: "connecting",
     syncStatus: "synced",
+    requiredRevision: null,
     error: null,
   };
 }
@@ -59,6 +61,33 @@ function snapshotFromEvent(confirmed: RoomSnapshot, event: RoomEvent): RoomSnaps
   };
 }
 
+function raisedRevisionFloor(state: MultiplayerClientState, revision: number): number {
+  return Math.max(state.requiredRevision ?? state.confirmed?.revision ?? 0, revision);
+}
+
+function reconcileSnapshot(
+  state: MultiplayerClientState,
+  snapshot: RoomSnapshot,
+  pending: RoomCommand[] = state.pending,
+): MultiplayerClientState {
+  const sameRoom = state.confirmed?.roomCode === snapshot.roomCode;
+  if (sameRoom && state.confirmed !== null && snapshot.revision < state.confirmed.revision) {
+    return pending === state.pending ? state : {...state, pending};
+  }
+
+  const requiredRevision = sameRoom ? state.requiredRevision : null;
+  const recovered = requiredRevision === null || snapshot.revision >= requiredRevision;
+  return {
+    ...state,
+    confirmed: snapshot,
+    pending,
+    connectionStatus: "connected",
+    syncStatus: recovered ? "synced" : "resyncing",
+    requiredRevision: recovered ? null : requiredRevision,
+    error: recovered ? null : state.error,
+  };
+}
+
 export function multiplayerClientReducer(
   state: MultiplayerClientState,
   action: MultiplayerClientAction,
@@ -75,22 +104,7 @@ export function multiplayerClientReducer(
       };
 
     case "commandAcknowledged": {
-      const staleSnapshot =
-        state.confirmed !== null &&
-        state.confirmed.roomCode === action.snapshot.roomCode &&
-        action.snapshot.revision < state.confirmed.revision;
-      if (staleSnapshot) {
-        const pending = withoutCommand(state.pending, action.commandId);
-        return pending === state.pending ? state : {...state, pending};
-      }
-      return {
-        ...state,
-        confirmed: action.snapshot,
-        pending: withoutCommand(state.pending, action.commandId),
-        connectionStatus: "connected",
-        syncStatus: "synced",
-        error: null,
-      };
+      return reconcileSnapshot(state, action.snapshot, withoutCommand(state.pending, action.commandId));
     }
 
     case "commandRejected":
@@ -98,50 +112,53 @@ export function multiplayerClientReducer(
         ...state,
         pending: withoutCommand(state.pending, action.commandId),
         syncStatus: "resyncing",
+        requiredRevision: raisedRevisionFloor(state, state.confirmed?.revision ?? 0),
         error: action.error,
       };
 
     case "roomEventReceived": {
       const pending = withoutCommand(state.pending, action.event.commandId);
       if (state.confirmed === null || state.syncStatus === "resyncing") {
-        return {...state, pending, syncStatus: "resyncing"};
+        return {
+          ...state,
+          pending,
+          syncStatus: "resyncing",
+          requiredRevision: raisedRevisionFloor(state, action.event.revision),
+        };
       }
       if (action.event.revision <= state.confirmed.revision) {
         return pending === state.pending ? state : {...state, pending};
       }
       if (action.event.revision !== state.confirmed.revision + 1) {
-        return {...state, pending, syncStatus: "resyncing"};
+        return {
+          ...state,
+          pending,
+          syncStatus: "resyncing",
+          requiredRevision: raisedRevisionFloor(state, action.event.revision),
+        };
       }
       return {
         ...state,
         confirmed: snapshotFromEvent(state.confirmed, action.event),
         pending,
         syncStatus: "synced",
+        requiredRevision: null,
         error: null,
       };
     }
 
     case "snapshotReceived":
-      if (
-        state.confirmed !== null &&
-        state.confirmed.roomCode === action.snapshot.roomCode &&
-        action.snapshot.revision < state.confirmed.revision
-      ) {
-        return state;
-      }
-      return {
-        ...state,
-        confirmed: action.snapshot,
-        connectionStatus: "connected",
-        syncStatus: "synced",
-        error: null,
-      };
+      return reconcileSnapshot(state, action.snapshot);
 
     case "errorReceived":
       return {...state, error: action.error};
 
     case "resyncRequested":
-      return {...state, syncStatus: "resyncing"};
+      return {
+        ...state,
+        syncStatus: "resyncing",
+        requiredRevision: raisedRevisionFloor(state, state.confirmed?.revision ?? 0),
+      };
 
     case "errorCleared":
       return {...state, error: null};

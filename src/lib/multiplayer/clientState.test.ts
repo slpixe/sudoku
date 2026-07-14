@@ -124,6 +124,7 @@ describe("multiplayerClientReducer", () => {
     });
 
     expect(state.syncStatus).toBe("resyncing");
+    expect(state.requiredRevision).toBe(4);
     expect(state.confirmed?.revision).toBe(2);
     expect(state.confirmed?.board.values[7]).toBe(0);
   });
@@ -142,7 +143,109 @@ describe("multiplayerClientReducer", () => {
     expect(state.pending).toEqual([]);
     expect(projectMultiplayerBoard(state)?.values[30]).toBe(0);
     expect(state.syncStatus).toBe("resyncing");
+    expect(state.requiredRevision).toBe(0);
     expect(state.error).toEqual(error);
+  });
+
+  it("keeps a revision-gap floor until a snapshot reaches the observed revision", () => {
+    const remoteCommand = createCommand(10, {type: "setNumber", cellIndex: 7, number: 8});
+    const observedBoard = createBoard();
+    observedBoard.values[7] = 8;
+    let state = multiplayerClientReducer(withSnapshot(createSnapshot(3)), {
+      type: "errorReceived",
+      error: {code: "SERVICE_UNAVAILABLE", message: "Recovering room state"},
+    });
+    state = multiplayerClientReducer(state, {
+      type: "roomEventReceived",
+      event: createEvent(remoteCommand, 5, observedBoard),
+    });
+
+    expect(state.requiredRevision).toBe(5);
+    expect(state.syncStatus).toBe("resyncing");
+
+    const intermediateBoard = createBoard();
+    intermediateBoard.values[6] = 4;
+    state = multiplayerClientReducer(state, {
+      type: "snapshotReceived",
+      snapshot: createSnapshot(4, intermediateBoard),
+    });
+
+    expect(state.confirmed?.revision).toBe(4);
+    expect(state.confirmed?.board.values[6]).toBe(4);
+    expect(state.requiredRevision).toBe(5);
+    expect(state.syncStatus).toBe("resyncing");
+    expect(state.error).toEqual({code: "SERVICE_UNAVAILABLE", message: "Recovering room state"});
+
+    state = multiplayerClientReducer(state, {
+      type: "snapshotReceived",
+      snapshot: createSnapshot(5, observedBoard),
+    });
+
+    expect(state.confirmed?.revision).toBe(5);
+    expect(state.requiredRevision).toBeNull();
+    expect(state.syncStatus).toBe("synced");
+    expect(state.error).toBeNull();
+  });
+
+  it("does not let a below-floor command acknowledgement complete recovery", () => {
+    const remoteCommand = createCommand(11, {type: "setNumber", cellIndex: 7, number: 8});
+    const localCommand = createCommand(12, {type: "setNotes", cellIndex: 8, notes: [1, 3]});
+    let state = multiplayerClientReducer(withSnapshot(createSnapshot(3)), {
+      type: "roomEventReceived",
+      event: createEvent(remoteCommand, 5, createBoard()),
+    });
+    state = multiplayerClientReducer(state, {type: "commandQueued", command: localCommand});
+    state = multiplayerClientReducer(state, {
+      type: "errorReceived",
+      error: {code: "SERVICE_UNAVAILABLE", message: "Still recovering"},
+    });
+
+    state = multiplayerClientReducer(state, {
+      type: "commandAcknowledged",
+      commandId: localCommand.commandId,
+      snapshot: createSnapshot(4),
+    });
+
+    expect(state.pending).toEqual([]);
+    expect(state.confirmed?.revision).toBe(4);
+    expect(state.requiredRevision).toBe(5);
+    expect(state.syncStatus).toBe("resyncing");
+    expect(state.error).toEqual({code: "SERVICE_UNAVAILABLE", message: "Still recovering"});
+
+    state = multiplayerClientReducer(state, {
+      type: "commandAcknowledged",
+      commandId: localCommand.commandId,
+      snapshot: createSnapshot(5),
+    });
+
+    expect(state.confirmed?.revision).toBe(5);
+    expect(state.requiredRevision).toBeNull();
+    expect(state.syncStatus).toBe("synced");
+    expect(state.error).toBeNull();
+  });
+
+  it("allows a rejection recovery snapshot at the current confirmed revision", () => {
+    const command = createCommand(13, {type: "setNumber", cellIndex: 9, number: 2});
+    let state = multiplayerClientReducer(withSnapshot(createSnapshot(3)), {
+      type: "commandQueued",
+      command,
+    });
+    state = multiplayerClientReducer(state, {
+      type: "commandRejected",
+      commandId: command.commandId,
+      error: {code: "COMMAND_REJECTED", message: "Rejected"},
+    });
+
+    expect(state.requiredRevision).toBe(3);
+
+    state = multiplayerClientReducer(state, {
+      type: "snapshotReceived",
+      snapshot: createSnapshot(3),
+    });
+
+    expect(state.requiredRevision).toBeNull();
+    expect(state.syncStatus).toBe("synced");
+    expect(state.error).toBeNull();
   });
 
   it("replaces confirmed state from a full snapshot and replays remaining pending commands", () => {
@@ -186,6 +289,7 @@ describe("multiplayerClientReducer", () => {
     expect(staleResult.confirmed?.board.values[1]).toBe(0);
     expect(staleResult.pending).toEqual([pending]);
     expect(staleResult.syncStatus).toBe("resyncing");
+    expect(staleResult.requiredRevision).toBe(5);
   });
 
   it("accepts an equal-revision recovery snapshot and a lower revision for a different room", () => {
