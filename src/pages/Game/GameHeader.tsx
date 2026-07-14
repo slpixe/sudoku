@@ -1,16 +1,11 @@
 import * as React from "react";
 
-import {useNavigate} from "@tanstack/react-router";
 import {useTranslation} from "react-i18next";
 import {useAppDialog} from "src/components/AppDialog";
 import Button from "src/components/Button";
 import {DarkModeButton} from "src/components/DarkModeButton";
 import {UndoButton} from "src/components/sudoku/SudokuMenuControls";
-import {GameState, GameStateMachine} from "src/context/GameContext";
-import {SudokuState} from "src/context/SudokuContext";
-import {SimpleSudoku} from "src/lib/engine/types";
-import {cellsToSimpleSudoku} from "src/lib/engine/utility";
-import {solve} from "src/lib/engine/solverAC3";
+import {GameStateMachine} from "src/context/GameContext";
 
 import GameTimer from "./GameTimer";
 
@@ -55,12 +50,13 @@ function PauseButton({
 }
 
 const ClearGameButton: React.FC<{
-  clearGame: () => void;
-  pauseGame: () => void;
-  continueGame: () => void;
+  onClearConfirmed: () => void;
+  onPause: () => void;
+  onResume: () => void;
+  pauseForConfirmation: boolean;
   disabled: boolean;
   blocked: boolean;
-}> = ({clearGame, pauseGame, continueGame, disabled, blocked}) => {
+}> = ({onClearConfirmed, onPause, onResume, pauseForConfirmation, disabled, blocked}) => {
   const {t} = useTranslation();
   const dialog = useAppDialog();
   const disabledRef = React.useRef(disabled);
@@ -71,17 +67,19 @@ const ClearGameButton: React.FC<{
     blockedRef.current = blocked;
   }, [blocked, disabled]);
 
-  const clearGameLocal = async () => {
+  const confirmClear = async () => {
     if (disabledRef.current) {
       return;
     }
 
-    pauseGame();
+    if (pauseForConfirmation) {
+      onPause();
+    }
     const areYouSure = await dialog.confirm({message: t("confirm_clear")});
 
     if (!areYouSure) {
-      if (!blockedRef.current) {
-        continueGame();
+      if (pauseForConfirmation && !blockedRef.current) {
+        onResume();
       }
       return;
     }
@@ -90,7 +88,7 @@ const ClearGameButton: React.FC<{
       return;
     }
 
-    clearGame();
+    onClearConfirmed();
   };
 
   return (
@@ -98,30 +96,22 @@ const ClearGameButton: React.FC<{
       className={topBarActionButtonClass}
       data-testid="sudoku-action-clear"
       disabled={disabled}
-      onClick={clearGameLocal}
+      onClick={confirmClear}
     >
       {t("clear")}
     </Button>
   );
 };
 
-const NewGameButton: React.FC<{pauseGame: () => void; disabled?: boolean}> = ({pauseGame, disabled}) => {
-  const navigate = useNavigate();
+const NewGameButton: React.FC<{onNewGame: () => void; disabled?: boolean}> = ({onNewGame, disabled}) => {
   const {t} = useTranslation();
-
-  const pauseAndChoose = async () => {
-    pauseGame();
-    await navigate({
-      to: "/select-game",
-    });
-  };
 
   return (
     <Button
       className={`bg-teal-600 dark:bg-teal-600 text-white ${topBarActionButtonClass}`}
       data-testid="sudoku-action-new-game"
       disabled={disabled}
-      onClick={pauseAndChoose}
+      onClick={onNewGame}
     >
       {t("new_game")}
     </Button>
@@ -135,26 +125,38 @@ const DifficultyShow = ({children, ...props}: React.HTMLAttributes<HTMLDivElemen
 );
 
 export const GameHeader: React.FC<{
-  game: GameState;
-  sudokuState: SudokuState;
-  collectionName: string;
-  pauseGame: () => void;
-  continueGame: () => void;
-  setSudoku: (sudoku: SimpleSudoku, solvedSudoku: SimpleSudoku) => void;
-  resetGame: () => void;
+  blocked: boolean;
   canUndo: boolean;
-  undo: () => void;
+  collectionName: string;
+  elapsedSeconds: number;
   locked: boolean;
-}> = ({game, sudokuState, collectionName, pauseGame, continueGame, setSudoku, resetGame, canUndo, undo, locked}) => {
-  const clearGame = () => {
-    const simpleSudoku = cellsToSimpleSudoku(sudokuState.current);
-    const solved = solve(simpleSudoku);
-    if (solved.sudoku) {
-      setSudoku(simpleSudoku, solved.sudoku);
-    }
-    resetGame();
-  };
-
+  pauseForClearConfirmation: boolean;
+  status: GameStateMachine;
+  sudokuIndex: number;
+  won: boolean;
+  onClearConfirmed: () => void;
+  onNewGame: () => void;
+  onPause: () => void;
+  onResume: () => void;
+  onUndo: () => void;
+}> = ({
+  blocked,
+  canUndo,
+  collectionName,
+  elapsedSeconds,
+  locked,
+  pauseForClearConfirmation,
+  status,
+  sudokuIndex,
+  won,
+  onClearConfirmed,
+  onNewGame,
+  onPause,
+  onResume,
+  onUndo,
+}) => {
+  const interactionsBlocked = blocked || locked;
+  const paused = status === GameStateMachine.paused;
   return (
     <header
       className="sudoku-game-header flex items-center justify-between gap-2 pt-4 text-sm sm:text-base"
@@ -162,33 +164,34 @@ export const GameHeader: React.FC<{
     >
       <div className="sudoku-header-meta flex min-w-0 items-center gap-2 text-white">
         <DifficultyShow className="truncate text-white capitalize" data-testid="current-game-label">
-          {`${collectionName} #${game.sudokuIndex + 1}`}
+          {`${collectionName} #${sudokuIndex + 1}`}
         </DifficultyShow>
-        <GameTimer />
+        <GameTimer elapsedSeconds={elapsedSeconds} />
       </div>
       <div className="sudoku-header-actions flex shrink-0 items-center gap-1 sm:gap-2">
         {!locked && <DarkModeButton />}
         <UndoButton
           canUndo={canUndo}
           className="sudoku-landscape-header-undo hidden min-h-0 px-2 py-1 text-sm sm:min-h-0 sm:px-2 sm:text-base md:min-h-0 md:px-2 md:py-1 md:text-base"
-          disabled={locked || game.won || game.state === GameStateMachine.paused}
+          disabled={interactionsBlocked || won || paused}
           testId="sudoku-action-undo"
-          undo={undo}
+          undo={onUndo}
         />
         <ClearGameButton
-          pauseGame={pauseGame}
-          continueGame={continueGame}
-          disabled={locked || game.won || game.state === GameStateMachine.paused}
-          blocked={locked || game.won}
-          clearGame={clearGame}
+          blocked={interactionsBlocked || won}
+          disabled={interactionsBlocked || won || paused}
+          onClearConfirmed={onClearConfirmed}
+          onPause={onPause}
+          onResume={onResume}
+          pauseForConfirmation={pauseForClearConfirmation}
         />
         <PauseButton
-          disabled={locked || game.won}
-          paused={game.state === GameStateMachine.paused}
-          continueGame={continueGame}
-          pauseGame={pauseGame}
+          continueGame={onResume}
+          disabled={interactionsBlocked || won}
+          pauseGame={onPause}
+          paused={paused}
         />
-        <NewGameButton pauseGame={pauseGame} disabled={locked} />
+        <NewGameButton disabled={locked} onNewGame={onNewGame} />
       </div>
     </header>
   );
