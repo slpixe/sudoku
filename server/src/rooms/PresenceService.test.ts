@@ -40,6 +40,36 @@ function connectLive(
 }
 
 describe("PresenceService", () => {
+  it("identifies only recovery of an unexpired fallback reservation as a reconnect", () => {
+    const clock = new FakeClock();
+    const presence = new PresenceService(clock);
+    const initial = presence.connect("ABC234", "guest-1", "connection-1");
+    expect(initial).toMatchObject({ok: true, recoveredReservation: false});
+    if (!initial.ok) {
+      throw new Error("Expected the initial guest connection to be reserved");
+    }
+    presence.commit(initial.token);
+
+    const extraTab = presence.connect("ABC234", "guest-1", "connection-2");
+    expect(extraTab).toMatchObject({ok: true, recoveredReservation: false});
+    if (extraTab.ok) {
+      presence.rollback(extraTab.token);
+    }
+
+    presence.disconnect("ABC234", "guest-1", "connection-1");
+    const recovery = presence.connect("ABC234", "guest-1", "connection-3");
+    expect(recovery).toMatchObject({ok: true, recoveredReservation: true});
+
+    const expiredPresence = new PresenceService(clock);
+    connectLive(expiredPresence, "DEF567", "guest-2", "connection-4");
+    expiredPresence.disconnect("DEF567", "guest-2", "connection-4");
+    clock.advance(60_001);
+    expect(expiredPresence.connect("DEF567", "guest-2", "connection-5")).toMatchObject({
+      ok: true,
+      recoveredReservation: false,
+    });
+  });
+
   it("counts only committed guests while pending guests still consume capacity", () => {
     const presence = new PresenceService(new FakeClock());
     const first = reserve(presence, "ABC234", "guest-1", "connection-1");

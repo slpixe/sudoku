@@ -12,7 +12,7 @@ primary_region = "lhr"
   ALLOWED_ORIGINS = "https://sudoku.slpixe.com"
 
 [deploy]
-  release_command = "pnpm --filter @sudoku/multiplayer-server migrate"
+  release_command = "node server/dist/db/migrate.js"
 
 [http_service]
   internal_port = 8080
@@ -21,9 +21,9 @@ primary_region = "lhr"
   auto_start_machines = true
   min_machines_running = 1
 
-  # Presence and per-room queues are process-local. Keep this app at exactly
-  # one Machine (`fly scale count 1 --config server/fly.toml`) until a
-  # cross-instance Socket.IO adapter and presence strategy are implemented.
+  # Presence and per-room queues are process-local. Deployment MUST use
+  # `pnpm run deploy:multiplayer`, which disables HA creation and resets the
+  # app to exactly one Machine after every deploy.
   [[http_service.checks]]
     grace_period = "10s"
     interval = "15s"

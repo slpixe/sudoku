@@ -30,11 +30,11 @@ RUN pnpm --filter @sudoku/core build \
 FROM manifests AS production-dependencies
 RUN pnpm install --frozen-lockfile --prod --filter @sudoku/multiplayer-server...
 
-FROM base AS runtime
+FROM node:${NODE_VERSION} AS runtime
 ENV NODE_ENV=production
 ENV PORT=8080
+WORKDIR /app
 
-COPY --chown=node:node package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY --chown=node:node --from=production-dependencies /app/node_modules ./node_modules
 COPY --chown=node:node --from=production-dependencies /app/server/node_modules ./server/node_modules
 COPY --chown=node:node --from=production-dependencies /app/packages/multiplayer-protocol/node_modules ./packages/multiplayer-protocol/node_modules
@@ -53,4 +53,4 @@ COPY --chown=node:node sudokus/evil.txt sudokus/evil.txt
 
 USER node
 EXPOSE 8080
-CMD ["pnpm", "--filter", "@sudoku/multiplayer-server", "start"]
+CMD ["node", "server/dist/index.js"]

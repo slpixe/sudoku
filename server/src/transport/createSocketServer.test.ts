@@ -15,6 +15,7 @@ import type {Server as SocketServer} from "socket.io";
 import {afterEach, describe, expect, it} from "vitest";
 
 import type {CanonicalPuzzle, PuzzleCatalog} from "../catalog/PuzzleCatalog.js";
+import {MultiplayerMetrics} from "../metrics.js";
 import type {Clock} from "../rooms/Clock.js";
 import {PresenceService} from "../rooms/PresenceService.js";
 import type {RoomRepository} from "../rooms/RoomRepository.js";
@@ -48,6 +49,7 @@ class FixedClock implements Clock {
 interface TestRuntime {
   httpServer: HttpServer;
   io: SocketServer;
+  metrics: MultiplayerMetrics;
   presence: PresenceService;
   url: string;
 }
@@ -124,12 +126,14 @@ async function startRuntime(
     () => uuid(900 + roomSequence),
   );
   const presence = new PresenceService(clock);
+  const metrics = new MultiplayerMetrics();
   const io = createSocketServer(httpServer, {
     roomService: service,
     presence,
     nodeEnv: options.nodeEnv ?? "test",
     allowedOrigins: options.allowedOrigins ?? [],
     clock,
+    metrics,
     onError: options.onError,
   });
   try {
@@ -146,7 +150,7 @@ async function startRuntime(
     throw error;
   }
   const address = httpServer.address() as AddressInfo;
-  const runtime = {httpServer, io, presence, url: `http://127.0.0.1:${address.port}`};
+  const runtime = {httpServer, io, metrics, presence, url: `http://127.0.0.1:${address.port}`};
   runtimes.add(runtime);
   return runtime;
 }
@@ -291,6 +295,47 @@ describe("createSocketServer", () => {
     if (restartAck.ok) {
       expect(restartAck.snapshot.board.values[1]).toBe(SOLUTION[1]);
     }
+  });
+
+  it("counts only a committed fallback-reservation recovery as a reconnect", async () => {
+    const runtime = await startRuntime();
+    const creator = await connect(runtime.url);
+    const created = await emitCreate(creator, createRequest());
+    if (!created.ok) {
+      throw new Error("Expected room creation to succeed");
+    }
+
+    const firstJoin = await connect(runtime.url);
+    await expect(
+      emitJoin(firstJoin, {
+        guestId: GUEST_TWO,
+        connectionId: uuid(30),
+        roomCode: created.snapshot.roomCode,
+      }),
+    ).resolves.toMatchObject({ok: true});
+    const extraTab = await connect(runtime.url);
+    await expect(
+      emitJoin(extraTab, {
+        guestId: GUEST_TWO,
+        connectionId: uuid(31),
+        roomCode: created.snapshot.roomCode,
+      }),
+    ).resolves.toMatchObject({ok: true});
+    expect(runtime.metrics.snapshot(3, 1).reconnects).toBe(0);
+
+    firstJoin.close();
+    extraTab.close();
+    await waitFor(() => runtime.presence.connectedGuests(created.snapshot.roomCode) === 1);
+
+    const recovered = await connect(runtime.url);
+    await expect(
+      emitJoin(recovered, {
+        guestId: GUEST_TWO,
+        connectionId: uuid(32),
+        roomCode: created.snapshot.roomCode,
+      }),
+    ).resolves.toMatchObject({ok: true});
+    expect(runtime.metrics.snapshot(2, 1).reconnects).toBe(1);
   });
 
   it("owns pending membership across join races and cleans it exactly once on disconnect", async () => {

@@ -403,7 +403,9 @@ export function createSocketServer(httpServer: HttpServer, options: CreateSocket
           guestId: request.guestId,
           clientConnectionId: request.connectionId,
         });
-        options.metrics?.recordReconnect();
+        if (connected.recoveredReservation) {
+          options.metrics?.recordReconnect();
+        }
         failedJoinLimiter.refund(networkSource);
         const connectedGuests = options.presence.connectedGuests(request.roomCode);
         const publicSnapshot = snapshotWithPresence(snapshot, connectedGuests);

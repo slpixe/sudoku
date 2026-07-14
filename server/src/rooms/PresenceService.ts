@@ -8,6 +8,7 @@ type ConnectionState = "pending" | "live";
 interface GuestConnection {
   state: ConnectionState;
   generation: number;
+  recoveredReservation: boolean;
 }
 
 interface GuestPresence {
@@ -28,7 +29,12 @@ export interface PresenceConnectionToken {
 }
 
 export type PresenceConnectResult =
-  | {ok: true; connectedGuests: 0 | 1 | 2; token: PresenceConnectionToken}
+  | {
+      ok: true;
+      connectedGuests: 0 | 1 | 2;
+      recoveredReservation: boolean;
+      token: PresenceConnectionToken;
+    }
   | {ok: false; connectedGuests: 0 | 1 | 2};
 
 export type PresenceCommitResult =
@@ -66,11 +72,13 @@ export class PresenceService {
   connect(roomCode: string, guestId: string, connectionId: string): PresenceConnectResult {
     const guests = this.#pruneRoom(roomCode);
     let guest = guests.get(guestId);
+    let recoveredReservation = guest !== undefined && guest.fallbackReservationExpiresAt !== null;
     if (!guest) {
       if (guests.size >= 2) {
         return {ok: false, connectedGuests: presenceCount(guests)};
       }
       guest = {connections: new Map(), fallbackReservationExpiresAt: null};
+      recoveredReservation = false;
       guests.set(guestId, guest);
       this.#rooms.set(roomCode, guests);
     }
@@ -80,15 +88,17 @@ export class PresenceService {
       return {
         ok: true,
         connectedGuests: presenceCount(guests),
+        recoveredReservation: existing.recoveredReservation,
         token: {roomCode, guestId, connectionId, generation: existing.generation},
       };
     }
 
     const generation = this.#nextGeneration++;
-    guest.connections.set(connectionId, {state: "pending", generation});
+    guest.connections.set(connectionId, {state: "pending", generation, recoveredReservation});
     return {
       ok: true,
       connectedGuests: presenceCount(guests),
+      recoveredReservation,
       token: {roomCode, guestId, connectionId, generation},
     };
   }
