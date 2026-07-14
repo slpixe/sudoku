@@ -7,8 +7,6 @@ import {DarkModeButton} from "src/components/DarkModeButton";
 import {UndoButton} from "src/components/sudoku/SudokuMenuControls";
 import {GameStateMachine} from "src/context/GameContext";
 
-import GameTimer from "./GameTimer";
-
 const PauseIcon = () => (
   <svg aria-hidden="true" className="h-4 w-4 sm:h-5 sm:w-5" fill="currentColor" viewBox="0 0 24 24">
     <path d="M7 5h3v14H7zM14 5h3v14h-3z" />
@@ -128,11 +126,11 @@ export const GameHeader: React.FC<{
   blocked: boolean;
   canUndo: boolean;
   collectionName: string;
-  elapsedSeconds: number;
   locked: boolean;
   pauseForClearConfirmation: boolean;
   status: GameStateMachine;
   sudokuIndex: number;
+  timerContent: React.ReactNode;
   won: boolean;
   onClearConfirmed: () => void;
   onNewGame: () => void;
@@ -143,11 +141,11 @@ export const GameHeader: React.FC<{
   blocked,
   canUndo,
   collectionName,
-  elapsedSeconds,
   locked,
   pauseForClearConfirmation,
   status,
   sudokuIndex,
+  timerContent,
   won,
   onClearConfirmed,
   onNewGame,
@@ -166,7 +164,7 @@ export const GameHeader: React.FC<{
         <DifficultyShow className="truncate text-white capitalize" data-testid="current-game-label">
           {`${collectionName} #${sudokuIndex + 1}`}
         </DifficultyShow>
-        <GameTimer elapsedSeconds={elapsedSeconds} />
+        {timerContent}
       </div>
       <div className="sudoku-header-actions flex shrink-0 items-center gap-1 sm:gap-2">
         {!locked && <DarkModeButton />}

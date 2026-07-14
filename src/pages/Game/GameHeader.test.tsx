@@ -23,38 +23,46 @@ vi.mock("src/components/DarkModeButton", () => ({
 afterEach(cleanup);
 
 function renderHeader({
+  blocked = false,
+  locked = false,
   onClearConfirmed = vi.fn(),
   onNewGame = vi.fn(),
   onPause = vi.fn(),
   onResume = vi.fn(),
+  onUndo = vi.fn(),
+  pauseForClearConfirmation = true,
 }: {
+  blocked?: boolean;
+  locked?: boolean;
   onClearConfirmed?: () => void;
   onNewGame?: () => void;
   onPause?: () => void;
   onResume?: () => void;
+  onUndo?: () => void;
+  pauseForClearConfirmation?: boolean;
 } = {}) {
   render(
     <AppDialogProvider>
       <GameHeader
-        blocked={false}
+        blocked={blocked}
         canUndo
         collectionName="Easy"
-        elapsedSeconds={65}
-        locked={false}
-        pauseForClearConfirmation
+        locked={locked}
+        pauseForClearConfirmation={pauseForClearConfirmation}
         status={GameStateMachine.running}
         sudokuIndex={0}
+        timerContent={<div data-testid="test-timer">01:05 min</div>}
         won={false}
         onClearConfirmed={onClearConfirmed}
         onNewGame={onNewGame}
         onPause={onPause}
         onResume={onResume}
-        onUndo={vi.fn()}
+        onUndo={onUndo}
       />
     </AppDialogProvider>,
   );
 
-  return {onClearConfirmed, onNewGame, onPause, onResume};
+  return {onClearConfirmed, onNewGame, onPause, onResume, onUndo};
 }
 
 describe("GameHeader", () => {
@@ -80,5 +88,41 @@ describe("GameHeader", () => {
 
     expect(callbacks.onClearConfirmed).not.toHaveBeenCalled();
     expect(callbacks.onResume).toHaveBeenCalledOnce();
+  });
+
+  it("confirms multiplayer Clear without pausing or resuming", async () => {
+    const user = userEvent.setup();
+    const callbacks = renderHeader({pauseForClearConfirmation: false});
+
+    await user.click(screen.getByTestId("sudoku-action-clear"));
+    await user.click(screen.getByTestId("app-dialog-confirm"));
+
+    expect(callbacks.onClearConfirmed).toHaveBeenCalledOnce();
+    expect(callbacks.onPause).not.toHaveBeenCalled();
+    expect(callbacks.onResume).not.toHaveBeenCalled();
+  });
+
+  it("blocks shared mutations while keeping local New Game available", async () => {
+    const user = userEvent.setup();
+    const callbacks = renderHeader({blocked: true});
+
+    await user.click(screen.getByTestId("sudoku-action-undo"));
+    await user.click(screen.getByTestId("sudoku-action-clear"));
+    await user.click(screen.getByTestId("sudoku-action-pause"));
+    await user.click(screen.getByTestId("sudoku-action-new-game"));
+
+    expect(callbacks.onUndo).not.toHaveBeenCalled();
+    expect(callbacks.onClearConfirmed).not.toHaveBeenCalled();
+    expect(callbacks.onPause).not.toHaveBeenCalled();
+    expect(callbacks.onNewGame).toHaveBeenCalledOnce();
+  });
+
+  it("disables New Game while the solo active-game lock is shown", async () => {
+    const user = userEvent.setup();
+    const callbacks = renderHeader({locked: true});
+
+    await user.click(screen.getByTestId("sudoku-action-new-game"));
+
+    expect(callbacks.onNewGame).not.toHaveBeenCalled();
   });
 });

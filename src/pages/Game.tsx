@@ -3,7 +3,6 @@ import * as React from "react";
 import {useNavigate} from "@tanstack/react-router";
 import {useGame} from "src/context/GameContext";
 import {useSudoku} from "src/context/SudokuContext";
-import {useTimer} from "src/context/TimerContext";
 import {useUserPreferences} from "src/context/UserPrefencesContext";
 import {solve} from "src/lib/engine/solverAC3";
 import {cellsToSimpleSudoku, stringifySudoku} from "src/lib/engine/utility";
@@ -11,6 +10,7 @@ import {getSudokuCollectionDisplayName} from "src/lib/game/collectionNames";
 import {appPersistence} from "src/lib/persistence/appPersistence";
 
 import {GameProviders} from "./Game/GameProviders";
+import {SoloGameTimer} from "./Game/GameTimer";
 import {GameView} from "./Game/GameView";
 import {useActiveGameLock} from "./Game/useActiveGameLock";
 import {useGameRouteSync} from "./Game/useGameRouteSync";
@@ -20,6 +20,7 @@ import {useSoloVisibilityPause} from "./Game/useSoloVisibilityPause";
 const GameCompletionPanel = React.lazy(() =>
   import("./Game/GameCompletionPanel").then((module) => ({default: module.GameCompletionPanel})),
 );
+const soloTimerContent = <SoloGameTimer />;
 
 const GameWithRouteManagement = () => {
   const navigate = useNavigate();
@@ -38,7 +39,6 @@ const GameWithRouteManagement = () => {
     hideMenu,
     copyNotes,
   } = useGame();
-  const {displayTime} = useTimer();
   const {
     state: userPreferencesState,
     toggleShowConflicts,
@@ -172,7 +172,6 @@ const GameWithRouteManagement = () => {
       clipboardNotes={gameState.clipboardNotes}
       collectionName={collectionName}
       completionContent={completionContent}
-      elapsedSeconds={displayTime}
       locked={activeGameLock.locked}
       notesMode={gameState.notesMode}
       pauseForClearConfirmation
@@ -180,6 +179,7 @@ const GameWithRouteManagement = () => {
       showMenu={gameState.showMenu}
       status={gameState.state}
       sudokuIndex={gameState.sudokuIndex}
+      timerContent={soloTimerContent}
       won={gameState.won}
       onActivateNotesMode={activateNotesMode}
       onClearCell={clearCell}

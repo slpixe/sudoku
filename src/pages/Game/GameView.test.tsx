@@ -1,15 +1,17 @@
 // @vitest-environment jsdom
 
 import * as React from "react";
-import {cleanup, render, screen} from "@testing-library/react";
+import {act, cleanup, render, screen} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {afterEach, describe, expect, it, vi} from "vitest";
 
 import {AppDialogProvider} from "src/components/AppDialog";
-import {GameStateMachine} from "src/context/GameContext";
+import {GameProvider, GameStateMachine, INITIAL_GAME_STATE} from "src/context/GameContext";
 import {emptyGrid} from "src/context/SudokuContext";
+import {TimerProvider} from "src/context/TimerContext";
 import {DEFAULT_USER_PREFERENCES} from "src/lib/database/userPreferences";
 
+import {SoloGameTimer} from "./GameTimer";
 import {GameView, type GameViewProps} from "./GameView";
 
 vi.mock("react-i18next", () => ({
@@ -29,7 +31,10 @@ class ResizeObserverStub {
 
 vi.stubGlobal("ResizeObserver", ResizeObserverStub);
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
 
 type CommandCallbacks = Pick<
   GameViewProps,
@@ -50,7 +55,6 @@ function createProps(overrides: Partial<GameViewProps> = {}): GameViewProps {
     clipboardNotes: null,
     collectionName: "Easy",
     completionContent: <div data-testid="completion-content">Complete</div>,
-    elapsedSeconds: 65,
     locked: false,
     notesMode: false,
     pauseForClearConfirmation: true,
@@ -58,6 +62,7 @@ function createProps(overrides: Partial<GameViewProps> = {}): GameViewProps {
     showMenu: false,
     status: GameStateMachine.running,
     sudokuIndex: 0,
+    timerContent: <div data-testid="test-timer">01:05 min</div>,
     won: false,
     onActivateNotesMode: vi.fn(),
     onClearCell: vi.fn(),
@@ -82,6 +87,11 @@ function createProps(overrides: Partial<GameViewProps> = {}): GameViewProps {
     onUndo: vi.fn(),
     ...overrides,
   };
+}
+
+function GameViewRenderSpy({onRender, viewProps}: {onRender: () => void; viewProps: GameViewProps}) {
+  onRender();
+  return <GameView {...viewProps} />;
 }
 
 function renderView(overrides: Partial<GameViewProps> = {}) {
@@ -147,5 +157,68 @@ describe("GameView", () => {
     await user.click(screen.getByTestId("app-dialog-cancel"));
 
     expect(props.onClearConfirmed).not.toHaveBeenCalled();
+  });
+
+  it("blocks shared mutations while keeping local New Game available", async () => {
+    const user = userEvent.setup();
+    const {props} = renderView({blocked: true});
+
+    await user.click(screen.getByTestId("sudoku-number-4"));
+    await user.click(screen.getByTestId("sudoku-control-notes"));
+    await user.click(screen.getByTestId("sudoku-control-hint"));
+    await user.click(screen.getByTestId("sudoku-control-undo"));
+    await user.click(screen.getByTestId("sudoku-action-pause"));
+    await user.click(screen.getByTestId("sudoku-action-new-game"));
+
+    expect(props.onSetNumber).not.toHaveBeenCalled();
+    expect(props.onActivateNotesMode).not.toHaveBeenCalled();
+    expect(props.onHint).not.toHaveBeenCalled();
+    expect(props.onUndo).not.toHaveBeenCalled();
+    expect(props.onPause).not.toHaveBeenCalled();
+    expect(props.onNewGame).toHaveBeenCalledOnce();
+  });
+
+  it("blocks all game actions while the solo active-game lock is shown", async () => {
+    const user = userEvent.setup();
+    const {props} = renderView({locked: true});
+
+    await user.click(screen.getByTestId("sudoku-number-4"));
+    await user.click(screen.getByTestId("sudoku-control-hint"));
+    await user.click(screen.getByTestId("sudoku-control-undo"));
+    await user.click(screen.getByTestId("sudoku-action-pause"));
+    await user.click(screen.getByTestId("sudoku-action-new-game"));
+
+    expect(props.onSetNumber).not.toHaveBeenCalled();
+    expect(props.onHint).not.toHaveBeenCalled();
+    expect(props.onUndo).not.toHaveBeenCalled();
+    expect(props.onPause).not.toHaveBeenCalled();
+    expect(props.onNewGame).not.toHaveBeenCalled();
+  });
+
+  it("keeps timer updates inside the solo timer leaf", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-14T12:00:00Z"));
+    const onViewRender = vi.fn();
+    const viewProps = createProps({timerContent: <SoloGameTimer />});
+
+    render(
+      <GameProvider initialState={{...INITIAL_GAME_STATE, state: GameStateMachine.running}}>
+        <TimerProvider>
+          <AppDialogProvider>
+            <GameViewRenderSpy onRender={onViewRender} viewProps={viewProps} />
+          </AppDialogProvider>
+        </TimerProvider>
+      </GameProvider>,
+    );
+
+    expect(onViewRender).toHaveBeenCalledOnce();
+    expect(screen.getByTestId("game-timer").textContent).toBe("00:00 min");
+
+    act(() => {
+      vi.advanceTimersByTime(1200);
+    });
+
+    expect(screen.getByTestId("game-timer").textContent).toBe("00:01 min");
+    expect(onViewRender).toHaveBeenCalledOnce();
   });
 });
