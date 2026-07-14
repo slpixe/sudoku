@@ -1,0 +1,38 @@
+app = "sudoku-multiplayer"
+primary_region = "lhr"
+
+[build]
+  dockerfile = "server/Dockerfile"
+
+[env]
+  NODE_ENV = "production"
+  PORT = "8080"
+  ROOM_TTL_HOURS = "24"
+  RECONNECT_GRACE_SECONDS = "60"
+  ALLOWED_ORIGINS = "https://sudoku.slpixe.com"
+
+[deploy]
+  release_command = "pnpm --filter @sudoku/multiplayer-server migrate"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+  # Presence and per-room queues are process-local. Keep this app at exactly
+  # one Machine (`fly scale count 1 --config server/fly.toml`) until a
+  # cross-instance Socket.IO adapter and presence strategy are implemented.
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "15s"
+    method = "GET"
+    path = "/health"
+    protocol = "http"
+    timeout = "2s"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory = "512mb"

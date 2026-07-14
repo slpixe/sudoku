@@ -3,8 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.build.json",
+    "prebuild": "pnpm --filter @sudoku/core build && pnpm --filter @sudoku/multiplayer-protocol build",
     "predev": "pnpm --filter @sudoku/core build && pnpm --filter @sudoku/multiplayer-protocol build",
     "dev": "tsx watch src/index.ts",
     "migrate": "node dist/db/migrate.js",

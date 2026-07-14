@@ -35,8 +35,8 @@ export interface ExecuteRoomCommandResult {
 type RoomCodeFactory = () => string;
 type RoomIdFactory = () => string;
 
-function expiryFrom(now: Date): string {
-  return new Date(now.getTime() + ROOM_LIFETIME_MS).toISOString();
+function expiryFrom(now: Date, roomLifetimeMs: number): string {
+  return new Date(now.getTime() + roomLifetimeMs).toISOString();
 }
 
 function boardFrom(givens: readonly number[], solution: readonly number[]): RoomBoard {
@@ -66,7 +66,7 @@ function eventFrom(room: RoomSnapshot, command: RoomCommand, now: Date): RoomEve
   };
 }
 
-function snapshotFromEvent(room: RoomSnapshot, event: RoomEvent): RoomSnapshot {
+function snapshotFromEvent(room: RoomSnapshot, event: RoomEvent, roomLifetimeMs: number): RoomSnapshot {
   return {
     roomCode: room.roomCode,
     collectionId: room.collectionId,
@@ -79,7 +79,7 @@ function snapshotFromEvent(room: RoomSnapshot, event: RoomEvent): RoomSnapshot {
     serverNow: event.serverNow,
     canUndo: event.canUndo,
     connectedGuests: room.connectedGuests,
-    expiresAt: new Date(event.serverNow + ROOM_LIFETIME_MS).toISOString(),
+    expiresAt: new Date(event.serverNow + roomLifetimeMs).toISOString(),
   };
 }
 
@@ -125,6 +125,7 @@ export class RoomService {
     readonly clock: Clock = new SystemClock(),
     readonly roomCodeFactory: RoomCodeFactory = createRoomCode,
     readonly roomIdFactory: RoomIdFactory = randomUUID,
+    readonly roomLifetimeMs = ROOM_LIFETIME_MS,
   ) {}
 
   async createRoom(input: CreateRoomRequest): Promise<RoomSnapshot> {
@@ -152,7 +153,7 @@ export class RoomService {
         serverNow: now.getTime(),
         canUndo: false,
         connectedGuests: 0,
-        expiresAt: expiryFrom(now),
+        expiresAt: expiryFrom(now, this.roomLifetimeMs),
       };
 
       try {
@@ -177,7 +178,7 @@ export class RoomService {
       return this.repository.mutate(code, now, (room) => ({
         ...room,
         serverNow: now.getTime(),
-        expiresAt: expiryFrom(now),
+        expiresAt: expiryFrom(now, this.roomLifetimeMs),
       }));
     });
   }
@@ -198,7 +199,7 @@ export class RoomService {
         if (receipt) {
           event = receipt;
           duplicate = true;
-          duplicateSnapshot = snapshotFromEvent(room, receipt);
+          duplicateSnapshot = snapshotFromEvent(room, receipt, this.roomLifetimeMs);
           return room;
         }
 
@@ -217,7 +218,7 @@ export class RoomService {
 
         room.revision += 1;
         room.serverNow = now.getTime();
-        room.expiresAt = expiryFrom(now);
+        room.expiresAt = expiryFrom(now, this.roomLifetimeMs);
         event = eventFrom(room, command, now);
         await helpers.recordCommand(command.commandId, event);
         return room;
@@ -233,7 +234,7 @@ export class RoomService {
   async markRoomInactive(code: string): Promise<void> {
     await this.#queue.run(code, async () => {
       const now = this.clock.now();
-      await this.repository.recordDisconnectExpiry(code, new Date(now.getTime() + ROOM_LIFETIME_MS));
+      await this.repository.recordDisconnectExpiry(code, new Date(now.getTime() + this.roomLifetimeMs));
     });
   }
 

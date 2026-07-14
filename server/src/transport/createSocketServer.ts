@@ -15,6 +15,7 @@ import type {Server as HttpServer} from "node:http";
 import {Server} from "socket.io";
 import {z} from "zod";
 
+import type {MetricsRecorder} from "../metrics.js";
 import type {Clock} from "../rooms/Clock.js";
 import {SystemClock} from "../rooms/Clock.js";
 import type {
@@ -55,6 +56,7 @@ export interface CreateSocketServerOptions {
   nodeEnv?: "development" | "test" | "production";
   allowedOrigins?: readonly string[];
   clock?: Clock;
+  metrics?: MetricsRecorder;
   onError?: (error: unknown, context: TransportErrorContext) => void | Promise<void>;
 }
 
@@ -79,6 +81,24 @@ function acknowledge(ack: (result: RoomAck) => void, result: RoomAck): void {
   if (typeof ack === "function") {
     ack(result);
   }
+}
+
+function instrumentAcknowledgement(
+  ack: (result: RoomAck) => void,
+  metrics: MetricsRecorder | undefined,
+  commandStartedAt?: number,
+): (result: RoomAck) => void {
+  let recordedCommand = false;
+  return (result) => {
+    if (!result.ok) {
+      metrics?.recordRejection(result.error.code);
+    }
+    if (commandStartedAt !== undefined && !recordedCommand) {
+      recordedCommand = true;
+      metrics?.recordCommand(Date.now() - commandStartedAt);
+    }
+    acknowledge(ack, result);
+  };
 }
 
 function snapshotWithPresence(snapshot: RoomSnapshot, connectedGuests: 0 | 1 | 2): RoomSnapshot {
@@ -213,7 +233,8 @@ export function createSocketServer(httpServer: HttpServer, options: CreateSocket
       }
     };
 
-    socket.on("room:create", async (unparsedRequest, ack) => {
+    socket.on("room:create", async (unparsedRequest, rawAck) => {
+      const ack = instrumentAcknowledgement(rawAck, options.metrics);
       const parsed = createRoomRequestSchema.safeParse(unparsedRequest);
       if (!parsed.success) {
         acknowledge(ack, {ok: false, error: invalidRequest()});
@@ -281,11 +302,16 @@ export function createSocketServer(httpServer: HttpServer, options: CreateSocket
         if (pending !== null && roomCode !== null) {
           releasePendingIfOwned(roomCode, pending);
         }
-        acknowledge(ack, {ok: false, error: createError(error)});
+        const responseError = createError(error);
+        if (responseError.code === "SERVICE_UNAVAILABLE") {
+          options.metrics?.recordDatabaseError();
+        }
+        acknowledge(ack, {ok: false, error: responseError});
       }
     });
 
-    socket.on("room:join", async (unparsedRequest, ack) => {
+    socket.on("room:join", async (unparsedRequest, rawAck) => {
+      const ack = instrumentAcknowledgement(rawAck, options.metrics);
       const parsed = joinRoomRequestSchema.safeParse(unparsedRequest);
       if (!parsed.success) {
         acknowledge(ack, {ok: false, error: invalidRequest()});
@@ -377,6 +403,7 @@ export function createSocketServer(httpServer: HttpServer, options: CreateSocket
           guestId: request.guestId,
           clientConnectionId: request.connectionId,
         });
+        options.metrics?.recordReconnect();
         failedJoinLimiter.refund(networkSource);
         const connectedGuests = options.presence.connectedGuests(request.roomCode);
         const publicSnapshot = snapshotWithPresence(snapshot, connectedGuests);
@@ -385,6 +412,7 @@ export function createSocketServer(httpServer: HttpServer, options: CreateSocket
         acknowledge(ack, {ok: true, snapshot: publicSnapshot});
       } catch {
         releasePendingIfOwned(request.roomCode, pending);
+        options.metrics?.recordDatabaseError();
         acknowledge(ack, {
           ok: false,
           error: roomError("SERVICE_UNAVAILABLE", "The room service is temporarily unavailable"),
@@ -392,7 +420,8 @@ export function createSocketServer(httpServer: HttpServer, options: CreateSocket
       }
     });
 
-    socket.on("room:command", async (unparsedCommand, ack) => {
+    socket.on("room:command", async (unparsedCommand, rawAck) => {
+      const ack = instrumentAcknowledgement(rawAck, options.metrics, Date.now());
       const parsed = clientRoomCommandSchema.safeParse(unparsedCommand);
       if (!parsed.success) {
         acknowledge(ack, {ok: false, error: invalidRequest()});
@@ -418,7 +447,11 @@ export function createSocketServer(httpServer: HttpServer, options: CreateSocket
         }
         acknowledge(ack, {ok: true, snapshot});
       } catch (error) {
-        acknowledge(ack, {ok: false, error: commandError(error)});
+        const responseError = commandError(error);
+        if (responseError.code === "SERVICE_UNAVAILABLE") {
+          options.metrics?.recordDatabaseError();
+        }
+        acknowledge(ack, {ok: false, error: responseError});
       }
     });
 
