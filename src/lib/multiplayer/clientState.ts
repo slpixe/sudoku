@@ -70,7 +70,7 @@ function reconcileSnapshot(
   snapshot: RoomSnapshot,
   pending: RoomCommand[] = state.pending,
 ): MultiplayerClientState {
-  const sameRoom = state.confirmed?.roomCode === snapshot.roomCode;
+  const sameRoom = state.confirmed === null || state.confirmed.roomCode === snapshot.roomCode;
   if (sameRoom && state.confirmed !== null && snapshot.revision < state.confirmed.revision) {
     return pending === state.pending ? state : {...state, pending};
   }

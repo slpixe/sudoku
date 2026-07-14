@@ -187,6 +187,36 @@ describe("multiplayerClientReducer", () => {
     expect(state.error).toBeNull();
   });
 
+  it("keeps an event revision floor when the first snapshot is below it", () => {
+    const remoteCommand = createCommand(14, {type: "setNumber", cellIndex: 7, number: 8});
+    let state = multiplayerClientReducer(createMultiplayerClientState(), {
+      type: "roomEventReceived",
+      event: createEvent(remoteCommand, 5, createBoard()),
+    });
+
+    expect(state.confirmed).toBeNull();
+    expect(state.requiredRevision).toBe(5);
+    expect(state.syncStatus).toBe("resyncing");
+
+    state = multiplayerClientReducer(state, {
+      type: "snapshotReceived",
+      snapshot: createSnapshot(4),
+    });
+
+    expect(state.confirmed?.revision).toBe(4);
+    expect(state.requiredRevision).toBe(5);
+    expect(state.syncStatus).toBe("resyncing");
+
+    state = multiplayerClientReducer(state, {
+      type: "snapshotReceived",
+      snapshot: createSnapshot(5),
+    });
+
+    expect(state.confirmed?.revision).toBe(5);
+    expect(state.requiredRevision).toBeNull();
+    expect(state.syncStatus).toBe("synced");
+  });
+
   it("does not let a below-floor command acknowledgement complete recovery", () => {
     const remoteCommand = createCommand(11, {type: "setNumber", cellIndex: 7, number: 8});
     const localCommand = createCommand(12, {type: "setNotes", cellIndex: 8, notes: [1, 3]});

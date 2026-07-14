@@ -136,6 +136,15 @@ interface RoomRenderProbeProps {
   onLayoutSend: (command: ReturnType<UseMultiplayerRoomResult["send"]>) => void;
 }
 
+interface SuspendableRoomProbeProps {
+  roomCode: string;
+  storage: Storage;
+  socket: FakeSocket;
+  suspendedRoomCode: string;
+  suspension: Promise<never>;
+  onCommittedRender: (room: UseMultiplayerRoomResult) => void;
+}
+
 function RoomRenderProbe({roomCode, storage, socket, onRender, onLayoutSend}: RoomRenderProbeProps) {
   const room = useMultiplayerRoom(roomCode, {storage, socketFactory: () => socket.asSocket()});
   const send = room.send;
@@ -145,6 +154,22 @@ function RoomRenderProbe({roomCode, storage, socket, onRender, onLayoutSend}: Ro
       onLayoutSend(send({type: "pause"}));
     }
   }, [onLayoutSend, roomCode, send]);
+  return null;
+}
+
+function SuspendableRoomProbe({
+  roomCode,
+  storage,
+  socket,
+  suspendedRoomCode,
+  suspension,
+  onCommittedRender,
+}: SuspendableRoomProbeProps) {
+  const room = useMultiplayerRoom(roomCode, {storage, socketFactory: () => socket.asSocket()});
+  if (roomCode === suspendedRoomCode) {
+    throw suspension;
+  }
+  onCommittedRender(room);
   return null;
 }
 
@@ -302,7 +327,7 @@ describe("useMultiplayerRoom", () => {
     expect(events(socket, "room:command")).toHaveLength(1);
   });
 
-  it("masks the first changed-room render and blocks sends before passive effects run", () => {
+  it("masks every StrictMode render for a changed room and blocks sends before passive effects run", () => {
     const socket = new FakeSocket();
     const storage = createStorage();
     const frames: Array<{
@@ -328,7 +353,11 @@ describe("useMultiplayerRoom", () => {
       layoutSendResult = command;
     };
     const probe = (roomCode: string) =>
-      React.createElement(RoomRenderProbe, {roomCode, storage, socket, onRender, onLayoutSend});
+      React.createElement(
+        React.StrictMode,
+        null,
+        React.createElement(RoomRenderProbe, {roomCode, storage, socket, onRender, onLayoutSend}),
+      );
     const view = render(probe("ABC234"));
     const roomABoard = createBoard();
     roomABoard.values[1] = 4;
@@ -342,15 +371,58 @@ describe("useMultiplayerRoom", () => {
 
     view.rerender(probe("DEF567"));
 
-    expect(frames[0]).toEqual({
+    const maskedFrame = {
       confirmedRoomCode: null,
       projectedValue: null,
       presence: 0,
       status: "connecting",
       errorCode: null,
-    });
+    };
+    expect(frames.length).toBeGreaterThanOrEqual(2);
+    expect(frames).toEqual(frames.map(() => maskedFrame));
     expect(layoutSendResult).toBeNull();
     expect(events(socket, "room:command")).toHaveLength(1);
+  });
+
+  it("does not let an abandoned room render alter the committed room lifecycle", () => {
+    const socket = new FakeSocket();
+    const storage = createStorage();
+    const suspension = new Promise<never>(() => {});
+    let committedRoom: UseMultiplayerRoomResult | null = null;
+    const onCommittedRender = (room: UseMultiplayerRoomResult) => {
+      committedRoom = room;
+    };
+    const getCommittedRoom = () => committedRoom as UseMultiplayerRoomResult;
+    const probe = (roomCode: string) =>
+      React.createElement(
+        React.Suspense,
+        {fallback: null},
+        React.createElement(SuspendableRoomProbe, {
+          roomCode,
+          storage,
+          socket,
+          suspendedRoomCode: "DEF567",
+          suspension,
+          onCommittedRender,
+        }),
+      );
+    const view = render(probe("ABC234"));
+    act(() => socket.serverEmit("room:snapshot", createSnapshot(3)));
+
+    act(() => {
+      React.startTransition(() => view.rerender(probe("DEF567")));
+    });
+
+    let command: ReturnType<UseMultiplayerRoomResult["send"]> | undefined;
+    act(() => {
+      command = getCommittedRoom().send({type: "pause"});
+    });
+    expect(command).not.toBeNull();
+    expect(events(socket, "room:command")).toHaveLength(1);
+
+    act(() => socket.serverEmit("room:snapshot", createSnapshot(4)));
+    expect(getCommittedRoom().confirmed?.revision).toBe(4);
+    expect(events(socket, "room:join")).toHaveLength(1);
   });
 
   it("stops reconnecting after a terminal protocol version mismatch", () => {
@@ -437,6 +509,32 @@ describe("useMultiplayerRoom", () => {
     expect(result.current.status).toBe("resyncing");
     expect(socket.disconnectCalls).toBe(1);
     expect(events(socket, "room:join")).toHaveLength(2);
+  });
+
+  it("keeps recovering when an event precedes the first below-floor snapshot", () => {
+    const socket = new FakeSocket();
+    const {result} = renderHook(() =>
+      useMultiplayerRoom("ABC234", {storage: createStorage(), socketFactory: () => socket.asSocket()}),
+    );
+
+    act(() => socket.serverEmit("room:event", remoteEvent(5, createBoard())));
+
+    expect(result.current.confirmed).toBeNull();
+    expect(result.current.status).toBe("resyncing");
+    expect(events(socket, "room:join")).toHaveLength(2);
+
+    act(() => socket.serverEmit("room:snapshot", createSnapshot(4)));
+
+    expect(result.current.confirmed?.revision).toBe(4);
+    expect(result.current.status).toBe("resyncing");
+    expect(result.current.send({type: "pause"})).toBeNull();
+    expect(events(socket, "room:command")).toHaveLength(0);
+    expect(events(socket, "room:join")).toHaveLength(3);
+
+    act(() => socket.serverEmit("room:snapshot", createSnapshot(5)));
+
+    expect(result.current.confirmed?.revision).toBe(5);
+    expect(result.current.status).toBe("connected");
   });
 
   it("replays pending commands after reconnect snapshot replacement", () => {

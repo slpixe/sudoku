@@ -29,6 +29,16 @@ export interface UseMultiplayerRoomResult {
   send: (action: RoomAction) => RoomCommand | null;
 }
 
+interface RoomScopedClientState {
+  roomCode: string;
+  state: MultiplayerClientState;
+}
+
+interface RoomScopedPresence {
+  roomCode: string;
+  presence: 0 | 1 | 2;
+}
+
 function connectionError(error: Error & {data?: unknown}): RoomError {
   const data = error.data;
   if (
@@ -55,44 +65,46 @@ export function useMultiplayerRoom(
   );
   const [connectionId] = React.useState(() => crypto.randomUUID());
   const [socket] = React.useState(() => (socketFactory ?? createMultiplayerSocket)());
-  const [clientState, setClientState] = React.useState<MultiplayerClientState>(createMultiplayerClientState);
-  const [presence, setPresence] = React.useState<0 | 1 | 2>(0);
-  const clientStateRef = React.useRef(clientState);
+  const [scopedClientState, setScopedClientState] = React.useState<RoomScopedClientState>(() => ({
+    roomCode,
+    state: createMultiplayerClientState(),
+  }));
+  const [scopedPresence, setScopedPresence] = React.useState<RoomScopedPresence>(() => ({
+    roomCode,
+    presence: 0,
+  }));
+  const clientStateRef = React.useRef(scopedClientState.state);
   const submitCommandRef = React.useRef<(command: RoomCommand) => void>(() => {});
   const lastReplayKeyRef = React.useRef<string | null>(null);
-  const activeRoomCodeRef = React.useRef(roomCode);
+  const committedRoomCodeRef = React.useRef<string | null>(null);
 
-  let renderedClientState = clientState;
-  let renderedPresence = presence;
-  if (activeRoomCodeRef.current !== roomCode) {
-    activeRoomCodeRef.current = roomCode;
-    const maskedState = createMultiplayerClientState();
-    clientStateRef.current = maskedState;
-    submitCommandRef.current = () => {};
-    lastReplayKeyRef.current = null;
-    renderedClientState = maskedState;
-    renderedPresence = 0;
-  }
+  const renderedClientState =
+    scopedClientState.roomCode === roomCode ? scopedClientState.state : createMultiplayerClientState();
+  const renderedPresence = scopedPresence.roomCode === roomCode ? scopedPresence.presence : 0;
 
   const dispatch = React.useCallback((action: MultiplayerClientAction): MultiplayerClientState => {
     const nextState = multiplayerClientReducer(clientStateRef.current, action);
+    const committedRoomCode = committedRoomCodeRef.current;
     clientStateRef.current = nextState;
-    setClientState(nextState);
+    if (committedRoomCode !== null) {
+      setScopedClientState({roomCode: committedRoomCode, state: nextState});
+    }
     return nextState;
   }, []);
 
   React.useEffect(() => {
     const resetState = createMultiplayerClientState();
+    committedRoomCodeRef.current = roomCode;
     clientStateRef.current = resetState;
-    setClientState(resetState);
-    setPresence(0);
+    setScopedClientState({roomCode, state: resetState});
+    setScopedPresence({roomCode, presence: 0});
     lastReplayKeyRef.current = null;
 
     let active = true;
     let terminal = false;
     let snapshotRequestGeneration = 0;
 
-    const ownsActiveRoom = (): boolean => active && activeRoomCodeRef.current === roomCode;
+    const ownsActiveRoom = (): boolean => active && committedRoomCodeRef.current === roomCode;
 
     const restartForSnapshot = (): void => {
       if (!ownsActiveRoom() || terminal) {
@@ -118,7 +130,7 @@ export function useMultiplayerRoom(
           return;
         }
         if (nextState.confirmed === result.snapshot) {
-          setPresence(result.snapshot.connectedGuests);
+          setScopedPresence({roomCode, presence: result.snapshot.connectedGuests});
         }
         return;
       }
@@ -160,7 +172,7 @@ export function useMultiplayerRoom(
       if (nextState === previousState || nextState.confirmed === null) {
         return;
       }
-      setPresence(nextState.confirmed.connectedGuests);
+      setScopedPresence({roomCode, presence: nextState.confirmed.connectedGuests});
       replayPending(nextState.confirmed);
     };
 
@@ -225,7 +237,7 @@ export function useMultiplayerRoom(
 
     const handlePresence = (nextPresence: {connectedGuests: 0 | 1 | 2}): void => {
       if (ownsActiveRoom()) {
-        setPresence(nextPresence.connectedGuests);
+        setScopedPresence({roomCode, presence: nextPresence.connectedGuests});
       }
     };
 
@@ -246,6 +258,9 @@ export function useMultiplayerRoom(
 
     return () => {
       active = false;
+      if (committedRoomCodeRef.current === roomCode) {
+        committedRoomCodeRef.current = null;
+      }
       if (socket.connected) {
         socket.emit("room:leave", {roomCode, connectionId});
       }
@@ -263,6 +278,9 @@ export function useMultiplayerRoom(
 
   const send = React.useCallback(
     (action: RoomAction): RoomCommand | null => {
+      if (committedRoomCodeRef.current !== roomCode) {
+        return null;
+      }
       const current = clientStateRef.current;
       if (current.confirmed === null || current.connectionStatus !== "connected" || current.syncStatus !== "synced") {
         return null;
