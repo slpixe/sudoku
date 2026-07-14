@@ -11,7 +11,7 @@ import {
   type MultiplayerClientState,
 } from "./clientState";
 import {createMultiplayerSocket, type MultiplayerSocket} from "./createMultiplayerSocket";
-import {getOrCreateGuestId} from "./guestIdentity";
+import {getOrCreateBrowserGuestId, getOrCreateGuestId} from "./guestIdentity";
 
 export type MultiplayerRoomStatus = ConnectionStatus | "resyncing";
 
@@ -27,13 +27,6 @@ export interface UseMultiplayerRoomResult {
   presence: 0 | 1 | 2;
   error: RoomError | null;
   send: (action: RoomAction) => RoomCommand | null;
-}
-
-function browserStorage(): Storage {
-  if (typeof window === "undefined") {
-    throw new Error("Multiplayer rooms require browser storage");
-  }
-  return window.localStorage;
 }
 
 function connectionError(error: Error & {data?: unknown}): RoomError {
@@ -57,7 +50,9 @@ export function useMultiplayerRoom(
 ): UseMultiplayerRoomResult {
   const storage = options.storage;
   const socketFactory = options.socketFactory;
-  const [guestId] = React.useState(() => getOrCreateGuestId(storage ?? browserStorage()));
+  const [guestId] = React.useState(() =>
+    storage === undefined ? getOrCreateBrowserGuestId() : getOrCreateGuestId(storage),
+  );
   const [connectionId] = React.useState(() => crypto.randomUUID());
   const [socket] = React.useState(() => (socketFactory ?? createMultiplayerSocket)());
   const [clientState, setClientState] = React.useState<MultiplayerClientState>(createMultiplayerClientState);
@@ -66,17 +61,25 @@ export function useMultiplayerRoom(
   const submitCommandRef = React.useRef<(command: RoomCommand) => void>(() => {});
   const lastReplayKeyRef = React.useRef<string | null>(null);
 
-  const dispatch = React.useCallback((action: MultiplayerClientAction) => {
+  const dispatch = React.useCallback((action: MultiplayerClientAction): MultiplayerClientState => {
     const nextState = multiplayerClientReducer(clientStateRef.current, action);
     clientStateRef.current = nextState;
     setClientState(nextState);
+    return nextState;
   }, []);
 
   React.useEffect(() => {
+    const resetState = createMultiplayerClientState();
+    clientStateRef.current = resetState;
+    setClientState(resetState);
+    setPresence(0);
+    lastReplayKeyRef.current = null;
+
     let active = true;
+    let terminal = false;
 
     const restartForSnapshot = (): void => {
-      if (!active) {
+      if (!active || terminal) {
         return;
       }
       lastReplayKeyRef.current = null;
@@ -89,12 +92,14 @@ export function useMultiplayerRoom(
         return;
       }
       if (result.ok) {
-        dispatch({
+        const nextState = dispatch({
           type: "commandAcknowledged",
           commandId: command.commandId,
           snapshot: result.snapshot,
         });
-        setPresence(result.snapshot.connectedGuests);
+        if (nextState.confirmed === result.snapshot) {
+          setPresence(result.snapshot.connectedGuests);
+        }
         return;
       }
       dispatch({
@@ -123,17 +128,24 @@ export function useMultiplayerRoom(
     };
 
     const handleSnapshot = (snapshot: RoomSnapshot): void => {
-      if (!active) {
+      if (!active || terminal || snapshot.roomCode !== roomCode) {
         return;
       }
-      dispatch({type: "snapshotReceived", snapshot});
-      setPresence(snapshot.connectedGuests);
-      replayPending(snapshot);
+      const previousState = clientStateRef.current;
+      const nextState = dispatch({type: "snapshotReceived", snapshot});
+      if (nextState === previousState || nextState.confirmed === null || nextState.syncStatus !== "synced") {
+        return;
+      }
+      setPresence(nextState.confirmed.connectedGuests);
+      replayPending(nextState.confirmed);
     };
 
     const requestSnapshot = (): void => {
+      if (!active || terminal) {
+        return;
+      }
       socket.emit("room:join", {guestId, connectionId, roomCode}, (result) => {
-        if (!active) {
+        if (!active || terminal) {
           return;
         }
         if (result.ok) {
@@ -146,12 +158,15 @@ export function useMultiplayerRoom(
     };
 
     const handleConnect = (): void => {
+      if (terminal) {
+        return;
+      }
       lastReplayKeyRef.current = null;
       requestSnapshot();
     };
 
     const handleDisconnect = (): void => {
-      if (active) {
+      if (active && !terminal) {
         dispatch({type: "connectionStatusChanged", status: "reconnecting"});
       }
     };
@@ -160,7 +175,14 @@ export function useMultiplayerRoom(
       if (!active) {
         return;
       }
-      dispatch({type: "errorReceived", error: connectionError(error)});
+      const roomError = connectionError(error);
+      dispatch({type: "errorReceived", error: roomError});
+      if (roomError.code === "VERSION_MISMATCH") {
+        terminal = true;
+        dispatch({type: "connectionStatusChanged", status: "disconnected"});
+        socket.disconnect();
+        return;
+      }
       dispatch({type: "connectionStatusChanged", status: "reconnecting"});
     };
 

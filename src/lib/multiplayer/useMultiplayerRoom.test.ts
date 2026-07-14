@@ -9,7 +9,7 @@ import type {
   ServerToClientEvents,
 } from "@sudoku/multiplayer-protocol";
 import {act, cleanup, renderHook} from "@testing-library/react";
-import {afterEach, describe, expect, it} from "vitest";
+import {afterEach, describe, expect, it, vi} from "vitest";
 
 import type {MultiplayerSocket} from "./createMultiplayerSocket";
 import {GUEST_ID_STORAGE_KEY} from "./guestIdentity";
@@ -40,9 +40,9 @@ function createBoard(): RoomBoard {
   };
 }
 
-function createSnapshot(revision = 0, board = createBoard()): RoomSnapshot {
+function createSnapshot(revision = 0, board = createBoard(), roomCode = "ABC234"): RoomSnapshot {
   return {
-    roomCode: "ABC234",
+    roomCode,
     collectionId: "easy",
     puzzleNumber: 1,
     board,
@@ -153,6 +153,35 @@ function remoteEvent(revision: number, board: RoomBoard): Parameters<ServerToCli
 afterEach(cleanup);
 
 describe("useMultiplayerRoom", () => {
+  it("retains one fallback guest identity across remounts when localStorage access throws", () => {
+    const localStorageGetter = vi.spyOn(window, "localStorage", "get").mockImplementation(() => {
+      throw new DOMException("Storage access denied", "SecurityError");
+    });
+    const firstSocket = new FakeSocket();
+    const secondSocket = new FakeSocket();
+
+    try {
+      const first = renderHook(() => useMultiplayerRoom("ABC234", {socketFactory: () => firstSocket.asSocket()}));
+      const firstRequest = events(firstSocket, "room:join")[0].args[0] as {
+        guestId: string;
+        connectionId: string;
+      };
+      first.unmount();
+
+      const second = renderHook(() => useMultiplayerRoom("ABC234", {socketFactory: () => secondSocket.asSocket()}));
+      const secondRequest = events(secondSocket, "room:join")[0].args[0] as {
+        guestId: string;
+        connectionId: string;
+      };
+
+      expect(secondRequest.guestId).toBe(firstRequest.guestId);
+      expect(secondRequest.connectionId).not.toBe(firstRequest.connectionId);
+      second.unmount();
+    } finally {
+      localStorageGetter.mockRestore();
+    }
+  });
+
   it("shares the stored guest identity but creates a fresh connection identity for every mount", () => {
     const storage = createStorage();
     const firstSocket = new FakeSocket();
@@ -198,6 +227,93 @@ describe("useMultiplayerRoom", () => {
     const firstConnectionId = (events(socket, "room:join")[0].args[0] as {connectionId: string}).connectionId;
     const secondConnectionId = (events(socket, "room:join")[1].args[0] as {connectionId: string}).connectionId;
     expect(secondConnectionId).toBe(firstConnectionId);
+  });
+
+  it("cleans up the old room and resets all room state before joining a changed room code", () => {
+    const socket = new FakeSocket();
+    const storage = createStorage();
+    const {result, rerender} = renderHook(
+      ({roomCode}) => useMultiplayerRoom(roomCode, {storage, socketFactory: () => socket.asSocket()}),
+      {initialProps: {roomCode: "ABC234"}},
+    );
+    const roomABoard = createBoard();
+    roomABoard.values[1] = 4;
+    act(() => {
+      socket.serverEmit("room:snapshot", createSnapshot(3, roomABoard));
+      socket.serverEmit("room:presence", {connectedGuests: 2});
+      socket.serverEmit("room:error", {code: "COMMAND_REJECTED", message: "Room A error"});
+      result.current.send({type: "setNumber", cellIndex: 2, number: 6});
+    });
+    const roomACommand = events(socket, "room:command")[0];
+
+    rerender({roomCode: "DEF567"});
+
+    const joins = events(socket, "room:join");
+    expect(joins).toHaveLength(2);
+    const roomAJoin = joins[0].args[0] as {roomCode: string; connectionId: string};
+    const roomBJoin = joins[1].args[0] as {roomCode: string; connectionId: string};
+    expect(roomAJoin.roomCode).toBe("ABC234");
+    expect(roomBJoin.roomCode).toBe("DEF567");
+    expect(roomBJoin.connectionId).toBe(roomAJoin.connectionId);
+    const leaveIndex = socket.emitted.findIndex((entry) => entry.event === "room:leave");
+    const roomBJoinIndex = socket.emitted.findIndex(
+      (entry) => entry.event === "room:join" && (entry.args[0] as {roomCode: string}).roomCode === "DEF567",
+    );
+    expect(leaveIndex).toBeGreaterThan(-1);
+    expect(leaveIndex).toBeLessThan(roomBJoinIndex);
+    expect(result.current.confirmed).toBeNull();
+    expect(result.current.projected).toBeNull();
+    expect(result.current.presence).toBe(0);
+    expect(result.current.error).toBeNull();
+    expect(result.current.status).toBe("connecting");
+    expect(result.current.send({type: "pause"})).toBeNull();
+    expect(events(socket, "room:command")).toHaveLength(1);
+
+    act(() => {
+      acknowledge(roomACommand, {ok: true, snapshot: createSnapshot(4, roomABoard)});
+      acknowledge(joins[0], {ok: true, snapshot: createSnapshot(4, roomABoard)});
+    });
+    expect(result.current.confirmed).toBeNull();
+
+    act(() => socket.serverEmit("room:snapshot", createSnapshot(0, createBoard(), "DEF567")));
+    expect(result.current.confirmed?.roomCode).toBe("DEF567");
+    expect(result.current.status).toBe("connected");
+    expect(events(socket, "room:command")).toHaveLength(1);
+  });
+
+  it("stops reconnecting after a terminal protocol version mismatch", () => {
+    const socket = new FakeSocket();
+    const {result} = renderHook(() =>
+      useMultiplayerRoom("ABC234", {storage: createStorage(), socketFactory: () => socket.asSocket()}),
+    );
+    const mismatch = Object.assign(new Error("Protocol version mismatch"), {
+      data: {code: "VERSION_MISMATCH", message: "Refresh the app"},
+    });
+
+    act(() => socket.serverEmit("connect_error", mismatch));
+
+    expect(result.current.error).toEqual({code: "VERSION_MISMATCH", message: "Refresh the app"});
+    expect(result.current.status).toBe("disconnected");
+    expect(socket.disconnectCalls).toBe(1);
+    const joinCount = events(socket, "room:join").length;
+    act(() => socket.serverEmit("connect"));
+    expect(events(socket, "room:join")).toHaveLength(joinCount);
+  });
+
+  it("keeps retrying after an ordinary transport connection error", () => {
+    const socket = new FakeSocket();
+    const {result} = renderHook(() =>
+      useMultiplayerRoom("ABC234", {storage: createStorage(), socketFactory: () => socket.asSocket()}),
+    );
+
+    act(() => socket.serverEmit("connect_error", new Error("Transport unavailable")));
+
+    expect(result.current.error).toEqual({
+      code: "SERVICE_UNAVAILABLE",
+      message: "Transport unavailable",
+    });
+    expect(result.current.status).toBe("reconnecting");
+    expect(socket.disconnectCalls).toBe(0);
   });
 
   it("sends optimistically, rolls back rejection, and reconnects for an authoritative snapshot", () => {
@@ -263,5 +379,37 @@ describe("useMultiplayerRoom", () => {
     const replayedCommand = events(socket, "room:command")[1].args[0] as {commandId: string};
     expect(replayedCommand.commandId).toBe(firstCommand.commandId);
     expect(result.current.projected?.notes[9]).toEqual([2, 7]);
+  });
+
+  it("does not replay or unlock sends for a stale recovery snapshot", () => {
+    const socket = new FakeSocket();
+    const {result} = renderHook(() =>
+      useMultiplayerRoom("ABC234", {storage: createStorage(), socketFactory: () => socket.asSocket()}),
+    );
+    act(() => socket.serverEmit("room:snapshot", createSnapshot(3)));
+    act(() => {
+      result.current.send({type: "setNotes", cellIndex: 9, notes: [2, 7]});
+    });
+    const originalCommand = events(socket, "room:command")[0].args[0] as {commandId: string};
+    const gapBoard = createBoard();
+    gapBoard.values[4] = 8;
+    act(() => socket.serverEmit("room:event", remoteEvent(5, gapBoard)));
+
+    act(() => socket.serverEmit("room:snapshot", createSnapshot(2)));
+
+    expect(result.current.confirmed?.revision).toBe(3);
+    expect(result.current.status).toBe("resyncing");
+    expect(result.current.send({type: "pause"})).toBeNull();
+    expect(events(socket, "room:command")).toHaveLength(1);
+
+    act(() => socket.serverEmit("room:snapshot", createSnapshot(3)));
+
+    expect(result.current.status).toBe("connected");
+    expect(events(socket, "room:command")).toHaveLength(2);
+    const replayedCommand = events(socket, "room:command")[1].args[0] as {commandId: string};
+    expect(replayedCommand.commandId).toBe(originalCommand.commandId);
+
+    act(() => socket.serverEmit("room:snapshot", createSnapshot(3)));
+    expect(events(socket, "room:command")).toHaveLength(2);
   });
 });

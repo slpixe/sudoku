@@ -17,9 +17,9 @@ function createBoard(): RoomBoard {
   };
 }
 
-function createSnapshot(revision = 0, board = createBoard()): RoomSnapshot {
+function createSnapshot(revision = 0, board = createBoard(), roomCode = "ABC234"): RoomSnapshot {
   return {
-    roomCode: "ABC234",
+    roomCode,
     collectionId: "easy",
     puzzleNumber: 1,
     board,
@@ -164,6 +164,51 @@ describe("multiplayerClientReducer", () => {
     expect(projectMultiplayerBoard(state)?.values[2]).toBe(6);
     expect(projectMultiplayerBoard(state)?.values[40]).toBe(3);
     expect(projectMultiplayerBoard(state)?.notes[41]).toEqual([1, 5]);
+  });
+
+  it("does not let a stale same-room snapshot rewind confirmed state or clear resyncing", () => {
+    const pending = createCommand(9, {type: "setNumber", cellIndex: 60, number: 4});
+    let state = multiplayerClientReducer(withSnapshot(createSnapshot(5)), {
+      type: "commandQueued",
+      command: pending,
+    });
+    state = multiplayerClientReducer(state, {type: "resyncRequested"});
+    const staleBoard = createBoard();
+    staleBoard.values[1] = 8;
+
+    const staleResult = multiplayerClientReducer(state, {
+      type: "snapshotReceived",
+      snapshot: createSnapshot(4, staleBoard),
+    });
+
+    expect(staleResult).toBe(state);
+    expect(staleResult.confirmed?.revision).toBe(5);
+    expect(staleResult.confirmed?.board.values[1]).toBe(0);
+    expect(staleResult.pending).toEqual([pending]);
+    expect(staleResult.syncStatus).toBe("resyncing");
+  });
+
+  it("accepts an equal-revision recovery snapshot and a lower revision for a different room", () => {
+    let state = multiplayerClientReducer(withSnapshot(createSnapshot(5)), {type: "resyncRequested"});
+    const duplicateBoard = createBoard();
+    duplicateBoard.values[2] = 7;
+
+    state = multiplayerClientReducer(state, {
+      type: "snapshotReceived",
+      snapshot: createSnapshot(5, duplicateBoard),
+    });
+
+    expect(state.confirmed?.revision).toBe(5);
+    expect(state.confirmed?.board.values[2]).toBe(7);
+    expect(state.syncStatus).toBe("synced");
+
+    state = multiplayerClientReducer(state, {
+      type: "snapshotReceived",
+      snapshot: createSnapshot(0, createBoard(), "DEF567"),
+    });
+
+    expect(state.confirmed?.roomCode).toBe("DEF567");
+    expect(state.confirmed?.revision).toBe(0);
   });
 
   it("ignores duplicate events after removing a matching pending command", () => {

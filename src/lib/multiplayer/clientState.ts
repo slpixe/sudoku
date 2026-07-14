@@ -75,13 +75,17 @@ export function multiplayerClientReducer(
       };
 
     case "commandAcknowledged": {
-      const confirmed =
-        state.confirmed !== null && state.confirmed.revision > action.snapshot.revision
-          ? state.confirmed
-          : action.snapshot;
+      const staleSnapshot =
+        state.confirmed !== null &&
+        state.confirmed.roomCode === action.snapshot.roomCode &&
+        action.snapshot.revision < state.confirmed.revision;
+      if (staleSnapshot) {
+        const pending = withoutCommand(state.pending, action.commandId);
+        return pending === state.pending ? state : {...state, pending};
+      }
       return {
         ...state,
-        confirmed,
+        confirmed: action.snapshot,
         pending: withoutCommand(state.pending, action.commandId),
         connectionStatus: "connected",
         syncStatus: "synced",
@@ -118,6 +122,13 @@ export function multiplayerClientReducer(
     }
 
     case "snapshotReceived":
+      if (
+        state.confirmed !== null &&
+        state.confirmed.roomCode === action.snapshot.roomCode &&
+        action.snapshot.revision < state.confirmed.revision
+      ) {
+        return state;
+      }
       return {
         ...state,
         confirmed: action.snapshot,
