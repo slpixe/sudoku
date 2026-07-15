@@ -94,5 +94,11 @@
   "multiplayer_reconnecting": "Reconnecting…",
   "multiplayer_connected_count": "{{count}}/2 connected",
   "multiplayer_copy_link": "Copy link",
-  "multiplayer_leave_room": "Leave room"
+  "multiplayer_leave_room": "Leave room",
+  "multiplayer_connecting": "Connecting…",
+  "multiplayer_disconnected": "Disconnected",
+  "multiplayer_retry": "Retry",
+  "multiplayer_version_mismatch": "Refresh the app before rejoining this room.",
+  "multiplayer_link_copied": "Room link copied.",
+  "multiplayer_copy_link_fallback": "Copy this room link: {{url}}"
 }

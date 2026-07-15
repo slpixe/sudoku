@@ -18,6 +18,10 @@ body,
   max-width: var(--sudoku-board-size);
 }
 
+.multiplayer-status {
+  max-width: min(48rem, 100%);
+}
+
 .sudoku-board-surface {
   container-type: inline-size;
 }

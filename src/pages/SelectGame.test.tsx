@@ -100,6 +100,7 @@ function renderSelectGame() {
 }
 
 beforeEach(() => {
+  window.location.hash = "#/select-game";
   navigate.mockReset();
   multiplayer.reset();
   multiplayer.socket.connect.mockClear();
@@ -140,6 +141,16 @@ afterEach(() => {
 });
 
 describe("SelectGame", () => {
+  it("returns terminal room failures to Join Existing with the attempted code preserved", () => {
+    window.location.hash = "#/select-game?roomCode=ABC234&roomError=ROOM_FULL";
+
+    renderSelectGame();
+
+    expect(screen.getByRole("button", {name: "select_mode_join_online"}).getAttribute("aria-pressed")).toBe("true");
+    expect((screen.getByLabelText("multiplayer_room_code") as HTMLInputElement).value).toBe("ABC234");
+    expect(screen.getByRole("alert").textContent).toBe("multiplayer_room_full");
+  });
+
   it("shows custom collections and progress in Solo, but only clean base cards in Create Online", async () => {
     const user = userEvent.setup();
     renderSelectGame();

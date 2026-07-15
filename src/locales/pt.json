@@ -94,5 +94,11 @@
   "multiplayer_reconnecting": "Reconectando…",
   "multiplayer_connected_count": "{{count}}/2 conectados",
   "multiplayer_copy_link": "Copiar link",
-  "multiplayer_leave_room": "Sair da sala"
+  "multiplayer_leave_room": "Sair da sala",
+  "multiplayer_connecting": "Conectando…",
+  "multiplayer_disconnected": "Desconectado",
+  "multiplayer_retry": "Tentar novamente",
+  "multiplayer_version_mismatch": "Atualize a aplicação antes de voltar a entrar nesta sala.",
+  "multiplayer_link_copied": "Link da sala copiado.",
+  "multiplayer_copy_link_fallback": "Copie este link da sala: {{url}}"
 }

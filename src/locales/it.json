@@ -94,5 +94,11 @@
   "multiplayer_reconnecting": "Riconnessione…",
   "multiplayer_connected_count": "{{count}}/2 connessi",
   "multiplayer_copy_link": "Copia link",
-  "multiplayer_leave_room": "Lascia la stanza"
+  "multiplayer_leave_room": "Lascia la stanza",
+  "multiplayer_connecting": "Connessione…",
+  "multiplayer_disconnected": "Disconnesso",
+  "multiplayer_retry": "Riprova",
+  "multiplayer_version_mismatch": "Aggiorna l’app prima di rientrare in questa stanza.",
+  "multiplayer_link_copied": "Link della stanza copiato.",
+  "multiplayer_copy_link_fallback": "Copia questo link della stanza: {{url}}"
 }

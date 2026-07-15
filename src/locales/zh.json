@@ -94,5 +94,11 @@
   "multiplayer_reconnecting": "正在重新连接…",
   "multiplayer_connected_count": "已连接 {{count}}/2",
   "multiplayer_copy_link": "复制链接",
-  "multiplayer_leave_room": "离开房间"
+  "multiplayer_leave_room": "离开房间",
+  "multiplayer_connecting": "正在连接…",
+  "multiplayer_disconnected": "连接已断开",
+  "multiplayer_retry": "重试",
+  "multiplayer_version_mismatch": "请刷新应用后再重新加入此房间。",
+  "multiplayer_link_copied": "房间链接已复制。",
+  "multiplayer_copy_link_fallback": "请复制此房间链接：{{url}}"
 }

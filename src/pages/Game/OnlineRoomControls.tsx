@@ -10,6 +10,7 @@ interface OnlineRoomControlsProps {
   error?: string | null;
   mode: SelectGameMode;
   online: boolean;
+  initialRoomCode?: string;
   onJoin: (roomCode: string) => void;
   onModeChange: (mode: SelectGameMode) => void;
 }
@@ -40,9 +41,17 @@ function ModeAction({disabled, label, mode, selectedMode, onSelect}: ModeActionP
   );
 }
 
-export function OnlineRoomControls({creating, error, mode, online, onJoin, onModeChange}: OnlineRoomControlsProps) {
+export function OnlineRoomControls({
+  creating,
+  error,
+  initialRoomCode = "",
+  mode,
+  online,
+  onJoin,
+  onModeChange,
+}: OnlineRoomControlsProps) {
   const {t} = useTranslation();
-  const [roomCode, setRoomCode] = React.useState("");
+  const [roomCode, setRoomCode] = React.useState(() => initialRoomCode.toUpperCase());
   const [invalidCode, setInvalidCode] = React.useState(false);
 
   const submitRoomCode = (event: React.FormEvent<HTMLFormElement>) => {

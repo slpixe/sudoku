@@ -13,7 +13,7 @@ import {isBaseCollectionId} from "src/lib/game/baseCollections";
 import type {MultiplayerSocket} from "src/lib/multiplayer/createMultiplayerSocket";
 
 import {OnlineRoomControls} from "./Game/OnlineRoomControls";
-import type {PuzzleSelection, SelectGameMode} from "./Game/selectGameMode";
+import {readSelectGameJoinState, type PuzzleSelection, type SelectGameMode} from "./Game/selectGameMode";
 
 const CREATE_ROOM_PHASE_TIMEOUT_MS = 10_000;
 
@@ -110,13 +110,23 @@ function roomErrorKey(code: RoomErrorCode): string {
 const SelectGame = () => {
   const navigate = useNavigate();
   const {t} = useTranslation();
-  const [mode, setMode] = React.useState<SelectGameMode>("solo");
+  const [initialJoinState] = React.useState(() => readSelectGameJoinState(window.location.hash));
+  const [mode, setMode] = React.useState<SelectGameMode>(() => (initialJoinState ? "join-online" : "solo"));
   const [online, setOnline] = React.useState(() => (typeof navigator === "undefined" ? true : navigator.onLine));
   const [creating, setCreating] = React.useState(false);
   const creatingRef = React.useRef(false);
   const mountedRef = React.useRef(false);
   const activeCreateAttemptRef = React.useRef<CreateRoomAttempt | null>(null);
-  const [onlineError, setOnlineError] = React.useState<string | null>(null);
+  const [onlineError, setOnlineError] = React.useState<string | null>(() => {
+    if (!initialJoinState?.roomError) {
+      return null;
+    }
+    return initialJoinState.roomError === "ROOM_FULL"
+      ? t("multiplayer_room_full")
+      : initialJoinState.roomError === "INVALID_REQUEST"
+        ? t("multiplayer_invalid_room_code")
+        : t("multiplayer_room_invalid_or_expired");
+  });
 
   const finishCreateAttempt = React.useCallback((attempt: CreateRoomAttempt) => {
     if (activeCreateAttemptRef.current !== attempt) {
@@ -275,6 +285,7 @@ const SelectGame = () => {
       <OnlineRoomControls
         creating={creating}
         error={onlineError}
+        initialRoomCode={initialJoinState?.roomCode}
         mode={mode}
         online={online}
         onJoin={joinRoom}

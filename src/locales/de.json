@@ -94,5 +94,11 @@
   "multiplayer_reconnecting": "Verbindung wird wiederhergestellt…",
   "multiplayer_connected_count": "{{count}}/2 verbunden",
   "multiplayer_copy_link": "Link kopieren",
-  "multiplayer_leave_room": "Raum verlassen"
+  "multiplayer_leave_room": "Raum verlassen",
+  "multiplayer_connecting": "Verbindung wird hergestellt…",
+  "multiplayer_disconnected": "Verbindung getrennt",
+  "multiplayer_retry": "Erneut versuchen",
+  "multiplayer_version_mismatch": "Aktualisieren Sie die App, bevor Sie diesem Raum erneut beitreten.",
+  "multiplayer_link_copied": "Raumlink kopiert.",
+  "multiplayer_copy_link_fallback": "Kopieren Sie diesen Raumlink: {{url}}"
 }

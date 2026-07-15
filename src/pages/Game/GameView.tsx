@@ -31,6 +31,7 @@ export type GameViewProps = {
   preferences: UserPreferences;
   showMenu: boolean;
   status: GameStateMachine;
+  statusContent?: React.ReactNode;
   sudokuIndex: number;
   timerContent: React.ReactNode;
   won: boolean;
@@ -71,6 +72,7 @@ export function GameView({
   preferences,
   showMenu,
   status,
+  statusContent,
   sudokuIndex,
   timerContent,
   won,
@@ -141,6 +143,7 @@ export function GameView({
   return (
     <Container>
       <div>
+        {statusContent}
         {!interactionsBlocked ? (
           <Shortcuts
             activeCell={activeCell}
