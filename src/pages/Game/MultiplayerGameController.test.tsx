@@ -3,6 +3,7 @@
 import type {RoomBoard, RoomSnapshot} from "@sudoku/multiplayer-protocol";
 import {act, cleanup, fireEvent, render, screen, waitFor} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import hotkeys from "hotkeys-js";
 import * as React from "react";
 import {afterEach, describe, expect, it, vi} from "vitest";
 
@@ -12,6 +13,7 @@ import {DEFAULT_USER_PREFERENCES} from "src/lib/database/userPreferences";
 import type {UseMultiplayerRoomResult} from "src/lib/multiplayer/useMultiplayerRoom";
 
 import {MultiplayerGameController, roomBoardToCells} from "./MultiplayerGameController";
+import {ShortcutScope} from "./shortcuts/ShortcutScope";
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -265,6 +267,16 @@ describe("MultiplayerGameController", () => {
     expect(screen.getByTestId("multiplayer-completion-panel")).toBeTruthy();
     expect(screen.queryByTestId("sudoku-completion-best-time")).toBeNull();
     expect(screen.queryByTestId("sudoku-completion-solved-count")).toBeNull();
+  });
+
+  it("does not send resume when Escape is pressed after the room is completed", () => {
+    const completed = createSnapshot({status: "completed", elapsedMs: 65_000, canUndo: false});
+    const room = createRoom({confirmed: completed, projected: completed.board});
+    renderController(room);
+
+    act(() => hotkeys.trigger("esc", ShortcutScope.Menu));
+
+    expect(room.send).not.toHaveBeenCalled();
   });
 
   it("projects a running timer from the server clock offset without sending room mutations", () => {

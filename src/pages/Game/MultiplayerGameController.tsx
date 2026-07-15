@@ -169,7 +169,11 @@ export function MultiplayerGameController({room, roomCode, onNewGame, onRetry}: 
       onNewGame={onNewGame}
       onPause={() => sendAction({type: "pause"})}
       onRedo={noop}
-      onResume={() => sendAction({type: "resume"})}
+      onResume={() => {
+        if (confirmed.status === "paused") {
+          sendAction({type: "resume"});
+        }
+      }}
       onResumeThisPuzzleHere={noop}
       onSelectCell={setActiveCellCoordinates}
       onSetNotes={(coordinates, notes) =>
