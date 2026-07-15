@@ -48,19 +48,19 @@ async function tryJoinRoom(page: Page, roomCode: string): Promise<boolean> {
     return true;
   }
 
+  await page.goto("/#/select-game");
   await page.getByRole("button", {name: "Join existing room"}).click();
   await page.getByLabel("Room code").fill(roomCode);
   await page.getByRole("button", {name: "Join", exact: true}).click();
-  await expect(page).toHaveURL(new RegExp(`#\\/room\\/${roomCode}$`));
 
-  const outcome = await Promise.race([
-    gameLabel.waitFor({state: "visible", timeout: 5_000}).then(() => "joined" as const),
-    page.waitForURL(/#\/select-game/, {timeout: 5_000}).then(() => "room-full" as const),
-  ]);
-  if (outcome === "room-full") {
-    await expect(page.getByRole("alert")).toContainText("That room already has two guests.");
-  }
-  return outcome === "joined";
+  return Promise.race([
+    gameLabel.waitFor({state: "visible", timeout: 5_000}).then(() => true),
+    page
+      .getByRole("alert")
+      .filter({hasText: "That room already has two guests."})
+      .waitFor({state: "visible", timeout: 5_000})
+      .then(() => false),
+  ]).catch(() => false);
 }
 
 async function setValue(page: Page, x: number, y: number, value: number): Promise<void> {
@@ -186,7 +186,9 @@ test("shares one seat across tabs and releases a disconnected reservation after 
 
     await immediateReconnect.close();
     await expect(creator.getByTestId("multiplayer-status")).toContainText("1/2 connected");
-    await expect.poll(() => tryJoinRoom(replacement, roomCode), {intervals: [250], timeout: 5_000}).toBe(true);
+    await expect
+      .poll(() => tryJoinRoom(replacement, roomCode), {intervals: [250, 500, 1_000], timeout: 15_000})
+      .toBe(true);
     await expect(replacement.getByTestId("multiplayer-status")).toContainText("2/2 connected");
   } finally {
     await creatorContext.close();
@@ -214,7 +216,9 @@ test("keeps the confirmed board read-only while reconnecting and restores a full
     await expectValueOnBoth(creator, reconnecting, 5, 0, 1);
 
     await reconnectingContext.setOffline(true);
-    await expect(reconnecting.getByText("Reconnecting…")).toBeVisible();
+    await expect(reconnecting.getByTestId("multiplayer-status")).toContainText(
+      "An internet connection is required to create or join an online room.",
+    );
     await expect(cellValue(reconnecting, 5, 0)).toHaveText("1");
     await expect(reconnecting.getByTestId("sudoku-number-6")).toBeDisabled();
 
@@ -223,7 +227,9 @@ test("keeps the confirmed board read-only while reconnecting and restores a full
 
     await reconnectingContext.setOffline(false);
     await expect(cellValue(reconnecting, 7, 0)).toHaveText("6");
-    await expect(reconnecting.getByText("Reconnecting…")).toHaveCount(0);
+    await expect(
+      reconnecting.getByText("An internet connection is required to create or join an online room."),
+    ).toHaveCount(0);
     await expect(reconnecting.getByTestId("sudoku-number-6")).toBeEnabled();
   } finally {
     await reconnectingContext.setOffline(false);

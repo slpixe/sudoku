@@ -10,6 +10,8 @@ import {runMigrations} from "./migrate.js";
 
 const migrationsDirectory = fileURLToPath(new URL("../../migrations/", import.meta.url));
 const roomId = "123e4567-e89b-42d3-a456-426614174000";
+const resumedRoomId = "123e4567-e89b-42d3-a456-426614174010";
+const postMigrationRoomId = "123e4567-e89b-42d3-a456-426614174020";
 const now = new Date("2026-07-13T10:00:00.000Z");
 
 function uuid(index: number): string {
@@ -45,6 +47,42 @@ function legacyEvent(
   };
 }
 
+async function insertLegacyRoom(
+  database: PgliteDatabase,
+  input: {
+    id: string;
+    code: string;
+    revision: number;
+    status: "running" | "paused";
+    runningSince: Date | null;
+  },
+): Promise<void> {
+  const emptyBoard = board();
+  await database.query(
+    `INSERT INTO rooms (
+      id, code, collection_id, puzzle_number, givens, solution, values, notes,
+      revision, status, elapsed_ms, running_since, created_at, last_activity_at, expires_at
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
+    [
+      input.id,
+      input.code,
+      "easy",
+      1,
+      emptyBoard.givens,
+      emptyBoard.solution,
+      emptyBoard.values,
+      Array<number>(81).fill(0),
+      input.revision,
+      input.status,
+      0,
+      input.runningSince,
+      now,
+      now,
+      new Date(now.getTime() + 86_400_000),
+    ],
+  );
+}
+
 describe("timer_started migration", () => {
   const databases: PgliteDatabase[] = [];
   const temporaryDirectories: string[] = [];
@@ -66,29 +104,13 @@ describe("timer_started migration", () => {
     await runMigrations(database, migration001Directory);
 
     const emptyBoard = board();
-    await database.query(
-      `INSERT INTO rooms (
-        id, code, collection_id, puzzle_number, givens, solution, values, notes,
-        revision, status, elapsed_ms, running_since, created_at, last_activity_at, expires_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
-      [
-        roomId,
-        "ABC234",
-        "easy",
-        1,
-        emptyBoard.givens,
-        emptyBoard.solution,
-        emptyBoard.values,
-        Array<number>(81).fill(0),
-        3,
-        "paused",
-        0,
-        null,
-        now,
-        now,
-        new Date(now.getTime() + 86_400_000),
-      ],
-    );
+    await insertLegacyRoom(database, {
+      id: roomId,
+      code: "ABC234",
+      revision: 3,
+      status: "paused",
+      runningSince: null,
+    });
 
     const notes = Array.from({length: 81}, () => [] as number[]);
     notes[0] = [1];
@@ -105,6 +127,25 @@ describe("timer_started migration", () => {
       );
     }
 
+    await insertLegacyRoom(database, {
+      id: resumedRoomId,
+      code: "DEF567",
+      revision: 2,
+      status: "running",
+      runningSince: now,
+    });
+    const preMigrationPauseResume = [
+      {...legacyEvent(1, {type: "pause"}, "paused", emptyBoard, null), canUndo: false},
+      {...legacyEvent(2, {type: "resume"}, "running", emptyBoard, now.getTime()), canUndo: false},
+    ];
+    for (const event of preMigrationPauseResume) {
+      await database.query(
+        `INSERT INTO processed_commands (room_id, command_id, revision, event, created_at)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [resumedRoomId, event.commandId, event.revision, JSON.stringify(event), now],
+      );
+    }
+
     await runMigrations(database, migrationsDirectory);
 
     const backfilled = await database.query<{revision: string; event: unknown}>(
@@ -115,6 +156,88 @@ describe("timer_started migration", () => {
     await expect(
       database.query<{timer_started: boolean}>("SELECT timer_started FROM rooms WHERE id = $1", [roomId]),
     ).resolves.toMatchObject({rows: [{timer_started: true}]});
+    const upgradedResumeEvents = await database.query<{event: unknown}>(
+      "SELECT event FROM processed_commands WHERE room_id = $1 ORDER BY revision",
+      [resumedRoomId],
+    );
+    expect(upgradedResumeEvents.rows.map(({event}) => roomEventSchema.parse(event).timerStarted)).toEqual([
+      false,
+      true,
+    ]);
+    const upgradedResumedRoom = await database.query<{running_since: unknown; timer_started: boolean}>(
+      "SELECT running_since, timer_started FROM rooms WHERE id = $1",
+      [resumedRoomId],
+    );
+    expect(upgradedResumedRoom.rows[0].timer_started).toBe(true);
+    expect(new Date(upgradedResumedRoom.rows[0].running_since as string).getTime()).toBe(now.getTime());
+
+    await insertLegacyRoom(database, {
+      id: postMigrationRoomId,
+      code: "GHJ678",
+      revision: 0,
+      status: "running",
+      runningSince: null,
+    });
+    const postMigrationPause = {
+      ...legacyEvent(1, {type: "pause"}, "paused", emptyBoard, null),
+      canUndo: false,
+    };
+    await database.transaction(async (tx) => {
+      await tx.query(
+        `INSERT INTO processed_commands (room_id, command_id, revision, event, created_at)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [
+          postMigrationRoomId,
+          postMigrationPause.commandId,
+          postMigrationPause.revision,
+          JSON.stringify(postMigrationPause),
+          now,
+        ],
+      );
+      await tx.query(
+        `UPDATE rooms SET revision = $2, status = $3, elapsed_ms = $4,
+          running_since = $5, last_activity_at = $6, expires_at = $7
+         WHERE id = $1`,
+        [postMigrationRoomId, 1, "paused", 0, null, now, new Date(now.getTime() + 86_400_000)],
+      );
+    });
+    const postMigrationResume = {
+      ...legacyEvent(2, {type: "resume"}, "running", emptyBoard, now.getTime()),
+      canUndo: false,
+    };
+    await database.transaction(async (tx) => {
+      await tx.query(
+        `INSERT INTO processed_commands (room_id, command_id, revision, event, created_at)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [
+          postMigrationRoomId,
+          postMigrationResume.commandId,
+          postMigrationResume.revision,
+          JSON.stringify(postMigrationResume),
+          now,
+        ],
+      );
+      await tx.query(
+        `UPDATE rooms SET revision = $2, status = $3, elapsed_ms = $4,
+          running_since = $5, last_activity_at = $6, expires_at = $7
+         WHERE id = $1`,
+        [postMigrationRoomId, 2, "running", 0, now, now, new Date(now.getTime() + 86_400_000)],
+      );
+    });
+    const postMigrationResumeEvents = await database.query<{event: unknown}>(
+      "SELECT event FROM processed_commands WHERE room_id = $1 ORDER BY revision",
+      [postMigrationRoomId],
+    );
+    expect(postMigrationResumeEvents.rows.map(({event}) => roomEventSchema.parse(event).timerStarted)).toEqual([
+      false,
+      true,
+    ]);
+    const postMigrationResumedRoom = await database.query<{running_since: unknown; timer_started: boolean}>(
+      "SELECT running_since, timer_started FROM rooms WHERE id = $1",
+      [postMigrationRoomId],
+    );
+    expect(postMigrationResumedRoom.rows[0].timer_started).toBe(true);
+    expect(new Date(postMigrationResumedRoom.rows[0].running_since as string).getTime()).toBe(now.getTime());
 
     const legacyClear = legacyEvent(4, {type: "clear"}, "running", emptyBoard, null);
     await database.transaction(async (tx) => {

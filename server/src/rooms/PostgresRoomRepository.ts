@@ -48,18 +48,28 @@ function mutationHelpers(tx: QueryExecutor, roomId: string, now: Date): RoomMuta
         `SELECT
            target.event,
            CASE
+             WHEN decisive.has_explicit THEN decisive.explicit_timer_started
              WHEN decisive.action_type = 'clear' THEN false
              WHEN decisive.action_type IS NOT NULL THEN true
              ELSE false
            END AS inferred_timer_started
          FROM processed_commands AS target
          LEFT JOIN LATERAL (
-           SELECT history.event -> 'action' ->> 'type' AS action_type
+           SELECT
+             history.event ? 'timerStarted' AS has_explicit,
+             CASE
+               WHEN history.event ? 'timerStarted' THEN (history.event ->> 'timerStarted')::boolean
+               ELSE NULL
+             END AS explicit_timer_started,
+             history.event -> 'action' ->> 'type' AS action_type
            FROM processed_commands AS history
            WHERE history.room_id = target.room_id
              AND history.revision <= target.revision
-             AND history.event -> 'action' ->> 'type'
-               IN ('setNumber', 'setNotes', 'clearCell', 'hint', 'clear')
+             AND (
+               history.event ? 'timerStarted'
+               OR history.event -> 'action' ->> 'type'
+                 IN ('setNumber', 'setNotes', 'clearCell', 'hint', 'clear', 'resume')
+             )
            ORDER BY history.revision DESC, history.command_id DESC
            LIMIT 1
          ) AS decisive ON true

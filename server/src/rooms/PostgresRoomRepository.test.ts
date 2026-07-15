@@ -175,6 +175,53 @@ describe("PostgresRoomRepository", () => {
     });
   });
 
+  it("treats missing legacy Resume as decisive while preserving explicit modern timer state", async () => {
+    await repository.create({id: roomId, snapshot: createSnapshot(), now});
+    const legacyResumeId = "123e4567-e89b-42d3-a456-426614174004";
+    const legacyResume: RoomEvent = {
+      ...createEvent(createSnapshot({revision: 1, timerStarted: true, runningSince: now.getTime()})),
+      commandId: legacyResumeId,
+      action: {type: "resume"},
+      canUndo: false,
+    };
+    await database.query(
+      `INSERT INTO processed_commands (room_id, command_id, revision, event, created_at)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [roomId, legacyResumeId, 1, JSON.stringify(legacyResume), now],
+    );
+    await database.query("UPDATE processed_commands SET event = event - 'timerStarted' WHERE command_id = $1", [
+      legacyResumeId,
+    ]);
+
+    let recoveredLegacyResume: RoomEvent | null = null;
+    await repository.mutate("ABC234", now, async (room, helpers) => {
+      recoveredLegacyResume = await helpers.getProcessedCommand(legacyResumeId);
+      return room;
+    });
+    expect(recoveredLegacyResume).toMatchObject({action: {type: "resume"}, timerStarted: true});
+
+    const modernResumeId = "123e4567-e89b-42d3-a456-426614174005";
+    const modernDormantResume: RoomEvent = {
+      ...legacyResume,
+      commandId: modernResumeId,
+      revision: 2,
+      timerStarted: false,
+      runningSince: null,
+    };
+    await database.query(
+      `INSERT INTO processed_commands (room_id, command_id, revision, event, created_at)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [roomId, modernResumeId, 2, JSON.stringify(modernDormantResume), now],
+    );
+
+    let explicitModernResume: RoomEvent | null = null;
+    await repository.mutate("ABC234", now, async (room, helpers) => {
+      explicitModernResume = await helpers.getProcessedCommand(modernResumeId);
+      return room;
+    });
+    expect(explicitModernResume).toMatchObject({action: {type: "resume"}, timerStarted: false, runningSince: null});
+  });
+
   it("rolls back every mutation write when work fails", async () => {
     await repository.create({id: roomId, snapshot: createSnapshot(), now});
 

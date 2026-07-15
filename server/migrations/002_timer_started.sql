@@ -2,8 +2,9 @@ ALTER TABLE rooms
   ADD COLUMN timer_started boolean NOT NULL DEFAULT false;
 
 -- Reconstruct timer state in revision order. Board mutations start the timer,
--- Clear makes it dormant again, and Undo/Pause/Resume preserve the state set by
--- the latest decisive command. Terminal elapsed/running/undo fields are not
+-- Clear makes it dormant again, legacy Resume also starts it, and Undo/Pause
+-- preserve the latest state. An explicit timerStarted value from a current
+-- event is always authoritative. Terminal elapsed/running/undo fields are not
 -- sufficient when several commands happen in the same millisecond.
 WITH command_states AS (
   SELECT
@@ -11,8 +12,9 @@ WITH command_states AS (
     command.command_id,
     max(
       CASE
-        WHEN command.event -> 'action' ->> 'type'
-          IN ('setNumber', 'setNotes', 'clearCell', 'hint', 'clear')
+        WHEN command.event ? 'timerStarted'
+          OR command.event -> 'action' ->> 'type'
+            IN ('setNumber', 'setNotes', 'clearCell', 'hint', 'clear', 'resume')
         THEN command.revision
         ELSE NULL
       END
@@ -28,6 +30,7 @@ WITH command_states AS (
     state.command_id,
     CASE
       WHEN state.decisive_revision IS NULL THEN false
+      WHEN decisive.event ? 'timerStarted' THEN (decisive.event ->> 'timerStarted')::boolean
       WHEN decisive.event -> 'action' ->> 'type' = 'clear' THEN false
       ELSE true
     END AS timer_started
@@ -79,7 +82,7 @@ BEGIN
 
   action_type := NEW.event -> 'action' ->> 'type';
   next_timer_started := CASE
-    WHEN action_type IN ('setNumber', 'setNotes', 'clearCell', 'hint') THEN true
+    WHEN action_type IN ('setNumber', 'setNotes', 'clearCell', 'hint', 'resume') THEN true
     WHEN action_type = 'clear' THEN false
     ELSE COALESCE(current_timer_started, false)
   END;
