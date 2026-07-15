@@ -17,8 +17,12 @@ import {ShortcutScope} from "./shortcuts/ShortcutScope";
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
-    t: (key: string, values?: {count?: number; roomCode?: string; url?: string}) =>
-      values?.count === undefined ? key : `${values.count}/2 connected`,
+    t: (key: string, values?: {count?: number; roomCode?: string; url?: string}) => {
+      if (values?.url !== undefined) {
+        return `${key}:${values.url}`;
+      }
+      return values?.count === undefined ? key : `${values.count}/2 connected`;
+    },
   }),
 }));
 
@@ -76,6 +80,16 @@ function createRoom(overrides: Partial<UseMultiplayerRoomResult> = {}): UseMulti
     announceActiveCell: vi.fn(),
     ...overrides,
   };
+}
+
+function createDeferredPromise<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return {promise, reject, resolve};
 }
 
 function renderController(
@@ -366,7 +380,86 @@ describe("MultiplayerGameController", () => {
 
       await act(async () => Promise.resolve());
       expect(screen.getByTestId("multiplayer-copy-button").textContent).toContain("multiplayer_copy_failed");
-      expect(screen.queryByText(window.location.href)).toBeNull();
+      expect(screen.getByTestId("multiplayer-status").textContent).not.toContain(window.location.href);
+    } finally {
+      if (originalClipboard) {
+        Object.defineProperty(navigator, "clipboard", originalClipboard);
+      } else {
+        delete (navigator as {clipboard?: Clipboard}).clipboard;
+      }
+    }
+  });
+
+  it("replaces an existing copy reset timer when copy feedback is shown again", async () => {
+    vi.useFakeTimers();
+    const originalClipboard = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+    const writeText = vi.fn(() => Promise.resolve());
+    Object.defineProperty(navigator, "clipboard", {configurable: true, value: {writeText}});
+
+    try {
+      renderController(createRoom());
+      fireEvent.click(screen.getByRole("button", {name: "multiplayer_copy_link"}));
+      await act(async () => Promise.resolve());
+      act(() => vi.advanceTimersByTime(1_000));
+
+      fireEvent.click(screen.getByRole("button", {name: "multiplayer_copy_link"}));
+      await act(async () => Promise.resolve());
+      act(() => vi.advanceTimersByTime(1_000));
+      expect(screen.getByTestId("multiplayer-copy-button").textContent).toContain("multiplayer_copied");
+
+      act(() => vi.advanceTimersByTime(1_000));
+      expect(screen.getByTestId("multiplayer-copy-button").textContent).toContain("multiplayer_copy");
+    } finally {
+      if (originalClipboard) {
+        Object.defineProperty(navigator, "clipboard", originalClipboard);
+      } else {
+        delete (navigator as {clipboard?: Clipboard}).clipboard;
+      }
+    }
+  });
+
+  it("ignores a stale earlier copy completion after a later attempt fails", async () => {
+    vi.useFakeTimers();
+    const originalClipboard = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+    const firstCopy = createDeferredPromise<void>();
+    const writeText = vi
+      .fn()
+      .mockImplementationOnce(() => firstCopy.promise)
+      .mockRejectedValueOnce(new Error("Clipboard denied"));
+    Object.defineProperty(navigator, "clipboard", {configurable: true, value: {writeText}});
+
+    try {
+      renderController(createRoom());
+      fireEvent.click(screen.getByRole("button", {name: "multiplayer_copy_link"}));
+      fireEvent.click(screen.getByRole("button", {name: "multiplayer_copy_link"}));
+      await act(async () => Promise.resolve());
+      expect(screen.getByTestId("multiplayer-copy-button").textContent).toContain("multiplayer_copy_failed");
+
+      await act(async () => firstCopy.resolve(undefined));
+      expect(screen.getByTestId("multiplayer-copy-button").textContent).toContain("multiplayer_copy_failed");
+    } finally {
+      if (originalClipboard) {
+        Object.defineProperty(navigator, "clipboard", originalClipboard);
+      } else {
+        delete (navigator as {clipboard?: Clipboard}).clipboard;
+      }
+    }
+  });
+
+  it("does not create copy state or a reset timer when a clipboard promise settles after unmount", async () => {
+    vi.useFakeTimers();
+    const originalClipboard = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+    const pendingCopy = createDeferredPromise<void>();
+    const writeText = vi.fn(() => pendingCopy.promise);
+    Object.defineProperty(navigator, "clipboard", {configurable: true, value: {writeText}});
+
+    try {
+      const {unmount} = renderController(createRoom());
+      fireEvent.click(screen.getByRole("button", {name: "multiplayer_copy_link"}));
+      unmount();
+
+      await act(async () => pendingCopy.resolve(undefined));
+      expect(vi.getTimerCount()).toBe(0);
     } finally {
       if (originalClipboard) {
         Object.defineProperty(navigator, "clipboard", originalClipboard);

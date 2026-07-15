@@ -68,6 +68,8 @@ export function MultiplayerGameController({room, roomCode, onNewGame, onRetry}: 
   const [clipboardNotes, setClipboardNotes] = React.useState<number[] | null>(null);
   const [copyState, setCopyState] = React.useState<CopyState>("idle");
   const copyResetTimerRef = React.useRef<number | null>(null);
+  const copyRequestGenerationRef = React.useRef(0);
+  const mountedRef = React.useRef(true);
   const announceActiveCell = room.announceActiveCell;
   const confirmed = room.confirmed;
   const blocked = room.status !== "connected" || room.error !== null;
@@ -106,6 +108,9 @@ export function MultiplayerGameController({room, roomCode, onNewGame, onRetry}: 
   );
 
   const showCopyState = React.useCallback((nextState: Exclude<CopyState, "idle">) => {
+    if (!mountedRef.current) {
+      return;
+    }
     if (copyResetTimerRef.current !== null) {
       window.clearTimeout(copyResetTimerRef.current);
     }
@@ -116,23 +121,34 @@ export function MultiplayerGameController({room, roomCode, onNewGame, onRetry}: 
     }, 2_000);
   }, []);
 
-  React.useEffect(
-    () => () => {
+  React.useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      copyRequestGenerationRef.current += 1;
       if (copyResetTimerRef.current !== null) {
         window.clearTimeout(copyResetTimerRef.current);
+        copyResetTimerRef.current = null;
       }
-    },
-    [],
-  );
+    };
+  }, []);
 
   const copyRoomLink = React.useCallback(async () => {
+    const requestGeneration = copyRequestGenerationRef.current + 1;
+    copyRequestGenerationRef.current = requestGeneration;
     try {
       if (!navigator.clipboard?.writeText) {
         throw new Error("Clipboard API unavailable");
       }
       await navigator.clipboard.writeText(window.location.href);
+      if (!mountedRef.current || requestGeneration !== copyRequestGenerationRef.current) {
+        return;
+      }
       showCopyState("copied");
     } catch {
+      if (!mountedRef.current || requestGeneration !== copyRequestGenerationRef.current) {
+        return;
+      }
       showCopyState("failed");
     }
   }, [showCopyState]);

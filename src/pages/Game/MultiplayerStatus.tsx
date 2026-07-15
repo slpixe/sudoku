@@ -62,11 +62,8 @@ export function MultiplayerStatus({
 
   return (
     <section
-      aria-atomic="true"
-      aria-live="polite"
       className="multiplayer-status mx-auto mt-3 grid gap-2 rounded-sm bg-gray-700/70 p-2 text-sm text-white"
       data-testid="multiplayer-status"
-      role="status"
     >
       <div className="flex min-w-0 flex-wrap items-center gap-2" data-testid="multiplayer-primary-row">
         <span>{t("multiplayer_room_label")}</span>
@@ -95,7 +92,12 @@ export function MultiplayerStatus({
         </Button>
       </div>
       {statusKey || error ? (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-sm bg-amber-950/70 px-3 py-2 text-amber-100">
+        <div
+          aria-atomic="true"
+          aria-live="polite"
+          className="flex flex-wrap items-center justify-between gap-2 rounded-sm bg-amber-950/70 px-3 py-2 text-amber-100"
+          role="status"
+        >
           <span>{!online ? t(statusKey!) : error ? t(multiplayerErrorKey(error)) : t(statusKey!)}</span>
           {retryable ? (
             <Button
