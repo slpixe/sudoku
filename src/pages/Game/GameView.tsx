@@ -28,6 +28,7 @@ export type GameViewProps = {
   completionContent: React.ReactNode;
   locked: boolean;
   notesMode: boolean;
+  partnerCellCoordinates?: CellCoordinates;
   pauseForClearConfirmation: boolean;
   preferences: UserPreferences;
   showMenu: boolean;
@@ -70,6 +71,7 @@ export function GameView({
   completionContent,
   locked,
   notesMode,
+  partnerCellCoordinates,
   pauseForClearConfirmation,
   preferences,
   showMenu,
@@ -194,6 +196,7 @@ export function GameView({
                 clearNumber={onClearCell}
                 hideMenu={onHideMenu}
                 notesMode={effectiveNotesMode}
+                partnerCellCoordinates={hideBoard ? undefined : partnerCellCoordinates}
                 selectCell={onSelectCell}
                 setNotes={onSetNotes}
                 setNumber={onSetNumber}

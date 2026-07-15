@@ -118,6 +118,16 @@ describe("MultiplayerGameController", () => {
     expect(cells[2].notes).toEqual([3, 7]);
   });
 
+  it("maps partner and local cell indexes through the multiplayer room adapter", async () => {
+    const user = userEvent.setup();
+    const room = createRoom({partnerCellIndex: 10});
+    renderController(room);
+    expect(screen.getByTestId("sudoku-cell-1-1").getAttribute("data-cell-partner-active")).toBe("true");
+    expect(screen.getByLabelText(/other player selected/)).toBeTruthy();
+    await user.click(screen.getByTestId("sudoku-cell-2-3"));
+    expect(room.announceActiveCell).toHaveBeenCalledWith(29);
+  });
+
   it("maps number, shared notes, erase, hint, undo, pause, resume, and confirmed Clear to exact room actions", async () => {
     const user = userEvent.setup();
     const room = createRoom();

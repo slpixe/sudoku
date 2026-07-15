@@ -69,10 +69,23 @@ export function MultiplayerGameController({room, roomCode, onNewGame, onRetry}: 
   const [notesMode, setNotesMode] = React.useState(false);
   const [clipboardNotes, setClipboardNotes] = React.useState<number[] | null>(null);
   const [copyMessage, setCopyMessage] = React.useState<string | null>(null);
+  const announceActiveCell = room.announceActiveCell;
   const confirmed = room.confirmed;
   const blocked = room.status !== "connected" || room.error !== null;
   const visibleBoard = blocked ? confirmed?.board : room.projected ?? confirmed?.board;
   const cells = React.useMemo(() => (visibleBoard ? roomBoardToCells(visibleBoard) : null), [visibleBoard]);
+  const partnerCellCoordinates =
+    room.partnerCellIndex === null
+      ? undefined
+      : {x: room.partnerCellIndex % 9, y: Math.floor(room.partnerCellIndex / 9)};
+
+  const selectCell = React.useCallback(
+    (coordinates: CellCoordinates) => {
+      setActiveCellCoordinates(coordinates);
+      announceActiveCell(getCellIndex(coordinates));
+    },
+    [announceActiveCell],
+  );
 
   const send = room.send;
   const sendAction = React.useCallback(
@@ -154,6 +167,7 @@ export function MultiplayerGameController({room, roomCode, onNewGame, onRetry}: 
       completionContent={completionContent}
       locked={false}
       notesMode={notesMode}
+      partnerCellCoordinates={partnerCellCoordinates}
       pauseForClearConfirmation={false}
       preferences={preferences}
       showMenu={showMenu}
@@ -178,7 +192,7 @@ export function MultiplayerGameController({room, roomCode, onNewGame, onRetry}: 
         }
       }}
       onResumeThisPuzzleHere={noop}
-      onSelectCell={setActiveCellCoordinates}
+      onSelectCell={selectCell}
       onSetNotes={(coordinates, notes) =>
         sendCellAction(coordinates, (cellIndex) => ({type: "setNotes", cellIndex, notes: [...notes]}))
       }

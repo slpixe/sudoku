@@ -195,6 +195,20 @@ describe("GameView", () => {
     expect(props.onNewGame).not.toHaveBeenCalled();
   });
 
+  it("hides partner presence while paused and restores it on resume", () => {
+    const {props, rerender} = renderView({partnerCellCoordinates: {x: 1, y: 0}});
+    const renderProps = (status: GameStateMachine) => (
+      <AppDialogProvider>
+        <GameView {...props} status={status} />
+      </AppDialogProvider>
+    );
+    expect(screen.getByTestId("sudoku-cell-1-0").getAttribute("data-cell-partner-active")).toBe("true");
+    rerender(renderProps(GameStateMachine.paused));
+    expect(screen.getByTestId("sudoku-cell-1-0").getAttribute("data-cell-partner-active")).toBe("false");
+    rerender(renderProps(GameStateMachine.running));
+    expect(screen.getByTestId("sudoku-cell-1-0").getAttribute("data-cell-partner-active")).toBe("true");
+  });
+
   it("keeps timer updates inside the solo timer leaf", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-07-14T12:00:00Z"));
