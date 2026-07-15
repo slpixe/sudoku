@@ -3,6 +3,7 @@ import {
   type ClientToServerEvents,
   type CreateRoomRequest,
   type JoinRoomRequest,
+  type PartnerSelection,
   type RoomAck,
   type RoomEvent,
   type RoomSnapshot,
@@ -176,6 +177,10 @@ function emitJoin(socket: TestClient, request: JoinRoomRequest): Promise<RoomAck
   return new Promise((resolve) => socket.emit("room:join", request, resolve));
 }
 
+function nextPartnerSelection(socket: TestClient): Promise<PartnerSelection> {
+  return new Promise((resolve) => socket.once("room:partner-selection", resolve));
+}
+
 function missingRoomCode(index: number): string {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   return `ZZZZ${alphabet[Math.floor(index / alphabet.length)]}${alphabet[index % alphabet.length]}`;
@@ -299,6 +304,82 @@ describe("createSocketServer", () => {
     if (restartAck.ok) {
       expect(restartAck.snapshot.board.values[1]).toBe(SOLUTION[1]);
     }
+  });
+
+  it("relays latest-tab selection to only the other guest and clears on final disconnect", async () => {
+    const repository = new InMemoryRoomRepository();
+    const runtime = await startRuntime(repository);
+    const creator = await connect(runtime.url);
+    const created = await emitCreate(creator, createRequest());
+    if (!created.ok) {
+      throw new Error("Expected room creation to succeed");
+    }
+    const roomCode = created.snapshot.roomCode;
+
+    const joiner = await connect(runtime.url);
+    const initial = nextPartnerSelection(joiner);
+    await emitJoin(joiner, {guestId: GUEST_TWO, connectionId: uuid(60), roomCode});
+    await expect(initial).resolves.toEqual({roomCode, cellIndex: null});
+
+    const creatorExtra = await connect(runtime.url);
+    await emitJoin(creatorExtra, {guestId: GUEST_ONE, connectionId: uuid(61), roomCode});
+    const sameGuestEvents: PartnerSelection[] = [];
+    creatorExtra.on("room:partner-selection", (event) => sameGuestEvents.push(event));
+    const joinerEvents: PartnerSelection[] = [];
+    joiner.on("room:partner-selection", (event) => joinerEvents.push(event));
+
+    creator.emit("room:selection", {roomCode, cellIndex: 4});
+    await waitFor(() => joinerEvents.at(-1)?.cellIndex === 4);
+    creatorExtra.emit("room:selection", {roomCode, cellIndex: 17});
+    await waitFor(() => joinerEvents.at(-1)?.cellIndex === 17);
+    expect(sameGuestEvents).toEqual([]);
+    expect((await repository.getSnapshot(roomCode, new FixedClock().now()))?.revision).toBe(0);
+
+    const joinerExtra = await connect(runtime.url);
+    const restored = nextPartnerSelection(joinerExtra);
+    await emitJoin(joinerExtra, {guestId: GUEST_TWO, connectionId: uuid(62), roomCode});
+    await expect(restored).resolves.toEqual({roomCode, cellIndex: 17});
+
+    creatorExtra.close();
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    expect(joinerEvents.at(-1)).toEqual({roomCode, cellIndex: 17});
+    creator.close();
+    await waitFor(() => joinerEvents.at(-1)?.cellIndex === null);
+  });
+
+  it("ignores malformed and non-member selections without blocking room commands", async () => {
+    const runtime = await startRuntime();
+    const creator = await connect(runtime.url);
+    const created = await emitCreate(creator, createRequest());
+    if (!created.ok) {
+      throw new Error("Expected room creation to succeed");
+    }
+    const roomCode = created.snapshot.roomCode;
+    const joiner = await connect(runtime.url);
+    await emitJoin(joiner, {guestId: GUEST_TWO, connectionId: uuid(63), roomCode});
+    const outsider = await connect(runtime.url);
+    const relayed: PartnerSelection[] = [];
+    joiner.on("room:partner-selection", (event) => relayed.push(event));
+
+    outsider.emit("room:selection", {roomCode, cellIndex: 4});
+    creator.emit("room:selection", {roomCode, cellIndex: 81} as never);
+    creator.emit("room:selection", {roomCode, cellIndex: 4, extra: true} as never);
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    expect(relayed).toEqual([]);
+
+    const command = await new Promise<RoomAck>((resolve) =>
+      creator.emit(
+        "room:command",
+        {
+          commandId: uuid(64),
+          roomCode,
+          baseRevision: 0,
+          action: {type: "setNumber", cellIndex: 1, number: SOLUTION[1]},
+        },
+        resolve,
+      ),
+    );
+    expect(command).toMatchObject({ok: true, snapshot: {revision: 1}});
   });
 
   it("counts only a committed fallback-reservation recovery as a reconnect", async () => {

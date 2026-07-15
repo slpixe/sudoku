@@ -4,6 +4,7 @@ import {
   createRoomRequestSchema,
   joinRoomRequestSchema,
   leaveRoomRequestSchema,
+  roomSelectionRequestSchema,
   type ClientToServerEvents,
   type RoomAck,
   type RoomError,
@@ -154,6 +155,17 @@ export function createSocketServer(httpServer: HttpServer, options: CreateSocket
   const createLimiter = new TokenBucketRateLimiter(5, 60_000, clock);
   const failedJoinLimiter = new TokenBucketRateLimiter(20, 60_000, clock);
   const commandLimiter = new TokenBucketRateLimiter(30, 1_000, clock);
+  const selectionLimiter = new TokenBucketRateLimiter(60, 1_000, clock);
+
+  const emitPartnerSelection = (roomCode: string, sourceGuestId: string, cellIndex: number | null): void => {
+    for (const socketId of io.sockets.adapter.rooms.get(roomCode) ?? []) {
+      const target = io.sockets.sockets.get(socketId);
+      const membership = target?.data.memberships.get(roomCode);
+      if (target && membership?.state === "live" && membership.guestId !== sourceGuestId) {
+        target.emit("room:partner-selection", {roomCode, cellIndex});
+      }
+    }
+  };
 
   io.use((socket, next) => {
     const parsed = protocolHandshakeSchema.safeParse(socket.handshake.auth);
@@ -226,6 +238,9 @@ export function createSocketServer(httpServer: HttpServer, options: CreateSocket
       update: PresenceUpdate,
       leaveSocketRoom: boolean,
     ): Promise<void> => {
+      if (update.finalLiveConnectionClosed) {
+        emitPartnerSelection(roomCode, membership.guestId, null);
+      }
       scheduleReservationExpiry(roomCode, membership.guestId, update.reservationExpiresAt);
       if (leaveSocketRoom) {
         await socket.leave(roomCode);
@@ -297,6 +312,10 @@ export function createSocketServer(httpServer: HttpServer, options: CreateSocket
           clientConnectionId: parsed.data.connectionId,
         });
         pending = null;
+        socket.emit("room:partner-selection", {
+          roomCode: snapshot.roomCode,
+          cellIndex: options.presence.partnerActiveCell(snapshot.roomCode, parsed.data.guestId),
+        });
         const connectedGuests = options.presence.connectedGuests(snapshot.roomCode);
         const publicSnapshot = snapshotWithPresence(snapshot, connectedGuests);
         socket.emit("room:snapshot", publicSnapshot);
@@ -407,6 +426,10 @@ export function createSocketServer(httpServer: HttpServer, options: CreateSocket
           guestId: request.guestId,
           clientConnectionId: request.connectionId,
         });
+        socket.emit("room:partner-selection", {
+          roomCode: request.roomCode,
+          cellIndex: options.presence.partnerActiveCell(request.roomCode, request.guestId),
+        });
         if (connected.recoveredReservation) {
           options.metrics?.recordReconnect();
         }
@@ -424,6 +447,24 @@ export function createSocketServer(httpServer: HttpServer, options: CreateSocket
           error: roomError("SERVICE_UNAVAILABLE", "The room service is temporarily unavailable"),
         });
       }
+    });
+
+    socket.on("room:selection", (unparsedRequest) => {
+      if (!selectionLimiter.consume(socket.id)) {
+        return;
+      }
+      const parsed = roomSelectionRequestSchema.safeParse(unparsedRequest);
+      if (!parsed.success) {
+        return;
+      }
+      const membership = socket.data.memberships.get(parsed.data.roomCode);
+      if (membership?.state !== "live") {
+        return;
+      }
+      if (!options.presence.setActiveCell(parsed.data.roomCode, membership.guestId, socket.id, parsed.data.cellIndex)) {
+        return;
+      }
+      emitPartnerSelection(parsed.data.roomCode, membership.guestId, parsed.data.cellIndex);
     });
 
     socket.on("room:command", async (unparsedCommand, rawAck) => {
@@ -491,6 +532,7 @@ export function createSocketServer(httpServer: HttpServer, options: CreateSocket
 
     socket.on("disconnect", () => {
       commandLimiter.delete(socket.id);
+      selectionLimiter.delete(socket.id);
       const memberships = [...socket.data.memberships];
       socket.data.memberships.clear();
       for (const [roomCode, membership] of memberships) {

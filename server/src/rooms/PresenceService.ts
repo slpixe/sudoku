@@ -14,11 +14,13 @@ interface GuestConnection {
 interface GuestPresence {
   readonly connections: Map<string, GuestConnection>;
   fallbackReservationExpiresAt: number | null;
+  activeCellIndex: number | null;
 }
 
 export interface PresenceUpdate {
   connectedGuests: 0 | 1 | 2;
   reservationExpiresAt: number | null;
+  finalLiveConnectionClosed: boolean;
 }
 
 export interface PresenceConnectionToken {
@@ -37,9 +39,7 @@ export type PresenceConnectResult =
     }
   | {ok: false; connectedGuests: 0 | 1 | 2};
 
-export type PresenceCommitResult =
-  | {ok: true; connectedGuests: 0 | 1 | 2}
-  | {ok: false; connectedGuests: 0 | 1 | 2};
+export type PresenceCommitResult = {ok: true; connectedGuests: 0 | 1 | 2} | {ok: false; connectedGuests: 0 | 1 | 2};
 
 function hasLiveConnection(guest: GuestPresence): boolean {
   for (const connection of guest.connections.values()) {
@@ -77,7 +77,7 @@ export class PresenceService {
       if (guests.size >= 2) {
         return {ok: false, connectedGuests: presenceCount(guests)};
       }
-      guest = {connections: new Map(), fallbackReservationExpiresAt: null};
+      guest = {connections: new Map(), fallbackReservationExpiresAt: null, activeCellIndex: null};
       recoveredReservation = false;
       guests.set(guestId, guest);
       this.#rooms.set(roomCode, guests);
@@ -116,21 +116,37 @@ export class PresenceService {
     return {ok: true, connectedGuests: presenceCount(guests)};
   }
 
+  setActiveCell(roomCode: string, guestId: string, connectionId: string, cellIndex: number): boolean {
+    const guests = this.#pruneRoom(roomCode);
+    const guest = guests.get(guestId);
+    if (guest?.connections.get(connectionId)?.state !== "live") {
+      return false;
+    }
+    guest.activeCellIndex = cellIndex;
+    return true;
+  }
+
+  partnerActiveCell(roomCode: string, guestId: string): number | null {
+    for (const [candidateGuestId, guest] of this.#pruneRoom(roomCode)) {
+      if (candidateGuestId !== guestId && hasLiveConnection(guest)) {
+        return guest.activeCellIndex;
+      }
+    }
+    return null;
+  }
+
   rollback(token: PresenceConnectionToken): PresenceUpdate {
     const guests = this.#pruneRoom(token.roomCode);
     const guest = guests.get(token.guestId);
     const connection = guest?.connections.get(token.connectionId);
-    if (
-      guest &&
-      connection?.state === "pending" &&
-      connection.generation === token.generation
-    ) {
+    if (guest && connection?.state === "pending" && connection.generation === token.generation) {
       guest.connections.delete(token.connectionId);
       this.#deleteGuestWithoutCapacity(token.roomCode, token.guestId, guest, guests);
     }
     return {
       connectedGuests: presenceCount(guests),
       reservationExpiresAt: guest?.fallbackReservationExpiresAt ?? null,
+      finalLiveConnectionClosed: false,
     };
   }
 
@@ -142,33 +158,35 @@ export class PresenceService {
       return {
         connectedGuests: presenceCount(guests),
         reservationExpiresAt: guest?.fallbackReservationExpiresAt ?? null,
+        finalLiveConnectionClosed: false,
       };
     }
 
     guest.connections.delete(connectionId);
-    if (connection.state === "live" && !hasLiveConnection(guest)) {
+    const finalLiveConnectionClosed = connection.state === "live" && !hasLiveConnection(guest);
+    if (finalLiveConnectionClosed) {
       guest.fallbackReservationExpiresAt = this.clock.now().getTime() + this.reconnectGraceMs;
+      guest.activeCellIndex = null;
     }
     this.#deleteGuestWithoutCapacity(roomCode, guestId, guest, guests);
     return {
       connectedGuests: presenceCount(guests),
       reservationExpiresAt: guest.fallbackReservationExpiresAt,
+      finalLiveConnectionClosed,
     };
   }
 
   expireReservation(roomCode: string, guestId: string, expectedExpiresAt: number): PresenceUpdate {
     const guests = this.#rooms.get(roomCode) ?? new Map<string, GuestPresence>();
     const guest = guests.get(guestId);
-    if (
-      guest?.fallbackReservationExpiresAt === expectedExpiresAt &&
-      expectedExpiresAt <= this.clock.now().getTime()
-    ) {
+    if (guest?.fallbackReservationExpiresAt === expectedExpiresAt && expectedExpiresAt <= this.clock.now().getTime()) {
       guest.fallbackReservationExpiresAt = null;
       this.#deleteGuestWithoutCapacity(roomCode, guestId, guest, guests);
     }
     return {
       connectedGuests: presenceCount(guests),
       reservationExpiresAt: guest?.fallbackReservationExpiresAt ?? null,
+      finalLiveConnectionClosed: false,
     };
   }
 
@@ -187,10 +205,7 @@ export class PresenceService {
     const guests = this.#rooms.get(roomCode) ?? new Map<string, GuestPresence>();
     const now = this.clock.now().getTime();
     for (const [guestId, guest] of guests) {
-      if (
-        guest.fallbackReservationExpiresAt !== null &&
-        guest.fallbackReservationExpiresAt <= now
-      ) {
+      if (guest.fallbackReservationExpiresAt !== null && guest.fallbackReservationExpiresAt <= now) {
         guest.fallbackReservationExpiresAt = null;
       }
       this.#deleteGuestWithoutCapacity(roomCode, guestId, guest, guests);

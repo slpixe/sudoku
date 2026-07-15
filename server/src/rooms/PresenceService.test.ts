@@ -95,6 +95,7 @@ describe("PresenceService", () => {
     expect(presence.disconnect("ABC234", "guest-1", "connection-1")).toEqual({
       connectedGuests: 1,
       reservationExpiresAt: null,
+      finalLiveConnectionClosed: false,
     });
   });
 
@@ -107,6 +108,7 @@ describe("PresenceService", () => {
     expect(presence.disconnect("ABC234", "guest-1", "connection-1")).toEqual({
       connectedGuests: 1,
       reservationExpiresAt: clock.now().getTime() + 60_000,
+      finalLiveConnectionClosed: true,
     });
     expect(presence.connect("ABC234", "guest-3", "connection-3")).toMatchObject({ok: false});
 
@@ -136,6 +138,7 @@ describe("PresenceService", () => {
     expect(presence.rollback(reconnects[secondIndex])).toEqual({
       connectedGuests: 1,
       reservationExpiresAt,
+      finalLiveConnectionClosed: false,
     });
     expect(presence.connect("ABC234", "guest-3", "connection-5")).toMatchObject({ok: false});
   });
@@ -151,7 +154,11 @@ describe("PresenceService", () => {
     expect(presence.commit(committed)).toMatchObject({ok: true, connectedGuests: 1});
     clock.advance(60_001);
     presence.expireReservation("ABC234", "guest-1", reservationExpiresAt!);
-    expect(presence.rollback(failed)).toEqual({connectedGuests: 1, reservationExpiresAt: null});
+    expect(presence.rollback(failed)).toEqual({
+      connectedGuests: 1,
+      reservationExpiresAt: null,
+      finalLiveConnectionClosed: false,
+    });
   });
 
   it("creates a fresh fallback when the final live tab leaves pending reconnects", () => {
@@ -166,8 +173,13 @@ describe("PresenceService", () => {
     expect(disconnected).toEqual({
       connectedGuests: 1,
       reservationExpiresAt: clock.now().getTime() + 60_000,
+      finalLiveConnectionClosed: true,
     });
-    expect(presence.rollback(pending)).toEqual(disconnected);
+    expect(presence.rollback(pending)).toEqual({
+      connectedGuests: 1,
+      reservationExpiresAt: clock.now().getTime() + 60_000,
+      finalLiveConnectionClosed: false,
+    });
     expect(presence.connect("ABC234", "guest-3", "connection-4")).toMatchObject({ok: false});
   });
 
@@ -175,8 +187,51 @@ describe("PresenceService", () => {
     const presence = new PresenceService(new FakeClock());
     const pending = reserve(presence, "MNO789", "guest-1", "connection-1");
 
-    expect(presence.rollback(pending)).toEqual({connectedGuests: 0, reservationExpiresAt: null});
+    expect(presence.rollback(pending)).toEqual({
+      connectedGuests: 0,
+      reservationExpiresAt: null,
+      finalLiveConnectionClosed: false,
+    });
     expect(presence.activeRoomCodes()).toEqual(new Set());
+  });
+
+  it("accepts selection only from a live connection and keeps the latest same-guest tab", () => {
+    const presence = new PresenceService(new FakeClock());
+    const pending = reserve(presence, "ABC234", "guest-1", "connection-1");
+    expect(presence.setActiveCell("ABC234", "guest-1", "connection-1", 4)).toBe(false);
+
+    presence.commit(pending);
+    connectLive(presence, "ABC234", "guest-1", "connection-2");
+    connectLive(presence, "ABC234", "guest-2", "connection-3");
+
+    expect(presence.setActiveCell("ABC234", "guest-1", "connection-1", 4)).toBe(true);
+    expect(presence.partnerActiveCell("ABC234", "guest-2")).toBe(4);
+    expect(presence.setActiveCell("ABC234", "guest-1", "connection-2", 17)).toBe(true);
+    expect(presence.partnerActiveCell("ABC234", "guest-2")).toBe(17);
+    expect(presence.partnerActiveCell("ABC234", "guest-1")).toBeNull();
+  });
+
+  it("retains selection until the final live tab closes, then clears it immediately", () => {
+    const clock = new FakeClock();
+    const presence = new PresenceService(clock);
+    connectLive(presence, "ABC234", "guest-1", "connection-1");
+    connectLive(presence, "ABC234", "guest-1", "connection-2");
+    connectLive(presence, "ABC234", "guest-2", "connection-3");
+    presence.setActiveCell("ABC234", "guest-1", "connection-2", 17);
+
+    expect(presence.disconnect("ABC234", "guest-1", "connection-1")).toEqual({
+      connectedGuests: 2,
+      reservationExpiresAt: null,
+      finalLiveConnectionClosed: false,
+    });
+    expect(presence.partnerActiveCell("ABC234", "guest-2")).toBe(17);
+
+    expect(presence.disconnect("ABC234", "guest-1", "connection-2")).toEqual({
+      connectedGuests: 1,
+      reservationExpiresAt: clock.now().getTime() + 60_000,
+      finalLiveConnectionClosed: true,
+    });
+    expect(presence.partnerActiveCell("ABC234", "guest-2")).toBeNull();
   });
 
   it("rejects stale commit and rollback tokens", () => {
