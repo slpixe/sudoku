@@ -309,6 +309,48 @@ describe("useMultiplayerRoom", () => {
     expect(secondConnectionId).toBe(firstConnectionId);
   });
 
+  it("scopes partner selection and re-announces one deduplicated local cell after reconnect", () => {
+    const socket = new FakeSocket();
+    const {result} = renderHook(() =>
+      useMultiplayerRoom("ABC234", {storage: createStorage(), socketFactory: () => socket.asSocket()}),
+    );
+    act(() => socket.serverEmit("room:snapshot", createSnapshot()));
+
+    act(() => {
+      result.current.announceActiveCell(12);
+      result.current.announceActiveCell(12);
+    });
+    expect(events(socket, "room:selection")).toHaveLength(1);
+    expect(events(socket, "room:selection")[0].args[0]).toEqual({roomCode: "ABC234", cellIndex: 12});
+
+    act(() => socket.serverEmit("room:partner-selection", {roomCode: "ABC234", cellIndex: 40}));
+    expect(result.current.partnerCellIndex).toBe(40);
+    act(() => socket.serverDisconnect());
+    expect(result.current.partnerCellIndex).toBeNull();
+
+    act(() => socket.connect());
+    const reconnectJoin = events(socket, "room:join").at(-1)!;
+    act(() => acknowledge(reconnectJoin, {ok: true, snapshot: createSnapshot(1)}));
+    expect(events(socket, "room:selection")).toHaveLength(2);
+    expect(events(socket, "room:selection")[1].args[0]).toEqual({roomCode: "ABC234", cellIndex: 12});
+  });
+
+  it("does not announce a cell before synchronization or outside the grid", () => {
+    const socket = new FakeSocket();
+    const {result} = renderHook(() =>
+      useMultiplayerRoom("ABC234", {storage: createStorage(), socketFactory: () => socket.asSocket()}),
+    );
+    act(() => {
+      result.current.announceActiveCell(4);
+      result.current.announceActiveCell(-1);
+      result.current.announceActiveCell(81);
+    });
+    expect(events(socket, "room:selection")).toHaveLength(0);
+    act(() => socket.serverEmit("room:snapshot", createSnapshot()));
+    act(() => result.current.announceActiveCell(4));
+    expect(events(socket, "room:selection")).toHaveLength(1);
+  });
+
   it("cleans up the old room and resets all room state before joining a changed room code", () => {
     const socket = new FakeSocket();
     const storage = createStorage();
@@ -325,8 +367,14 @@ describe("useMultiplayerRoom", () => {
       result.current.send({type: "setNumber", cellIndex: 2, number: 6});
     });
     const roomACommand = events(socket, "room:command")[0];
+    act(() => socket.serverEmit("room:partner-selection", {roomCode: "ABC234", cellIndex: 10}));
+    expect(result.current.partnerCellIndex).toBe(10);
 
     rerender({roomCode: "DEF567"});
+
+    expect(result.current.partnerCellIndex).toBeNull();
+    act(() => socket.serverEmit("room:partner-selection", {roomCode: "ABC234", cellIndex: 11}));
+    expect(result.current.partnerCellIndex).toBeNull();
 
     const joins = events(socket, "room:join");
     expect(joins).toHaveLength(2);
@@ -368,6 +416,7 @@ describe("useMultiplayerRoom", () => {
       confirmedRoomCode: string | null;
       projectedValue: number | null;
       presence: number;
+      partnerCellIndex: number | null;
       status: string;
       errorCode: string | null;
     }> = [];
@@ -379,6 +428,7 @@ describe("useMultiplayerRoom", () => {
         confirmedRoomCode: room.confirmed?.roomCode ?? null,
         projectedValue: room.projected?.values[2] ?? null,
         presence: room.presence,
+        partnerCellIndex: room.partnerCellIndex,
         status: room.status,
         errorCode: room.error?.code ?? null,
       });
@@ -409,6 +459,7 @@ describe("useMultiplayerRoom", () => {
       confirmedRoomCode: null,
       projectedValue: null,
       presence: 0,
+      partnerCellIndex: null,
       status: "connecting",
       errorCode: null,
     };

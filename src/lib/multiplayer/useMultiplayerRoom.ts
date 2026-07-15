@@ -1,4 +1,12 @@
-import type {RoomAck, RoomAction, RoomCommand, RoomError, RoomEvent, RoomSnapshot} from "@sudoku/multiplayer-protocol";
+import type {
+  PartnerSelection,
+  RoomAck,
+  RoomAction,
+  RoomCommand,
+  RoomError,
+  RoomEvent,
+  RoomSnapshot,
+} from "@sudoku/multiplayer-protocol";
 import * as React from "react";
 
 import {
@@ -25,9 +33,11 @@ export interface UseMultiplayerRoomResult {
   projected: ReturnType<typeof projectMultiplayerBoard>;
   status: MultiplayerRoomStatus;
   presence: 0 | 1 | 2;
+  partnerCellIndex: number | null;
   online: boolean;
   error: RoomError | null;
   send: (action: RoomAction) => RoomCommand | null;
+  announceActiveCell: (cellIndex: number) => void;
 }
 
 interface RoomScopedClientState {
@@ -38,6 +48,11 @@ interface RoomScopedClientState {
 interface RoomScopedPresence {
   roomCode: string;
   presence: 0 | 1 | 2;
+}
+
+interface RoomScopedPartnerCell {
+  roomCode: string;
+  cellIndex: number | null;
 }
 
 function connectionError(error: Error & {data?: unknown}): RoomError {
@@ -78,15 +93,27 @@ export function useMultiplayerRoom(
     roomCode,
     presence: 0,
   }));
+  const [scopedPartnerCell, setScopedPartnerCell] = React.useState<RoomScopedPartnerCell>(() => ({
+    roomCode,
+    cellIndex: null,
+  }));
   const [online, setOnline] = React.useState(browserIsOnline);
   const clientStateRef = React.useRef(scopedClientState.state);
   const submitCommandRef = React.useRef<(command: RoomCommand) => void>(() => {});
   const lastReplayKeyRef = React.useRef<string | null>(null);
   const committedRoomCodeRef = React.useRef<string | null>(null);
+  const selectedCellRef = React.useRef<{roomCode: string; cellIndex: number} | null>(null);
+  const lastAnnouncedCellRef = React.useRef<{roomCode: string; cellIndex: number} | null>(null);
 
   const renderedClientState =
     scopedClientState.roomCode === roomCode ? scopedClientState.state : createMultiplayerClientState();
   const renderedPresence = scopedPresence.roomCode === roomCode ? scopedPresence.presence : 0;
+  const renderedPartnerCellIndex =
+    scopedPartnerCell.roomCode === roomCode &&
+    renderedClientState.connectionStatus === "connected" &&
+    renderedClientState.syncStatus === "synced"
+      ? scopedPartnerCell.cellIndex
+      : null;
 
   const dispatch = React.useCallback((action: MultiplayerClientAction): MultiplayerClientState => {
     const nextState = multiplayerClientReducer(clientStateRef.current, action);
@@ -104,7 +131,10 @@ export function useMultiplayerRoom(
     clientStateRef.current = resetState;
     setScopedClientState({roomCode, state: resetState});
     setScopedPresence({roomCode, presence: 0});
+    setScopedPartnerCell({roomCode, cellIndex: null});
     lastReplayKeyRef.current = null;
+    selectedCellRef.current = null;
+    lastAnnouncedCellRef.current = null;
 
     let active = true;
     let terminal = false;
@@ -118,6 +148,8 @@ export function useMultiplayerRoom(
         return;
       }
       lastReplayKeyRef.current = null;
+      setScopedPartnerCell({roomCode, cellIndex: null});
+      lastAnnouncedCellRef.current = null;
       socket.disconnect();
       socket.connect();
     };
@@ -183,6 +215,22 @@ export function useMultiplayerRoom(
       replayPending(nextState.confirmed);
     };
 
+    const reannounceCurrentSelection = (): void => {
+      const selection = selectedCellRef.current;
+      const current = clientStateRef.current;
+      if (
+        selection?.roomCode === roomCode &&
+        current.confirmed !== null &&
+        current.connectionStatus === "connected" &&
+        current.syncStatus === "synced" &&
+        (lastAnnouncedCellRef.current?.roomCode !== roomCode ||
+          lastAnnouncedCellRef.current.cellIndex !== selection.cellIndex)
+      ) {
+        socket.emit("room:selection", selection);
+        lastAnnouncedCellRef.current = selection;
+      }
+    };
+
     const requestSnapshot = (): void => {
       if (!ownsActiveRoom() || terminal) {
         return;
@@ -194,6 +242,7 @@ export function useMultiplayerRoom(
         }
         if (result.ok) {
           handleSnapshot(result.snapshot);
+          reannounceCurrentSelection();
           return;
         }
         dispatch({type: "errorReceived", error: result.error});
@@ -210,7 +259,12 @@ export function useMultiplayerRoom(
     };
 
     const handleDisconnect = (): void => {
-      if (ownsActiveRoom() && !terminal && browserOnline) {
+      if (!ownsActiveRoom()) {
+        return;
+      }
+      setScopedPartnerCell({roomCode, cellIndex: null});
+      lastAnnouncedCellRef.current = null;
+      if (!terminal && browserOnline) {
         dispatch({type: "connectionStatusChanged", status: "reconnecting"});
       }
     };
@@ -252,6 +306,12 @@ export function useMultiplayerRoom(
       }
     };
 
+    const handlePartnerSelection = (selection: PartnerSelection): void => {
+      if (ownsActiveRoom() && selection.roomCode === roomCode) {
+        setScopedPartnerCell({roomCode, cellIndex: selection.cellIndex});
+      }
+    };
+
     const handleRoomError = (error: RoomError): void => {
       if (ownsActiveRoom()) {
         dispatch({type: "errorReceived", error});
@@ -264,6 +324,8 @@ export function useMultiplayerRoom(
       }
       browserOnline = false;
       setOnline(false);
+      setScopedPartnerCell({roomCode, cellIndex: null});
+      lastAnnouncedCellRef.current = null;
       dispatch({type: "connectionStatusChanged", status: "disconnected"});
       socket.disconnect();
     };
@@ -288,6 +350,7 @@ export function useMultiplayerRoom(
     socket.on("room:snapshot", handleSnapshot);
     socket.on("room:event", handleRoomEvent);
     socket.on("room:presence", handlePresence);
+    socket.on("room:partner-selection", handlePartnerSelection);
     socket.on("room:error", handleRoomError);
     window.addEventListener("offline", handleOffline);
     window.addEventListener("online", handleOnline);
@@ -312,10 +375,13 @@ export function useMultiplayerRoom(
       socket.off("room:snapshot", handleSnapshot);
       socket.off("room:event", handleRoomEvent);
       socket.off("room:presence", handlePresence);
+      socket.off("room:partner-selection", handlePartnerSelection);
       socket.off("room:error", handleRoomError);
       window.removeEventListener("offline", handleOffline);
       window.removeEventListener("online", handleOnline);
       submitCommandRef.current = () => {};
+      setScopedPartnerCell({roomCode, cellIndex: null});
+      lastAnnouncedCellRef.current = null;
       socket.disconnect();
     };
   }, [connectionId, dispatch, guestId, roomCode, socket]);
@@ -337,6 +403,28 @@ export function useMultiplayerRoom(
     [dispatch, roomCode],
   );
 
+  const announceActiveCell = React.useCallback(
+    (cellIndex: number): void => {
+      if (!Number.isInteger(cellIndex) || cellIndex < 0 || cellIndex > 80) {
+        return;
+      }
+      const selection = {roomCode, cellIndex};
+      selectedCellRef.current = selection;
+      const current = clientStateRef.current;
+      const ready =
+        committedRoomCodeRef.current === roomCode &&
+        current.confirmed !== null &&
+        current.connectionStatus === "connected" &&
+        current.syncStatus === "synced";
+      if (!ready || lastAnnouncedCellRef.current?.cellIndex === cellIndex) {
+        return;
+      }
+      socket.emit("room:selection", selection);
+      lastAnnouncedCellRef.current = selection;
+    },
+    [roomCode, socket],
+  );
+
   const confirmed = renderedClientState.confirmed;
   const pending = renderedClientState.pending;
   const projected = React.useMemo(() => projectMultiplayerBoard({confirmed, pending}), [confirmed, pending]);
@@ -352,8 +440,10 @@ export function useMultiplayerRoom(
     projected,
     status,
     presence: renderedPresence,
+    partnerCellIndex: renderedPartnerCellIndex,
     online,
     error: renderedClientState.error,
     send,
+    announceActiveCell,
   };
 }

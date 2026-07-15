@@ -69,9 +69,11 @@ function createRoom(overrides: Partial<UseMultiplayerRoomResult> = {}): UseMulti
     projected: confirmed.board,
     status: "connected",
     presence: 1,
+    partnerCellIndex: null,
     online: true,
     error: null,
     send: vi.fn(() => null),
+    announceActiveCell: vi.fn(),
     ...overrides,
   };
 }
