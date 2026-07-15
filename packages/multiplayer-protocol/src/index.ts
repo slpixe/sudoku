@@ -15,6 +15,8 @@ export {
   createRoomRequestSchema,
   joinRoomRequestSchema,
   leaveRoomRequestSchema,
+  partnerSelectionSchema,
+  roomSelectionRequestSchema,
 } from "./socketEvents.js";
 export {MULTIPLAYER_PROTOCOL_VERSION} from "./types.js";
 export type {
@@ -22,9 +24,11 @@ export type {
   CreateRoomRequest,
   JoinRoomRequest,
   LeaveRoomRequest,
+  PartnerSelection,
   RoomAck,
   RoomError,
   RoomErrorCode,
+  RoomSelectionRequest,
   ServerToClientEvents,
 } from "./socketEvents.js";
 export type {

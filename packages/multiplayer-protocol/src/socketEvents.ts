@@ -1,7 +1,7 @@
 import {BASE_COLLECTION_IDS} from "@sudoku/core";
 import {z} from "zod";
 
-import {roomCodeSchema, roomCommandSchema} from "./schemas.js";
+import {cellIndexSchema, roomCodeSchema, roomCommandSchema} from "./schemas.js";
 import type {RoomCommand, RoomEvent, RoomSnapshot} from "./types.js";
 
 const identifierSchema = z.string().uuid();
@@ -31,6 +31,12 @@ export const leaveRoomRequestSchema = z
   })
   .strict();
 
+export const roomSelectionRequestSchema = z.object({roomCode: roomCodeSchema, cellIndex: cellIndexSchema}).strict();
+
+export const partnerSelectionSchema = z
+  .object({roomCode: roomCodeSchema, cellIndex: cellIndexSchema.nullable()})
+  .strict();
+
 export const clientRoomCommandSchema = roomCommandSchema;
 
 export type RoomErrorCode =
@@ -51,6 +57,8 @@ export interface RoomError {
 export type CreateRoomRequest = z.infer<typeof createRoomRequestSchema>;
 export type JoinRoomRequest = z.infer<typeof joinRoomRequestSchema>;
 export type LeaveRoomRequest = z.infer<typeof leaveRoomRequestSchema>;
+export type RoomSelectionRequest = z.infer<typeof roomSelectionRequestSchema>;
+export type PartnerSelection = z.infer<typeof partnerSelectionSchema>;
 
 export type RoomAck = {ok: true; snapshot: RoomSnapshot} | {ok: false; error: RoomError};
 
@@ -58,6 +66,7 @@ export interface ClientToServerEvents {
   "room:create": (request: CreateRoomRequest, ack: (result: RoomAck) => void) => void;
   "room:join": (request: JoinRoomRequest, ack: (result: RoomAck) => void) => void;
   "room:command": (command: RoomCommand, ack: (result: RoomAck) => void) => void;
+  "room:selection": (request: RoomSelectionRequest) => void;
   "room:leave": (request: LeaveRoomRequest) => void;
 }
 
@@ -65,5 +74,6 @@ export interface ServerToClientEvents {
   "room:snapshot": (snapshot: RoomSnapshot) => void;
   "room:event": (event: RoomEvent) => void;
   "room:presence": (presence: {connectedGuests: 0 | 1 | 2}) => void;
+  "room:partner-selection": (selection: PartnerSelection) => void;
   "room:error": (error: RoomError) => void;
 }

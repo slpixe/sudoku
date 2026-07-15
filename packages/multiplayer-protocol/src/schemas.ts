@@ -1,7 +1,7 @@
 import {BASE_COLLECTION_IDS} from "@sudoku/core";
 import {z} from "zod";
 
-const cellIndexSchema = z.number().int().min(0).max(80);
+export const cellIndexSchema = z.number().int().min(0).max(80);
 const cellValueSchema = z.number().int().min(0).max(9);
 const digitSchema = z.number().int().min(1).max(9);
 const revisionSchema = z.number().int().nonnegative();

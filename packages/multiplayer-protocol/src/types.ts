@@ -1,4 +1,4 @@
-export const MULTIPLAYER_PROTOCOL_VERSION = 1;
+export const MULTIPLAYER_PROTOCOL_VERSION = 2;
 
 export type RoomStatus = "running" | "paused" | "completed";
 

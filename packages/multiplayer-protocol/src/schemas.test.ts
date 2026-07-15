@@ -1,7 +1,14 @@
 import {describe, expect, it} from "vitest";
 
 import {roomCommandSchema, roomEventSchema, roomSnapshotSchema} from "./schemas.js";
-import {createRoomRequestSchema, joinRoomRequestSchema, leaveRoomRequestSchema} from "./socketEvents.js";
+import {
+  createRoomRequestSchema,
+  joinRoomRequestSchema,
+  leaveRoomRequestSchema,
+  partnerSelectionSchema,
+  roomSelectionRequestSchema,
+} from "./socketEvents.js";
+import {MULTIPLAYER_PROTOCOL_VERSION} from "./types.js";
 
 const commandId = "123e4567-e89b-42d3-a456-426614174000";
 
@@ -137,5 +144,40 @@ describe("socket request schemas", () => {
     {guestId, connectionId, collectionId: "easy", puzzleNumber: 1, puzzleFingerprint: "0".repeat(81), extra: true},
   ])("strictly rejects malformed create requests", (request) => {
     expect(() => createRoomRequestSchema.parse(request)).toThrow();
+  });
+});
+
+describe("active-cell presence schemas", () => {
+  it("accepts both cell boundaries and a server-side clear", () => {
+    expect(roomSelectionRequestSchema.parse({roomCode: "ABC234", cellIndex: 0})).toEqual({
+      roomCode: "ABC234",
+      cellIndex: 0,
+    });
+    expect(roomSelectionRequestSchema.parse({roomCode: "ABC234", cellIndex: 80}).cellIndex).toBe(80);
+    expect(partnerSelectionSchema.parse({roomCode: "ABC234", cellIndex: null})).toEqual({
+      roomCode: "ABC234",
+      cellIndex: null,
+    });
+  });
+
+  it.each([
+    {roomCode: "ABC234", cellIndex: -1},
+    {roomCode: "ABC234", cellIndex: 1.5},
+    {roomCode: "ABC234", cellIndex: 81},
+    {roomCode: "ABC234", cellIndex: "4"},
+    {roomCode: "ABC234"},
+    {roomCode: "ABC234", cellIndex: 4, extra: true},
+  ])("rejects an invalid client selection %#", (selection) => {
+    expect(() => roomSelectionRequestSchema.parse(selection)).toThrow();
+  });
+
+  it("allows null only in the server partner event", () => {
+    expect(() => roomSelectionRequestSchema.parse({roomCode: "ABC234", cellIndex: null})).toThrow();
+    expect(() => partnerSelectionSchema.parse({roomCode: "ABC234", cellIndex: 81})).toThrow();
+    expect(() => partnerSelectionSchema.parse({roomCode: "ABC234", cellIndex: null, extra: true})).toThrow();
+  });
+
+  it("uses protocol version 2", () => {
+    expect(MULTIPLAYER_PROTOCOL_VERSION).toBe(2);
   });
 });
