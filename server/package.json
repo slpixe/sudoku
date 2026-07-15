@@ -15,6 +15,7 @@
     "migrate:dev": "tsx src/db/migrate.ts",
     "pretest": "pnpm --filter @sudoku/core build && pnpm --filter @sudoku/multiplayer-protocol build",
     "start": "node dist/index.js",
+    "start:test": "tsx src/testing/startTestServer.ts",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },

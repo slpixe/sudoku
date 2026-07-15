@@ -26,6 +26,7 @@ const e2eBaseURL = `http://127.0.0.1:${e2ePort}`;
 export default defineConfig({
   testDir: "./e2e",
   testMatch: "**/*.e2e.ts",
+  testIgnore: "**/multiplayer.e2e.ts",
   fullyParallel: true,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,

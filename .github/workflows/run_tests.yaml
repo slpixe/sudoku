@@ -38,6 +38,9 @@ jobs:
     - name: Run Playwright e2e tests
       # playwright.config.ts runs `pnpm run build` before `vite preview`.
       run: pnpm run test:e2e
+    - name: Run multiplayer Playwright e2e tests
+      # playwright.multiplayer.config.ts runs an isolated app and disposable real Socket.IO backend.
+      run: pnpm run test:e2e:multiplayer
     - name: Upload Playwright HTML report
       id: upload-playwright-report
       if: failure()

@@ -175,7 +175,10 @@ test("validates and normalizes room codes before hash-route navigation", async (
   await expect(roomCode).toHaveValue("ABC234");
   await page.getByRole("button", {name: "Join", exact: true}).click();
   await expect(page).toHaveURL(/#\/room\/ABC234$/);
-  await expect(page.getByText("Reconnecting…")).toBeVisible();
+  await expect(page.getByTestId("multiplayer-status")).toContainText(
+    /Reconnecting…|Online play is temporarily unavailable/,
+  );
+  await expect(page.getByRole("button", {name: "Retry"})).toBeVisible();
 });
 
 test("keeps Solo available and disables online actions while offline", async ({page, context}) => {

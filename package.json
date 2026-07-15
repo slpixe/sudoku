@@ -19,6 +19,7 @@
     "test:web": "vitest run",
     "test": "pnpm run test:web && pnpm --filter @sudoku/core test && pnpm --filter @sudoku/multiplayer-protocol test && pnpm --filter @sudoku/multiplayer-server test",
     "test:e2e": "playwright test",
+    "test:e2e:multiplayer": "playwright test --config playwright.multiplayer.config.ts",
     "test:e2e:ui": "playwright test --ui",
     "test:watch": "vitest",
     "start": "vite --host 0.0.0.0",
