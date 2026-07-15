@@ -105,7 +105,7 @@ test("synchronizes the complete two-player room flow in both directions", async 
     const joiner = await joinerContext.newPage();
     const roomCode = await createEasyRoom(creator);
     await joinRoom(joiner, roomCode);
-    await expect(creator.getByTestId("multiplayer-status")).toContainText("2/2");
+    await expect(creator.getByLabel("2/2 connected")).toHaveText("2/2");
 
     await cell(creator, 5, 0).click();
     await expect(cell(joiner, 5, 0)).toHaveAttribute("data-cell-partner-active", "true");
@@ -204,7 +204,7 @@ test("uses the latest same-guest tab and clears only its final disconnect", asyn
     await expect(cell(joiner, 7, 0)).toHaveAttribute("data-cell-partner-active", "true");
     await creator.close();
     await expect(cell(joiner, 7, 0)).toHaveAttribute("data-cell-partner-active", "false");
-    await expect(joiner.getByTestId("multiplayer-status")).toContainText("1/2");
+    await expect(joiner.getByLabel("1/2 connected")).toHaveText("1/2");
   } finally {
     await creatorContext.close();
     await joinerContext.close();
@@ -229,8 +229,8 @@ test("shares one seat across tabs and releases a disconnected reservation after 
     const creatorExtraTab = await creatorContext.newPage();
     await creatorExtraTab.goto(`/#/room/${roomCode}`);
     await expect(creatorExtraTab.getByTestId("current-game-label")).toHaveText("Easy #1");
-    await expect(creator.getByTestId("multiplayer-status")).toContainText("2/2");
-    await expect(creatorExtraTab.getByTestId("multiplayer-status")).toContainText("2/2");
+    await expect(creator.getByLabel("2/2 connected")).toHaveText("2/2");
+    await expect(creatorExtraTab.getByLabel("2/2 connected")).toHaveText("2/2");
 
     await replacement.goto("/#/select-game");
     await replacement.getByRole("button", {name: "Join existing room"}).click();
@@ -239,18 +239,18 @@ test("shares one seat across tabs and releases a disconnected reservation after 
     await expect(replacement.getByRole("alert")).toContainText("That room already has two guests.");
 
     await joiner.close();
-    await expect(creator.getByTestId("multiplayer-status")).toContainText("1/2");
+    await expect(creator.getByLabel("1/2 connected")).toHaveText("1/2");
     const immediateReconnect = await joinerContext.newPage();
     await immediateReconnect.goto(`/#/room/${roomCode}`);
     await expect(immediateReconnect.getByTestId("current-game-label")).toHaveText("Easy #1");
-    await expect(creator.getByTestId("multiplayer-status")).toContainText("2/2");
+    await expect(creator.getByLabel("2/2 connected")).toHaveText("2/2");
 
     await immediateReconnect.close();
-    await expect(creator.getByTestId("multiplayer-status")).toContainText("1/2");
+    await expect(creator.getByLabel("1/2 connected")).toHaveText("1/2");
     await expect
       .poll(() => tryJoinRoom(replacement, roomCode), {intervals: [250, 500, 1_000], timeout: 15_000})
       .toBe(true);
-    await expect(replacement.getByTestId("multiplayer-status")).toContainText("2/2");
+    await expect(replacement.getByLabel("2/2 connected")).toHaveText("2/2");
   } finally {
     await creatorContext.close();
     await joinerContext.close();
