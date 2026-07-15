@@ -83,7 +83,7 @@ The server:
 4. Replaces any previous cell for that guest, regardless of which same-guest tab sent it.
 5. Broadcasts the resulting partner cell only to sockets belonging to the other guest.
 
-Because rooms have at most two distinct guests, receiving clients do not need a guest identifier or player label. The server event can contain only the partner cell index, with `null` reserved for clearing it. Same-guest sockets do not receive one another as a partner and therefore do not display a false second player.
+Because rooms have at most two distinct guests, receiving clients do not need a guest identifier or player label. The server event contains the normalized room code for stale-room rejection plus the partner cell index, with `null` reserved for clearing it. Same-guest sockets do not receive one another as a partner and therefore do not display a false second player.
 
 Selection events are independent of durable room revisions and do not enter the per-room mutation queue or database transaction. They may use a lightweight transport rate limit, but normal quick movement across the board should remain responsive. The shared multiplayer protocol version is incremented so an incompatible frontend and backend fail with the existing refresh treatment rather than silently ignoring the new contract.
 
