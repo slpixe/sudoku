@@ -8,8 +8,10 @@ The public application remains the static Netlify PWA at
 proxy WebSocket traffic.
 
 No production resources are created by this repository. The commands below
-are an operator runbook; replace angle-bracketed placeholders locally and
-never commit their values.
+are an operator runbook. Angle-bracketed placeholders identify non-secret
+values such as the Fly organization or an image reference. Production secrets
+must be read from an approved secret manager using the non-echoing flow below;
+never paste them into a command line, shell history, file, or transcript.
 
 ## Why production must have one Fly Machine
 
@@ -47,12 +49,25 @@ so this project uses the pooled connection string for the Fly runtime and its
 release command.
 
 Migrations are sorted from `server/migrations`, recorded in
-`schema_migrations`, and applied once per file inside a transaction. The image
-build produces the runner before deployment:
+`schema_migrations`, and applied once per file inside a transaction. Build the
+runner, then load the connection string directly from the approved secret
+manager into an exported environment variable. The example below uses the
+1Password CLI; use the equivalent non-echoing read command for the deployed
+secret manager. Do not enable shell xtrace (`set -x`) around secret handling.
+The subshell and cleanup trap prevent the value from surviving the operation:
 
 ```bash
 pnpm --filter @sudoku/multiplayer-server build
-DATABASE_URL='<NEON_LONDON_POOLED_DATABASE_URL>' pnpm --filter @sudoku/multiplayer-server migrate
+(
+  set -e
+  set +x
+  export DATABASE_URL="$(op read 'op://Production/Sudoku Neon/DATABASE_URL')"
+  trap 'unset DATABASE_URL' EXIT HUP INT TERM
+  test -n "$DATABASE_URL"
+  pnpm --filter @sudoku/multiplayer-server migrate
+  unset DATABASE_URL
+  trap - EXIT HUP INT TERM
+)
 ```
 
 That manual command is for a controlled connectivity check or recovery. The
@@ -74,9 +89,24 @@ root. Creating the app does not deploy it:
 ```bash
 fly apps create sudoku-multiplayer --org '<FLY_ORGANIZATION>'
 fly config validate --strict --config server/fly.toml
-fly secrets set --stage --app sudoku-multiplayer DATABASE_URL='<NEON_LONDON_POOLED_DATABASE_URL>'
+(
+  set -e
+  set +x
+  export DATABASE_URL="$(op read 'op://Production/Sudoku Neon/DATABASE_URL')"
+  trap 'unset DATABASE_URL' EXIT HUP INT TERM
+  test -n "$DATABASE_URL"
+  printf '%s\n' "DATABASE_URL=$DATABASE_URL" | fly secrets import --stage --app sudoku-multiplayer
+  unset DATABASE_URL
+  trap - EXIT HUP INT TERM
+)
 fly secrets list --app sudoku-multiplayer
 ```
+
+`fly secrets import` reads the `NAME=value` record from standard input. The
+database URL is never a process argument or history entry, and `--stage`
+prevents secret configuration from causing an early deployment. Fly reports
+the secret name, not its value; still keep xtrace disabled until the variable
+has been unset.
 
 `server/fly.toml` fixes the primary region to `lhr`, the service port to 8080,
 the VM to one shared CPU and 512 MB, the inactive-room TTL to 24 hours, the

@@ -7,11 +7,17 @@ function result(rows: Record<string, unknown>[] = []) {
 }
 
 function fakePool() {
-  const query = vi.fn(async (_text: string, _values?: readonly unknown[]) => result());
+  const query = vi.fn(async (...args: [text: string, values?: readonly unknown[]]) => {
+    void args;
+    return result();
+  });
   const release = vi.fn();
   const client = {query, release};
   const pool = {
-    query: vi.fn(async (_text: string, _values?: readonly unknown[]) => result()),
+    query: vi.fn(async (...args: [text: string, values?: readonly unknown[]]) => {
+      void args;
+      return result();
+    }),
     connect: vi.fn(async () => client),
     end: vi.fn(async () => undefined),
   };
