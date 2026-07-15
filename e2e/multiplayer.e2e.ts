@@ -43,16 +43,24 @@ async function joinRoom(page: Page, roomCode: string): Promise<void> {
 }
 
 async function tryJoinRoom(page: Page, roomCode: string): Promise<boolean> {
-  await page.goto("/#/select-game");
+  const gameLabel = page.getByTestId("current-game-label");
+  if (await gameLabel.isVisible()) {
+    return true;
+  }
+
   await page.getByRole("button", {name: "Join existing room"}).click();
   await page.getByLabel("Room code").fill(roomCode);
   await page.getByRole("button", {name: "Join", exact: true}).click();
-  try {
-    await page.getByTestId("current-game-label").waitFor({state: "visible", timeout: 350});
-    return true;
-  } catch {
-    return false;
+  await expect(page).toHaveURL(new RegExp(`#\\/room\\/${roomCode}$`));
+
+  const outcome = await Promise.race([
+    gameLabel.waitFor({state: "visible", timeout: 5_000}).then(() => "joined" as const),
+    page.waitForURL(/#\/select-game/, {timeout: 5_000}).then(() => "room-full" as const),
+  ]);
+  if (outcome === "room-full") {
+    await expect(page.getByRole("alert")).toContainText("That room already has two guests.");
   }
+  return outcome === "joined";
 }
 
 async function setValue(page: Page, x: number, y: number, value: number): Promise<void> {
