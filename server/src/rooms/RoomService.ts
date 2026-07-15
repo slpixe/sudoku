@@ -59,6 +59,7 @@ function eventFrom(room: RoomSnapshot, command: RoomCommand, now: Date): RoomEve
     revision: room.revision,
     board: cloneBoard(room.board),
     status: room.status,
+    timerStarted: room.timerStarted,
     elapsedMs: room.elapsedMs,
     runningSince: room.runningSince,
     serverNow: now.getTime(),
@@ -74,6 +75,7 @@ function snapshotFromEvent(room: RoomSnapshot, event: RoomEvent, roomLifetimeMs:
     board: cloneBoard(event.board),
     revision: event.revision,
     status: event.status,
+    timerStarted: event.timerStarted,
     elapsedMs: event.elapsedMs,
     runningSince: event.runningSince,
     serverNow: event.serverNow,
@@ -148,6 +150,7 @@ export class RoomService {
         board: boardFrom(puzzle.givens, puzzle.solution),
         revision: 0,
         status: "running",
+        timerStarted: false,
         elapsedMs: 0,
         runningSince: null,
         serverNow: now.getTime(),
@@ -203,11 +206,11 @@ export class RoomService {
           return room;
         }
 
-        if (room.status === "completed") {
+        if (room.status === "completed" && command.action.type !== "clear") {
           throw new Error("The room is completed and no longer accepts gameplay commands");
         }
-        if (room.status === "paused" && command.action.type !== "resume") {
-          throw new Error("The room is paused; only resume is allowed");
+        if (room.status === "paused" && command.action.type !== "resume" && command.action.type !== "clear") {
+          throw new Error("The room is paused; only resume or clear is allowed");
         }
 
         if (isBoardAction(command.action)) {
@@ -239,7 +242,12 @@ export class RoomService {
   }
 
   async deleteExpiredRooms(activeRoomCodes: ReadonlySet<string>): Promise<number> {
-    return this.repository.deleteExpired(this.clock.now(), activeRoomCodes);
+    const now = this.clock.now();
+    const activeExpiry = new Date(now.getTime() + this.roomLifetimeMs);
+    await Promise.all(
+      [...activeRoomCodes].map((roomCode) => this.repository.recordDisconnectExpiry(roomCode, activeExpiry)),
+    );
+    return this.repository.deleteExpired(now, activeRoomCodes);
   }
 
   async #applyBoardCommand(
@@ -258,7 +266,8 @@ export class RoomService {
     }
 
     room.board = applied.board;
-    if (room.runningSince === null) {
+    if (!room.timerStarted) {
+      room.timerStarted = true;
       room.runningSince = now.getTime();
     }
     await helpers.pushUndo(applied.inverse);
@@ -299,14 +308,12 @@ export class RoomService {
         if (room.status === "running") {
           throw new Error("The room is already running");
         }
-        room.runningSince = now.getTime();
+        room.runningSince = room.timerStarted ? now.getTime() : null;
         room.status = "running";
         break;
       case "clear":
-        if (room.status !== "running") {
-          throw new Error("Clear is allowed only while the room is running");
-        }
         room.board = boardFrom(room.board.givens, room.board.solution);
+        room.timerStarted = false;
         room.elapsedMs = 0;
         room.runningSince = null;
         room.status = "running";

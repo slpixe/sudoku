@@ -13,6 +13,9 @@ primary_region = "lhr"
 
 [deploy]
   release_command = "node server/dist/db/migrate.js"
+  # Presence and per-room command queues are process-local. Replace the single
+  # Machine without a rolling overlap until those services are distributed.
+  strategy = "immediate"
 
 [http_service]
   internal_port = 8080

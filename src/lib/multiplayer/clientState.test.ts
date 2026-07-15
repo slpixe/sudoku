@@ -25,6 +25,7 @@ function createSnapshot(revision = 0, board = createBoard(), roomCode = "ABC234"
     board,
     revision,
     status: "running",
+    timerStarted: false,
     elapsedMs: 0,
     runningSince: null,
     serverNow: 1_000,
@@ -50,6 +51,7 @@ function createEvent(command: RoomCommand, revision: number, board: RoomBoard): 
     revision,
     board,
     status: "running",
+    timerStarted: true,
     elapsedMs: 0,
     runningSince: 1_000,
     serverNow: 1_100,
@@ -108,6 +110,7 @@ describe("multiplayerClientReducer", () => {
     });
 
     expect(state.confirmed?.revision).toBe(1);
+    expect(state.confirmed?.timerStarted).toBe(true);
     expect(state.confirmed?.board.notes[20]).toEqual([2, 6]);
     expect(state.pending).toEqual([]);
     expect(state.syncStatus).toBe("synced");

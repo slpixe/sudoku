@@ -21,6 +21,7 @@ function createSnapshot(board: RoomBoard): RoomSnapshot {
     board,
     revision: 0,
     status: "running",
+    timerStarted: true,
     elapsedMs: 0,
     runningSince: 1_000,
     serverNow: 1_000,

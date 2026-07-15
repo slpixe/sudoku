@@ -21,6 +21,7 @@ export type GameViewProps = {
   activeCellCoordinates: CellCoordinates | undefined;
   blocked: boolean;
   canUndo: boolean;
+  clearWhenInactive?: boolean;
   cells: Cell[];
   clipboardNotes: number[] | null;
   collectionName: string;
@@ -62,6 +63,7 @@ export function GameView({
   activeCellCoordinates,
   blocked,
   canUndo,
+  clearWhenInactive = false,
   cells,
   clipboardNotes,
   collectionName,
@@ -172,6 +174,7 @@ export function GameView({
             <GameHeader
               blocked={blocked}
               canUndo={canUndo}
+              clearWhenInactive={clearWhenInactive}
               collectionName={collectionName}
               locked={lockedGame}
               pauseForClearConfirmation={pauseForClearConfirmation}

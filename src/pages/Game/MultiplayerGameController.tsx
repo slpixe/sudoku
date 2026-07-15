@@ -110,6 +110,7 @@ export function MultiplayerGameController({room, roomCode, onNewGame, onRetry}: 
     <MultiplayerStatus
       copyMessage={copyMessage}
       error={room.error}
+      online={room.online}
       presence={room.presence}
       roomCode={roomCode}
       status={room.status}
@@ -124,6 +125,7 @@ export function MultiplayerGameController({room, roomCode, onNewGame, onRetry}: 
         <MultiplayerStatus
           copyMessage={copyMessage}
           error={room.error}
+          online={room.online}
           presence={room.presence}
           roomCode={roomCode}
           status={room.status}
@@ -145,6 +147,7 @@ export function MultiplayerGameController({room, roomCode, onNewGame, onRetry}: 
       activeCellCoordinates={activeCellCoordinates}
       blocked={blocked}
       canUndo={confirmed.canUndo}
+      clearWhenInactive
       cells={cells}
       clipboardNotes={clipboardNotes}
       collectionName={getSudokuCollectionDisplayName(confirmed.collectionId)}

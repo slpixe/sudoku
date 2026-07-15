@@ -1,6 +1,6 @@
 import {describe, expect, it} from "vitest";
 
-import {roomCommandSchema} from "./schemas.js";
+import {roomCommandSchema, roomEventSchema, roomSnapshotSchema} from "./schemas.js";
 import {createRoomRequestSchema, joinRoomRequestSchema, leaveRoomRequestSchema} from "./socketEvents.js";
 
 const commandId = "123e4567-e89b-42d3-a456-426614174000";
@@ -67,6 +67,50 @@ describe("roomCommandSchema", () => {
   });
 });
 
+describe("timer wire state", () => {
+  const board = {
+    givens: Array<number>(81).fill(0),
+    solution: Array<number>(81).fill(1),
+    values: Array<number>(81).fill(0),
+    notes: Array.from({length: 81}, () => [] as number[]),
+  };
+
+  it("requires the explicit timerStarted flag in snapshots and events", () => {
+    const snapshot = {
+      roomCode: "ABC234",
+      collectionId: "easy",
+      puzzleNumber: 1,
+      board,
+      revision: 0,
+      status: "running",
+      timerStarted: false,
+      elapsedMs: 0,
+      runningSince: null,
+      serverNow: 1_000,
+      canUndo: false,
+      connectedGuests: 1,
+      expiresAt: "2026-07-13T00:00:00.000Z",
+    };
+    const event = {
+      commandId,
+      action: {type: "pause"},
+      revision: 1,
+      board,
+      status: "paused",
+      timerStarted: false,
+      elapsedMs: 0,
+      runningSince: null,
+      serverNow: 1_100,
+      canUndo: false,
+    };
+
+    expect(roomSnapshotSchema.parse(snapshot).timerStarted).toBe(false);
+    expect(roomEventSchema.parse(event).timerStarted).toBe(false);
+    expect(() => roomSnapshotSchema.parse({...snapshot, timerStarted: undefined})).toThrow();
+    expect(() => roomEventSchema.parse({...event, timerStarted: undefined})).toThrow();
+  });
+});
+
 describe("socket request schemas", () => {
   const guestId = "123e4567-e89b-42d3-a456-426614174000";
   const connectionId = "123e4567-e89b-42d3-a456-426614174001";
@@ -81,7 +125,9 @@ describe("socket request schemas", () => {
         puzzleFingerprint: "0".repeat(81),
       }),
     ).toMatchObject({guestId, connectionId});
-    expect(joinRoomRequestSchema.parse({guestId, connectionId, roomCode: "ABC234"})).toMatchObject({roomCode: "ABC234"});
+    expect(joinRoomRequestSchema.parse({guestId, connectionId, roomCode: "ABC234"})).toMatchObject({
+      roomCode: "ABC234",
+    });
     expect(leaveRoomRequestSchema.parse({connectionId, roomCode: "ABC234"})).toMatchObject({roomCode: "ABC234"});
   });
 

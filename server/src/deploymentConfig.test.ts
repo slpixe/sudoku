@@ -22,10 +22,11 @@ describe("multiplayer deployment configuration", () => {
   });
 
   it("requires the checked-in one-Machine deployment workflow", async () => {
-    const [packageContents, flyConfig, workflow] = await Promise.all([
+    const [packageContents, flyConfig, workflow, operations] = await Promise.all([
       readRepositoryFile("package.json"),
       readRepositoryFile("server/fly.toml"),
       readRepositoryFile(".github/workflows/run_tests.yaml"),
+      readRepositoryFile("docs/multiplayer-operations.md"),
     ]);
     const packageJson = JSON.parse(packageContents) as {scripts?: Record<string, string>};
     const deploymentCommand = packageJson.scripts?.["deploy:multiplayer"];
@@ -33,6 +34,8 @@ describe("multiplayer deployment configuration", () => {
     expect(deploymentCommand).toContain("fly deploy --ha=false --config server/fly.toml");
     expect(deploymentCommand).toContain("fly scale count 1 --config server/fly.toml");
     expect(flyConfig).toContain("pnpm run deploy:multiplayer");
+    expect(flyConfig).toMatch(/\[deploy\][\s\S]*strategy = "immediate"/);
+    expect(operations).toContain("Do not override the `immediate` deployment strategy");
     expect(workflow).not.toContain("deploy:multiplayer");
   });
 });

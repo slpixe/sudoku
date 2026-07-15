@@ -37,6 +37,7 @@ export interface MultiplayerStatusProps {
   copyMessage: string | null;
   error: RoomError | null;
   presence: 0 | 1 | 2;
+  online: boolean;
   roomCode: string;
   status: MultiplayerRoomStatus;
   onCopyLink: () => void;
@@ -47,14 +48,15 @@ export function MultiplayerStatus({
   copyMessage,
   error,
   presence,
+  online,
   roomCode,
   status,
   onCopyLink,
   onRetry,
 }: MultiplayerStatusProps) {
   const {t} = useTranslation();
-  const statusKey = connectionStatusKey(status);
-  const retryable = status !== "connected" || error !== null;
+  const statusKey = online ? connectionStatusKey(status) : "multiplayer_online_required";
+  const retryable = online && (status !== "connected" || error !== null);
 
   return (
     <section
@@ -77,7 +79,7 @@ export function MultiplayerStatus({
       </div>
       {statusKey || error ? (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-sm bg-amber-950/70 px-3 py-2 text-amber-100">
-          <span>{error ? t(multiplayerErrorKey(error)) : t(statusKey!)}</span>
+          <span>{!online ? t(statusKey!) : error ? t(multiplayerErrorKey(error)) : t(statusKey!)}</span>
           {retryable ? (
             <Button
               aria-label={t("multiplayer_retry")}

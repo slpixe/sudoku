@@ -24,6 +24,7 @@ afterEach(cleanup);
 
 function renderHeader({
   blocked = false,
+  clearWhenInactive = false,
   locked = false,
   onClearConfirmed = vi.fn(),
   onNewGame = vi.fn(),
@@ -31,8 +32,11 @@ function renderHeader({
   onResume = vi.fn(),
   onUndo = vi.fn(),
   pauseForClearConfirmation = true,
+  status = GameStateMachine.running,
+  won = false,
 }: {
   blocked?: boolean;
+  clearWhenInactive?: boolean;
   locked?: boolean;
   onClearConfirmed?: () => void;
   onNewGame?: () => void;
@@ -40,19 +44,22 @@ function renderHeader({
   onResume?: () => void;
   onUndo?: () => void;
   pauseForClearConfirmation?: boolean;
+  status?: GameStateMachine;
+  won?: boolean;
 } = {}) {
   render(
     <AppDialogProvider>
       <GameHeader
         blocked={blocked}
         canUndo
+        clearWhenInactive={clearWhenInactive}
         collectionName="Easy"
         locked={locked}
         pauseForClearConfirmation={pauseForClearConfirmation}
-        status={GameStateMachine.running}
+        status={status}
         sudokuIndex={0}
         timerContent={<div data-testid="test-timer">01:05 min</div>}
-        won={false}
+        won={won}
         onClearConfirmed={onClearConfirmed}
         onNewGame={onNewGame}
         onPause={onPause}
@@ -124,5 +131,38 @@ describe("GameHeader", () => {
     await user.click(screen.getByTestId("sudoku-action-new-game"));
 
     expect(callbacks.onNewGame).not.toHaveBeenCalled();
+  });
+
+  it("keeps Clear disabled for inactive solo games", async () => {
+    const user = userEvent.setup();
+    const callbacks = renderHeader({status: GameStateMachine.paused, won: true});
+
+    await user.click(screen.getByTestId("sudoku-action-clear"));
+
+    expect(callbacks.onClearConfirmed).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("app-dialog-confirm")).toBeNull();
+  });
+
+  it("allows explicitly configured multiplayer Clear while paused or completed", async () => {
+    const user = userEvent.setup();
+    const paused = renderHeader({
+      clearWhenInactive: true,
+      pauseForClearConfirmation: false,
+      status: GameStateMachine.paused,
+    });
+    await user.click(screen.getByTestId("sudoku-action-clear"));
+    await user.click(screen.getByTestId("app-dialog-confirm"));
+    expect(paused.onClearConfirmed).toHaveBeenCalledOnce();
+
+    cleanup();
+    const completed = renderHeader({
+      clearWhenInactive: true,
+      pauseForClearConfirmation: false,
+      status: GameStateMachine.paused,
+      won: true,
+    });
+    await user.click(screen.getByTestId("sudoku-action-clear"));
+    await user.click(screen.getByTestId("app-dialog-confirm"));
+    expect(completed.onClearConfirmed).toHaveBeenCalledOnce();
   });
 });

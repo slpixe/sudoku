@@ -54,4 +54,17 @@ describe("TokenBucketRateLimiter", () => {
     expect(limiter.consume("source-a")).toBe(true);
     expect(limiter.consume("source-a")).toBe(false);
   });
+
+  it("evicts source buckets after the configured idle lifetime", () => {
+    const clock = new FakeClock();
+    const limiter = new TokenBucketRateLimiter(5, 60_000, clock, 120_000);
+
+    limiter.consume("source-a");
+    limiter.consume("source-b");
+    expect(limiter.size).toBe(2);
+
+    clock.advance(120_000);
+    limiter.consume("source-c");
+    expect(limiter.size).toBe(1);
+  });
 });

@@ -51,6 +51,7 @@ function createSnapshot(overrides: Partial<RoomSnapshot> = {}): RoomSnapshot {
     board: createBoard(),
     revision: 1,
     status: "running",
+    timerStarted: false,
     elapsedMs: 0,
     runningSince: null,
     serverNow: Date.now(),
@@ -68,6 +69,7 @@ function createRoom(overrides: Partial<UseMultiplayerRoomResult> = {}): UseMulti
     projected: confirmed.board,
     status: "connected",
     presence: 1,
+    online: true,
     error: null,
     send: vi.fn(() => null),
     ...overrides,
@@ -183,6 +185,18 @@ describe("MultiplayerGameController", () => {
     expect(room.send).not.toHaveBeenCalled();
   });
 
+  it.each(["paused", "completed"] as const)("allows confirmed Clear when the room is %s", async (status) => {
+    const user = userEvent.setup();
+    const snapshot = createSnapshot({status, canUndo: status !== "completed"});
+    const room = createRoom({confirmed: snapshot, projected: snapshot.board});
+    renderController(room);
+
+    await user.click(screen.getByTestId("sudoku-action-clear"));
+    await user.click(screen.getByTestId("app-dialog-confirm"));
+
+    expect(room.send).toHaveBeenCalledWith({type: "clear"});
+  });
+
   it("leaves through New Game without pausing or clearing the room", async () => {
     const user = userEvent.setup();
     const room = createRoom();
@@ -228,6 +242,13 @@ describe("MultiplayerGameController", () => {
 
     expect(room.send).not.toHaveBeenCalled();
     expect(onRetry).toHaveBeenCalledOnce();
+  });
+
+  it("shows the online-required message and no retry action for an offline room link", () => {
+    renderController(createRoom({online: false, status: "disconnected"}));
+
+    expect(screen.getByRole("status").textContent).toContain("multiplayer_online_required");
+    expect(screen.queryByRole("button", {name: "multiplayer_retry"})).toBeNull();
   });
 
   it("hides the room board behind the existing shared pause overlay", () => {

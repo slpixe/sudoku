@@ -22,6 +22,7 @@ function createSnapshot(overrides: Partial<RoomSnapshot> = {}): RoomSnapshot {
     },
     revision: 0,
     status: "running",
+    timerStarted: false,
     elapsedMs: 0,
     runningSince: null,
     serverNow: now.getTime(),
@@ -39,6 +40,7 @@ function createEvent(snapshot: RoomSnapshot): RoomEvent {
     revision: snapshot.revision,
     board: snapshot.board,
     status: snapshot.status,
+    timerStarted: snapshot.timerStarted,
     elapsedMs: snapshot.elapsedMs,
     runningSince: snapshot.runningSince,
     serverNow: snapshot.serverNow,
@@ -72,6 +74,30 @@ describe("PostgresRoomRepository", () => {
     expect(stored.rows[0].notes[1]).toBe(1 | (1 << 3) | (1 << 8));
   });
 
+  it("persists dormant and started timer state independently from room status", async () => {
+    const dormant = createSnapshot({status: "paused", timerStarted: false, elapsedMs: 0, runningSince: null});
+    await repository.create({id: roomId, snapshot: dormant, now});
+    await expect(repository.getSnapshot("ABC234", now)).resolves.toMatchObject({
+      status: "paused",
+      timerStarted: false,
+      elapsedMs: 0,
+      runningSince: null,
+    });
+
+    await repository.mutate("ABC234", now, (room) => ({
+      ...room,
+      status: "running",
+      timerStarted: true,
+      runningSince: now.getTime(),
+    }));
+    const recovered = new PostgresRoomRepository(database);
+    await expect(recovered.getSnapshot("ABC234", now)).resolves.toMatchObject({
+      status: "running",
+      timerStarted: true,
+      runningSince: now.getTime(),
+    });
+  });
+
   it("increments a revision and persists command and undo work transactionally", async () => {
     await repository.create({id: roomId, snapshot: createSnapshot(), now});
 
@@ -96,6 +122,28 @@ describe("PostgresRoomRepository", () => {
     });
     expect(receipt).toEqual(createEvent(updated!));
     expect(inverse).toEqual({cells: [{cellIndex: 1, value: 0, notes: []}]});
+  });
+
+  it("recovers legacy command receipts created before timerStarted was persisted", async () => {
+    await repository.create({id: roomId, snapshot: createSnapshot(), now});
+    await repository.mutate("ABC234", now, async (room, helpers) => {
+      room.revision = 1;
+      room.timerStarted = true;
+      room.runningSince = now.getTime();
+      await helpers.recordCommand(commandId, createEvent(room));
+      return room;
+    });
+    await database.query("UPDATE processed_commands SET event = event - 'timerStarted' WHERE command_id = $1", [
+      commandId,
+    ]);
+
+    let receipt: RoomEvent | null = null;
+    await repository.mutate("ABC234", now, async (room, helpers) => {
+      receipt = await helpers.getProcessedCommand(commandId);
+      return room;
+    });
+
+    expect(receipt).toMatchObject({commandId, timerStarted: true, runningSince: now.getTime()});
   });
 
   it("rolls back every mutation write when work fails", async () => {

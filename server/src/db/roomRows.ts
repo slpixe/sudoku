@@ -1,4 +1,10 @@
-import {roomEventSchema, type RoomEvent, type RoomSnapshot, type RoomStatus, type UndoEntry} from "@sudoku/multiplayer-protocol";
+import {
+  roomEventSchema,
+  type RoomEvent,
+  type RoomSnapshot,
+  type RoomStatus,
+  type UndoEntry,
+} from "@sudoku/multiplayer-protocol";
 import type {BaseCollectionId} from "@sudoku/core";
 
 const roomCodePattern = /^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$/;
@@ -17,6 +23,7 @@ export interface RoomRow {
   notes: unknown;
   revision: unknown;
   status: unknown;
+  timer_started: unknown;
   elapsed_ms: unknown;
   running_since: unknown;
   created_at: unknown;
@@ -59,6 +66,10 @@ function dateField(value: unknown, field: string): Date {
   return date;
 }
 
+function booleanField(value: unknown, field: string): boolean {
+  return typeof value === "boolean" ? value : fail(field);
+}
+
 function integerArray(value: unknown, field: string, minimum: number, maximum: number): number[] {
   if (!Array.isArray(value) || value.length !== 81) {
     return fail(field);
@@ -97,7 +108,10 @@ export function decodeNotes(value: unknown): number[][] {
   });
 }
 
-export function mapRoomRow(row: RoomRow, serverNow: Date): {id: string; snapshot: RoomSnapshot; createdAt: Date; lastActivityAt: Date} {
+export function mapRoomRow(
+  row: RoomRow,
+  serverNow: Date,
+): {id: string; snapshot: RoomSnapshot; createdAt: Date; lastActivityAt: Date} {
   const id = stringField(row.id, "id");
   if (!uuidPattern.test(id)) {
     fail("id");
@@ -136,6 +150,7 @@ export function mapRoomRow(row: RoomRow, serverNow: Date): {id: string; snapshot
       },
       revision: integerField(row.revision, "revision"),
       status,
+      timerStarted: booleanField(row.timer_started, "timer_started"),
       elapsedMs: integerField(row.elapsed_ms, "elapsed_ms"),
       runningSince,
       serverNow: serverNow.getTime(),
@@ -147,7 +162,28 @@ export function mapRoomRow(row: RoomRow, serverNow: Date): {id: string; snapshot
 }
 
 export function mapRoomEvent(value: unknown): RoomEvent {
-  return roomEventSchema.parse(value);
+  if (typeof value !== "object" || value === null || Array.isArray(value) || "timerStarted" in value) {
+    return roomEventSchema.parse(value);
+  }
+
+  const legacy = value as Record<string, unknown>;
+  const action =
+    typeof legacy.action === "object" && legacy.action !== null && "type" in legacy.action
+      ? (legacy.action as {type?: unknown}).type
+      : undefined;
+  const timerStarted =
+    action !== "clear" &&
+    (legacy.status === "completed" ||
+      typeof legacy.runningSince === "number" ||
+      (typeof legacy.elapsedMs === "number" && legacy.elapsedMs > 0) ||
+      legacy.canUndo === true ||
+      action === "setNumber" ||
+      action === "setNotes" ||
+      action === "clearCell" ||
+      action === "hint" ||
+      action === "undo");
+
+  return roomEventSchema.parse({...legacy, timerStarted});
 }
 
 export function mapUndoEntry(value: unknown): UndoEntry {

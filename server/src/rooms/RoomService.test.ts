@@ -97,6 +97,7 @@ describe("RoomService", () => {
       roomCode: "ABC234",
       revision: 0,
       status: "running",
+      timerStarted: false,
       elapsedMs: 0,
       runningSince: null,
       serverNow: clock.now().getTime(),
@@ -121,6 +122,7 @@ describe("RoomService", () => {
       "runningSince",
       "serverNow",
       "status",
+      "timerStarted",
     ]);
   });
 
@@ -137,7 +139,7 @@ describe("RoomService", () => {
     clock.advance(2_000);
 
     const started = await service.execute(command(room.roomCode, 1, {type: "setNotes", cellIndex: 1, notes: [2, 4]}));
-    expect(started.snapshot).toMatchObject({elapsedMs: 0, runningSince: clock.now().getTime()});
+    expect(started.snapshot).toMatchObject({timerStarted: true, elapsedMs: 0, runningSince: clock.now().getTime()});
 
     clock.advance(3_500);
     const paused = await service.execute(command(room.roomCode, 2, {type: "pause"}, 1));
@@ -145,7 +147,43 @@ describe("RoomService", () => {
 
     clock.advance(5_000);
     const resumed = await service.execute(command(room.roomCode, 3, {type: "resume"}, 0));
-    expect(resumed.snapshot).toMatchObject({status: "running", elapsedMs: 3_500, runningSince: clock.now().getTime()});
+    expect(resumed.snapshot).toMatchObject({
+      status: "running",
+      timerStarted: true,
+      elapsedMs: 3_500,
+      runningSince: clock.now().getTime(),
+    });
+  });
+
+  it("keeps the timer dormant when pausing and resuming before the first board mutation", async () => {
+    const {clock, service} = setup();
+    const room = await create(service);
+
+    clock.advance(2_000);
+    const paused = await service.execute(command(room.roomCode, 1, {type: "pause"}));
+    expect(paused.snapshot).toMatchObject({
+      status: "paused",
+      timerStarted: false,
+      elapsedMs: 0,
+      runningSince: null,
+    });
+
+    clock.advance(5_000);
+    const resumed = await service.execute(command(room.roomCode, 2, {type: "resume"}));
+    expect(resumed.snapshot).toMatchObject({
+      status: "running",
+      timerStarted: false,
+      elapsedMs: 0,
+      runningSince: null,
+    });
+
+    clock.advance(3_000);
+    const started = await service.execute(command(room.roomCode, 3, {type: "setNotes", cellIndex: 1, notes: [2]}));
+    expect(started.snapshot).toMatchObject({
+      timerStarted: true,
+      elapsedMs: 0,
+      runningSince: clock.now().getTime(),
+    });
   });
 
   it("makes ordinary board changes and hints room-wide undoable", async () => {
@@ -171,7 +209,13 @@ describe("RoomService", () => {
     clock.advance(1_000);
     const cleared = await service.execute(command(room.roomCode, 2, {type: "clear"}, 1));
 
-    expect(cleared.snapshot).toMatchObject({status: "running", elapsedMs: 0, runningSince: null, canUndo: false});
+    expect(cleared.snapshot).toMatchObject({
+      status: "running",
+      timerStarted: false,
+      elapsedMs: 0,
+      runningSince: null,
+      canUndo: false,
+    });
     expect(cleared.snapshot.board.values).toEqual(Array(81).fill(0));
     expect(cleared.snapshot.board.notes).toEqual(Array.from({length: 81}, () => []));
     expect(repository.processedCommandCount(room.roomCode)).toBe(2);
@@ -217,6 +261,44 @@ describe("RoomService", () => {
     await expect(service.execute(command(room.roomCode, 4, {type: "undo"}))).rejects.toThrow(/completed/i);
   });
 
+  it("allows confirmed Clear while paused or completed and resets the room to a dormant timer", async () => {
+    const pausedSetup = setup();
+    const pausedRoom = await create(pausedSetup.service);
+    await pausedSetup.service.execute(command(pausedRoom.roomCode, 1, {type: "setNotes", cellIndex: 1, notes: [4]}));
+    pausedSetup.clock.advance(1_000);
+    await pausedSetup.service.execute(command(pausedRoom.roomCode, 2, {type: "pause"}));
+    const clearedPaused = await pausedSetup.service.execute(command(pausedRoom.roomCode, 3, {type: "clear"}));
+    expect(clearedPaused.snapshot).toMatchObject({
+      status: "running",
+      timerStarted: false,
+      elapsedMs: 0,
+      runningSince: null,
+      canUndo: false,
+    });
+    expect(clearedPaused.snapshot.board.notes).toEqual(Array.from({length: 81}, () => []));
+
+    const completedSetup = setup();
+    const completedRoom = await create(completedSetup.service);
+    await completedSetup.service.execute(
+      command(completedRoom.roomCode, 10, {type: "setNumber", cellIndex: 1, number: SOLUTION[1]}),
+    );
+    await completedSetup.service.execute(
+      command(completedRoom.roomCode, 11, {type: "setNumber", cellIndex: 2, number: SOLUTION[2]}),
+    );
+    await completedSetup.service.execute(
+      command(completedRoom.roomCode, 12, {type: "setNumber", cellIndex: 3, number: SOLUTION[3]}),
+    );
+    const clearedCompleted = await completedSetup.service.execute(command(completedRoom.roomCode, 13, {type: "clear"}));
+    expect(clearedCompleted.snapshot).toMatchObject({
+      status: "running",
+      timerStarted: false,
+      elapsedMs: 0,
+      runningSince: null,
+      canUndo: false,
+    });
+    expect(clearedCompleted.snapshot.board.values).toEqual(Array(81).fill(0));
+  });
+
   it("retains only 500 inverse rows", async () => {
     const {repository, service} = setup();
     const room = await create(service);
@@ -259,7 +341,20 @@ describe("RoomService", () => {
 
     clock.advance(DAY_MS + 1);
     await expect(service.deleteExpiredRooms(new Set([room.roomCode]))).resolves.toBe(0);
+    clock.advance(DAY_MS + 1);
     await expect(service.deleteExpiredRooms(new Set())).resolves.toBe(1);
+  });
+
+  it("refreshes active room expiry so joins and commands keep working past 24 hours", async () => {
+    const {clock, service} = setup();
+    const room = await create(service);
+
+    clock.advance(DAY_MS + 1);
+    await expect(service.deleteExpiredRooms(new Set([room.roomCode]))).resolves.toBe(0);
+    await expect(service.joinRoom(room.roomCode)).resolves.toMatchObject({roomCode: room.roomCode});
+    await expect(
+      service.execute(command(room.roomCode, 1, {type: "setNotes", cellIndex: 1, notes: [4]})),
+    ).resolves.toMatchObject({snapshot: {revision: 1}});
   });
 
   it("does not let a delayed disconnect shorten a newer activity expiry", async () => {
@@ -276,18 +371,21 @@ describe("RoomService", () => {
     });
   });
 
-  it("allows only resume while paused and rejects no-op state controls", async () => {
+  it("allows resume or Clear while paused and rejects other no-op state controls", async () => {
     const {service} = setup();
     const room = await create(service);
     await expect(service.execute(command(room.roomCode, 1, {type: "resume"}))).rejects.toThrow(/running/i);
     await service.execute(command(room.roomCode, 2, {type: "pause"}));
     await expect(service.execute(command(room.roomCode, 3, {type: "pause"}))).rejects.toThrow(/paused/i);
-    await expect(service.execute(command(room.roomCode, 4, {type: "clear"}))).rejects.toThrow(/paused/i);
+    await expect(service.execute(command(room.roomCode, 4, {type: "clear"}))).resolves.toMatchObject({
+      snapshot: {status: "running", timerStarted: false},
+    });
+    await service.execute(command(room.roomCode, 5, {type: "pause"}));
     await expect(
-      service.execute(command(room.roomCode, 5, {type: "setNumber", cellIndex: 1, number: 4})),
+      service.execute(command(room.roomCode, 6, {type: "setNumber", cellIndex: 1, number: 4})),
     ).rejects.toThrow(/paused/i);
-    await expect(service.execute(command(room.roomCode, 6, {type: "resume"}))).resolves.toMatchObject({
-      snapshot: {status: "running"},
+    await expect(service.execute(command(room.roomCode, 7, {type: "resume"}))).resolves.toMatchObject({
+      snapshot: {status: "running", timerStarted: false, runningSince: null},
     });
   });
 });

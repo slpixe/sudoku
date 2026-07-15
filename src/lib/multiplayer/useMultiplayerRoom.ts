@@ -25,6 +25,7 @@ export interface UseMultiplayerRoomResult {
   projected: ReturnType<typeof projectMultiplayerBoard>;
   status: MultiplayerRoomStatus;
   presence: 0 | 1 | 2;
+  online: boolean;
   error: RoomError | null;
   send: (action: RoomAction) => RoomCommand | null;
 }
@@ -54,6 +55,10 @@ function connectionError(error: Error & {data?: unknown}): RoomError {
   return {code: "SERVICE_UNAVAILABLE", message: error.message || "The multiplayer service is unavailable"};
 }
 
+function browserIsOnline(): boolean {
+  return typeof navigator === "undefined" || navigator.onLine !== false;
+}
+
 export function useMultiplayerRoom(
   roomCode: string,
   options: UseMultiplayerRoomOptions = {},
@@ -73,6 +78,7 @@ export function useMultiplayerRoom(
     roomCode,
     presence: 0,
   }));
+  const [online, setOnline] = React.useState(browserIsOnline);
   const clientStateRef = React.useRef(scopedClientState.state);
   const submitCommandRef = React.useRef<(command: RoomCommand) => void>(() => {});
   const lastReplayKeyRef = React.useRef<string | null>(null);
@@ -102,12 +108,13 @@ export function useMultiplayerRoom(
 
     let active = true;
     let terminal = false;
+    let browserOnline = browserIsOnline();
     let snapshotRequestGeneration = 0;
 
     const ownsActiveRoom = (): boolean => active && committedRoomCodeRef.current === roomCode;
 
     const restartForSnapshot = (): void => {
-      if (!ownsActiveRoom() || terminal) {
+      if (!ownsActiveRoom() || terminal || !browserOnline) {
         return;
       }
       lastReplayKeyRef.current = null;
@@ -203,13 +210,17 @@ export function useMultiplayerRoom(
     };
 
     const handleDisconnect = (): void => {
-      if (ownsActiveRoom() && !terminal) {
+      if (ownsActiveRoom() && !terminal && browserOnline) {
         dispatch({type: "connectionStatusChanged", status: "reconnecting"});
       }
     };
 
     const handleConnectError = (error: Error): void => {
       if (!ownsActiveRoom()) {
+        return;
+      }
+      if (!browserOnline) {
+        dispatch({type: "connectionStatusChanged", status: "disconnected"});
         return;
       }
       const roomError = connectionError(error);
@@ -247,6 +258,30 @@ export function useMultiplayerRoom(
       }
     };
 
+    const handleOffline = (): void => {
+      if (!ownsActiveRoom()) {
+        return;
+      }
+      browserOnline = false;
+      setOnline(false);
+      dispatch({type: "connectionStatusChanged", status: "disconnected"});
+      socket.disconnect();
+    };
+
+    const handleOnline = (): void => {
+      if (!ownsActiveRoom() || terminal || browserOnline) {
+        return;
+      }
+      browserOnline = true;
+      setOnline(true);
+      dispatch({type: "errorCleared"});
+      dispatch({
+        type: "connectionStatusChanged",
+        status: clientStateRef.current.confirmed === null ? "connecting" : "reconnecting",
+      });
+      socket.connect();
+    };
+
     socket.on("connect", handleConnect);
     socket.on("disconnect", handleDisconnect);
     socket.on("connect_error", handleConnectError);
@@ -254,7 +289,14 @@ export function useMultiplayerRoom(
     socket.on("room:event", handleRoomEvent);
     socket.on("room:presence", handlePresence);
     socket.on("room:error", handleRoomError);
-    socket.connect();
+    window.addEventListener("offline", handleOffline);
+    window.addEventListener("online", handleOnline);
+    setOnline(browserOnline);
+    if (browserOnline) {
+      socket.connect();
+    } else {
+      dispatch({type: "connectionStatusChanged", status: "disconnected"});
+    }
 
     return () => {
       active = false;
@@ -271,6 +313,8 @@ export function useMultiplayerRoom(
       socket.off("room:event", handleRoomEvent);
       socket.off("room:presence", handlePresence);
       socket.off("room:error", handleRoomError);
+      window.removeEventListener("offline", handleOffline);
+      window.removeEventListener("online", handleOnline);
       submitCommandRef.current = () => {};
       socket.disconnect();
     };
@@ -308,6 +352,7 @@ export function useMultiplayerRoom(
     projected,
     status,
     presence: renderedPresence,
+    online,
     error: renderedClientState.error,
     send,
   };

@@ -141,7 +141,10 @@ fly checks list --app sudoku-multiplayer
 The wrapper runs `fly deploy --ha=false --config server/fly.toml` followed by
 `fly scale count 1 --config server/fly.toml`. Do not replace it with a bare
 first deploy: Fly otherwise creates redundant Machines for a service by
-default. The final scale output must show one Machine in `lhr` with 512 MB.
+default. Do not override the checked-in `immediate` strategy: rolling
+replacement can briefly overlap two Machines while presence and command queues
+are still process-local. The final scale output must show one Machine in `lhr`
+with 512 MB.
 
 ## 3. Configure Netlify
 
@@ -234,6 +237,10 @@ fly releases --image --app sudoku-multiplayer
 fly deploy --image '<PREVIOUS_FLY_IMAGE_REFERENCE>' --ha=false --config server/fly.toml
 fly scale count 1 --config server/fly.toml
 ```
+
+Do not override the `immediate` deployment strategy in `server/fly.toml` for
+deploys or image rollbacks. A rolling replacement may briefly run two Machines,
+but presence and per-room command queues remain process-local in this release.
 
 If a migration is faulty but data is intact, prefer a new forward migration
 and release. Restore the pre-release Neon snapshot only for destructive or

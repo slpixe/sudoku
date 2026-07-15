@@ -41,6 +41,7 @@ export interface RoomSnapshot {
   board: RoomBoard;
   revision: number;
   status: RoomStatus;
+  timerStarted: boolean;
   elapsedMs: number;
   runningSince: number | null;
   serverNow: number;
@@ -55,6 +56,7 @@ export interface RoomEvent {
   revision: number;
   board: RoomBoard;
   status: RoomStatus;
+  timerStarted: boolean;
   elapsedMs: number;
   runningSince: number | null;
   serverNow: number;

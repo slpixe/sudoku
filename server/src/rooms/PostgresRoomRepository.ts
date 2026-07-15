@@ -6,7 +6,8 @@ import type {CreateRoomInput, RoomMutation, RoomMutationHelpers, RoomRepository}
 
 const roomColumns = `
   r.id, r.code, r.collection_id, r.puzzle_number, r.givens, r.solution, r.values, r.notes,
-  r.revision, r.status, r.elapsed_ms, r.running_since, r.created_at, r.last_activity_at, r.expires_at,
+  r.revision, r.status, r.timer_started, r.elapsed_ms, r.running_since,
+  r.created_at, r.last_activity_at, r.expires_at,
   EXISTS (SELECT 1 FROM undo_actions u WHERE u.room_id = r.id) AS can_undo`;
 
 function snapshotValues(snapshot: RoomSnapshot): readonly unknown[] {
@@ -19,6 +20,7 @@ function snapshotValues(snapshot: RoomSnapshot): readonly unknown[] {
     encodeNotes(snapshot.board.notes),
     snapshot.revision,
     snapshot.status,
+    snapshot.timerStarted,
     snapshot.elapsedMs,
     snapshot.runningSince === null ? null : new Date(snapshot.runningSince),
     new Date(snapshot.expiresAt),
@@ -94,9 +96,9 @@ export class PostgresRoomRepository implements RoomRepository {
     await this.database.query(
       `INSERT INTO rooms (
         id, code, collection_id, puzzle_number, givens, solution, values, notes, revision, status,
-        elapsed_ms, running_since, created_at, last_activity_at, expires_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
-      [id, snapshot.roomCode, ...values.slice(0, 10), now, now, values[10]],
+        timer_started, elapsed_ms, running_since, created_at, last_activity_at, expires_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
+      [id, snapshot.roomCode, ...values.slice(0, 11), now, now, values[11]],
     );
     const created = await this.getSnapshot(snapshot.roomCode, now);
     if (!created) {
@@ -121,10 +123,10 @@ export class PostgresRoomRepository implements RoomRepository {
       await tx.query(
         `UPDATE rooms SET
           collection_id = $2, puzzle_number = $3, givens = $4, solution = $5, values = $6, notes = $7,
-          revision = $8, status = $9, elapsed_ms = $10, running_since = $11,
-          last_activity_at = $12, expires_at = $13
+          revision = $8, status = $9, timer_started = $10, elapsed_ms = $11, running_since = $12,
+          last_activity_at = $13, expires_at = $14
          WHERE id = $1`,
-        [stored.id, ...values.slice(0, 10), now, values[10]],
+        [stored.id, ...values.slice(0, 11), now, values[11]],
       );
 
       const committed = await loadRoom(tx, code, now);

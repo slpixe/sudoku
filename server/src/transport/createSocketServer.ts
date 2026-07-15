@@ -12,17 +12,14 @@ import {
   type ServerToClientEvents,
 } from "@sudoku/multiplayer-protocol";
 import type {Server as HttpServer} from "node:http";
+import {isIP} from "node:net";
 import {Server} from "socket.io";
 import {z} from "zod";
 
 import type {MetricsRecorder} from "../metrics.js";
 import type {Clock} from "../rooms/Clock.js";
 import {SystemClock} from "../rooms/Clock.js";
-import type {
-  PresenceConnectionToken,
-  PresenceService,
-  PresenceUpdate,
-} from "../rooms/PresenceService.js";
+import type {PresenceConnectionToken, PresenceService, PresenceUpdate} from "../rooms/PresenceService.js";
 import type {RoomService} from "../rooms/RoomService.js";
 import {TokenBucketRateLimiter} from "./rateLimit.js";
 
@@ -65,9 +62,7 @@ export interface TransportErrorContext {
   roomCode: string;
 }
 
-const protocolHandshakeSchema = z
-  .object({protocolVersion: z.literal(MULTIPLAYER_PROTOCOL_VERSION)})
-  .strict();
+const protocolHandshakeSchema = z.object({protocolVersion: z.literal(MULTIPLAYER_PROTOCOL_VERSION)}).strict();
 
 function roomError(code: RoomErrorCode, message: string): RoomError {
   return {code, message};
@@ -113,9 +108,7 @@ function commandError(error: unknown): RoomError {
   if (/expired/i.test(message)) {
     return roomError("ROOM_EXPIRED", "The room has expired");
   }
-  if (
-    /completed|paused|running|given cell|did not change|no room action|clear is allowed|only resume/i.test(message)
-  ) {
+  if (/completed|paused|running|given cell|did not change|no room action|clear is allowed|only resume/i.test(message)) {
     return roomError("COMMAND_REJECTED", message);
   }
   return roomError("SERVICE_UNAVAILABLE", "The room service is temporarily unavailable");
@@ -127,6 +120,17 @@ function createError(error: unknown): RoomError {
     return roomError("PUZZLE_VERSION_MISMATCH", "The selected puzzle version does not match the server");
   }
   return roomError("SERVICE_UNAVAILABLE", "The room service is temporarily unavailable");
+}
+
+export function networkSourceFromHandshake(
+  address: string,
+  flyClientIp: string | string[] | undefined,
+  nodeEnv: CreateSocketServerOptions["nodeEnv"],
+): string {
+  if (nodeEnv === "production" && typeof flyClientIp === "string" && isIP(flyClientIp) !== 0) {
+    return flyClientIp;
+  }
+  return address;
 }
 
 export function createSocketServer(httpServer: HttpServer, options: CreateSocketServerOptions): TypedServer {
@@ -164,7 +168,11 @@ export function createSocketServer(httpServer: HttpServer, options: CreateSocket
 
   io.on("connection", (socket) => {
     socket.data.memberships = new Map();
-    const networkSource = socket.handshake.address;
+    const networkSource = networkSourceFromHandshake(
+      socket.handshake.address,
+      socket.handshake.headers["fly-client-ip"],
+      options.nodeEnv,
+    );
 
     const broadcastPresence = (roomCode: string, connectedGuests: 0 | 1 | 2): void => {
       io.to(roomCode).emit("room:presence", {connectedGuests});
@@ -186,26 +194,22 @@ export function createSocketServer(httpServer: HttpServer, options: CreateSocket
       if (reservationExpiresAt === null) {
         return;
       }
-      const timer = setTimeout(() => {
-        options.presence.expireReservation(roomCode, guestId, reservationExpiresAt);
-      }, Math.max(0, reservationExpiresAt - clock.now().getTime()));
+      const timer = setTimeout(
+        () => {
+          options.presence.expireReservation(roomCode, guestId, reservationExpiresAt);
+        },
+        Math.max(0, reservationExpiresAt - clock.now().getTime()),
+      );
       timer.unref();
     };
 
     const rollbackPresence = (membership: PendingMembership): PresenceUpdate => {
       const update = options.presence.rollback(membership.token);
-      scheduleReservationExpiry(
-        membership.token.roomCode,
-        membership.guestId,
-        update.reservationExpiresAt,
-      );
+      scheduleReservationExpiry(membership.token.roomCode, membership.guestId, update.reservationExpiresAt);
       return update;
     };
 
-    const releasePendingIfOwned = (
-      roomCode: string,
-      membership: PendingMembership,
-    ): PresenceUpdate | null => {
+    const releasePendingIfOwned = (roomCode: string, membership: PendingMembership): PresenceUpdate | null => {
       if (socket.data.memberships.get(roomCode) !== membership) {
         return null;
       }
@@ -235,13 +239,13 @@ export function createSocketServer(httpServer: HttpServer, options: CreateSocket
 
     socket.on("room:create", async (unparsedRequest, rawAck) => {
       const ack = instrumentAcknowledgement(rawAck, options.metrics);
+      if (!createLimiter.consume(networkSource)) {
+        acknowledge(ack, {ok: false, error: invalidRequest("Too many rooms were created from this network")});
+        return;
+      }
       const parsed = createRoomRequestSchema.safeParse(unparsedRequest);
       if (!parsed.success) {
         acknowledge(ack, {ok: false, error: invalidRequest()});
-        return;
-      }
-      if (!createLimiter.consume(networkSource)) {
-        acknowledge(ack, {ok: false, error: invalidRequest("Too many rooms were created from this network")});
         return;
       }
 
@@ -312,6 +316,10 @@ export function createSocketServer(httpServer: HttpServer, options: CreateSocket
 
     socket.on("room:join", async (unparsedRequest, rawAck) => {
       const ack = instrumentAcknowledgement(rawAck, options.metrics);
+      if (!failedJoinLimiter.consume(networkSource)) {
+        acknowledge(ack, {ok: false, error: invalidRequest("Too many unsuccessful room joins")});
+        return;
+      }
       const parsed = joinRoomRequestSchema.safeParse(unparsedRequest);
       if (!parsed.success) {
         acknowledge(ack, {ok: false, error: invalidRequest()});
@@ -319,10 +327,6 @@ export function createSocketServer(httpServer: HttpServer, options: CreateSocket
       }
 
       const request = parsed.data;
-      if (!failedJoinLimiter.consume(networkSource)) {
-        acknowledge(ack, {ok: false, error: invalidRequest("Too many unsuccessful room joins")});
-        return;
-      }
       const existingMembership = socket.data.memberships.get(request.roomCode);
       if (existingMembership) {
         const message =
@@ -424,6 +428,10 @@ export function createSocketServer(httpServer: HttpServer, options: CreateSocket
 
     socket.on("room:command", async (unparsedCommand, rawAck) => {
       const ack = instrumentAcknowledgement(rawAck, options.metrics, Date.now());
+      if (!commandLimiter.consume(socket.id)) {
+        acknowledge(ack, {ok: false, error: invalidRequest("Too many room commands")});
+        return;
+      }
       const parsed = clientRoomCommandSchema.safeParse(unparsedCommand);
       if (!parsed.success) {
         acknowledge(ack, {ok: false, error: invalidRequest()});
@@ -433,17 +441,9 @@ export function createSocketServer(httpServer: HttpServer, options: CreateSocket
         acknowledge(ack, {ok: false, error: roomError("COMMAND_REJECTED", "Join the room before changing it")});
         return;
       }
-      if (!commandLimiter.consume(socket.id)) {
-        acknowledge(ack, {ok: false, error: invalidRequest("Too many room commands")});
-        return;
-      }
-
       try {
         const result = await options.roomService.execute(parsed.data);
-        const snapshot = snapshotWithPresence(
-          result.snapshot,
-          options.presence.connectedGuests(parsed.data.roomCode),
-        );
+        const snapshot = snapshotWithPresence(result.snapshot, options.presence.connectedGuests(parsed.data.roomCode));
         if (!result.duplicate) {
           io.to(parsed.data.roomCode).emit("room:event", result.event);
         }
@@ -478,19 +478,13 @@ export function createSocketServer(httpServer: HttpServer, options: CreateSocket
             : options.presence.disconnect(parsed.data.roomCode, membership.guestId, socket.id);
       } catch (error) {
         reportError(error, {operation: "room:leave", roomCode: parsed.data.roomCode});
-        socket.emit(
-          "room:error",
-          roomError("SERVICE_UNAVAILABLE", "The room service is temporarily unavailable"),
-        );
+        socket.emit("room:error", roomError("SERVICE_UNAVAILABLE", "The room service is temporarily unavailable"));
         return;
       }
       void finishCleanup(parsed.data.roomCode, membership, update, true).catch((error: unknown) => {
         reportError(error, {operation: "room:leave", roomCode: parsed.data.roomCode});
         if (socket.connected) {
-          socket.emit(
-            "room:error",
-            roomError("SERVICE_UNAVAILABLE", "The room service is temporarily unavailable"),
-          );
+          socket.emit("room:error", roomError("SERVICE_UNAVAILABLE", "The room service is temporarily unavailable"));
         }
       });
     });

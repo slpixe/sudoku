@@ -21,7 +21,7 @@ import {PresenceService} from "../rooms/PresenceService.js";
 import type {RoomRepository} from "../rooms/RoomRepository.js";
 import {RoomService} from "../rooms/RoomService.js";
 import {InMemoryRoomRepository} from "../testing/InMemoryRoomRepository.js";
-import {createSocketServer, type TransportErrorContext} from "./createSocketServer.js";
+import {createSocketServer, networkSourceFromHandshake, type TransportErrorContext} from "./createSocketServer.js";
 
 const SOLUTION = "534678912672195348198342567859761423426853791713924856961537284287419635345286179"
   .split("")
@@ -55,9 +55,7 @@ interface TestRuntime {
 }
 
 class DeferredSnapshotRepository extends InMemoryRoomRepository {
-  #nextRead:
-    | {started: () => void; wait: Promise<void>}
-    | undefined;
+  #nextRead: {started: () => void; wait: Promise<void>} | undefined;
 
   deferNextRead(): {started: Promise<void>; release: () => void} {
     let markStarted!: () => void;
@@ -155,10 +153,7 @@ async function startRuntime(
   return runtime;
 }
 
-function connect(
-  url: string,
-  options: {protocolVersion?: number; origin?: string} = {},
-): Promise<TestClient> {
+function connect(url: string, options: {protocolVersion?: number; origin?: string} = {}): Promise<TestClient> {
   const socket: TestClient = createClient(url, {
     auth: {protocolVersion: options.protocolVersion ?? MULTIPLAYER_PROTOCOL_VERSION},
     extraHeaders: options.origin ? {Origin: options.origin} : undefined,
@@ -218,6 +213,13 @@ afterEach(async () => {
 });
 
 describe("createSocketServer", () => {
+  it("trusts Fly-Client-IP only in production and falls back safely", () => {
+    expect(networkSourceFromHandshake("127.0.0.1", "203.0.113.8", "production")).toBe("203.0.113.8");
+    expect(networkSourceFromHandshake("127.0.0.1", "203.0.113.8", "test")).toBe("127.0.0.1");
+    expect(networkSourceFromHandshake("127.0.0.1", "not-an-ip", "production")).toBe("127.0.0.1");
+    expect(networkSourceFromHandshake("127.0.0.1", ["203.0.113.8"], "production")).toBe("127.0.0.1");
+  });
+
   it("rejects a protocol mismatch during the handshake", async () => {
     const runtime = await startRuntime();
     const socket = createClient(runtime.url, {
@@ -227,7 +229,9 @@ describe("createSocketServer", () => {
       transports: ["websocket"],
     });
 
-    const error = await new Promise<Error & {data?: {code?: string}}>((resolve) => socket.once("connect_error", resolve));
+    const error = await new Promise<Error & {data?: {code?: string}}>((resolve) =>
+      socket.once("connect_error", resolve),
+    );
     socket.close();
     expect(error.data?.code).toBe("VERSION_MISMATCH");
     expect(socket.connected).toBe(false);
@@ -355,9 +359,7 @@ describe("createSocketServer", () => {
       emitJoin(joining, {guestId: GUEST_THREE, connectionId: uuid(41), roomCode: created.snapshot.roomCode}),
     ).resolves.toMatchObject({ok: false, error: {code: "INVALID_REQUEST"}});
 
-    const correction = new Promise<{connectedGuests: number}>((resolve) =>
-      creator.once("room:presence", resolve),
-    );
+    const correction = new Promise<{connectedGuests: number}>((resolve) => creator.once("room:presence", resolve));
     joining.close();
     await expect(correction).resolves.toEqual({connectedGuests: 1});
     deferred.release();
@@ -396,9 +398,6 @@ describe("createSocketServer", () => {
   it("strictly validates requests and enforces creation, failed-join, and command limits", async () => {
     const runtime = await startRuntime();
     const socket = await connect(runtime.url);
-    await expect(
-      emitCreate(socket, {...createRequest(), unexpected: true} as CreateRoomRequest),
-    ).resolves.toMatchObject({ok: false, error: {code: "INVALID_REQUEST"}});
 
     const created: RoomSnapshot[] = [];
     for (let index = 0; index < 5; index++) {
@@ -425,7 +424,9 @@ describe("createSocketServer", () => {
       ),
     ).resolves.toEqual(
       expect.arrayContaining(
-        Array.from({length: 20}, () => expect.objectContaining({ok: false, error: {code: "ROOM_NOT_FOUND", message: "The room was not found"}})),
+        Array.from({length: 20}, () =>
+          expect.objectContaining({ok: false, error: {code: "ROOM_NOT_FOUND", message: "The room was not found"}}),
+        ),
       ),
     );
     await expect(
@@ -461,6 +462,44 @@ describe("createSocketServer", () => {
         ),
       ),
     ).resolves.toMatchObject({ok: false, error: {code: "INVALID_REQUEST"}});
+  });
+
+  it("charges malformed create, join, and command bursts before schema validation", async () => {
+    const runtime = await startRuntime();
+    const socket = await connect(runtime.url);
+
+    for (let attempt = 0; attempt < 5; attempt++) {
+      await expect(emitCreate(socket, {...createRequest(), unexpected: attempt} as CreateRoomRequest)).resolves.toEqual(
+        {ok: false, error: {code: "INVALID_REQUEST", message: "The request is invalid"}},
+      );
+    }
+    await expect(emitCreate(socket, {...createRequest(), unexpected: true} as CreateRoomRequest)).resolves.toEqual({
+      ok: false,
+      error: {code: "INVALID_REQUEST", message: "Too many rooms were created from this network"},
+    });
+
+    for (let attempt = 0; attempt < 20; attempt++) {
+      await expect(emitJoin(socket, {guestId: "malformed"} as JoinRoomRequest)).resolves.toEqual({
+        ok: false,
+        error: {code: "INVALID_REQUEST", message: "The request is invalid"},
+      });
+    }
+    await expect(emitJoin(socket, {guestId: "malformed"} as JoinRoomRequest)).resolves.toEqual({
+      ok: false,
+      error: {code: "INVALID_REQUEST", message: "Too many unsuccessful room joins"},
+    });
+
+    for (let attempt = 0; attempt < 30; attempt++) {
+      await expect(
+        new Promise<RoomAck>((resolve) => socket.emit("room:command", {action: "malformed"} as never, resolve)),
+      ).resolves.toEqual({ok: false, error: {code: "INVALID_REQUEST", message: "The request is invalid"}});
+    }
+    await expect(
+      new Promise<RoomAck>((resolve) => socket.emit("room:command", {action: "malformed"} as never, resolve)),
+    ).resolves.toEqual({
+      ok: false,
+      error: {code: "INVALID_REQUEST", message: "Too many room commands"},
+    });
   });
 
   it("charges every ROOM_FULL join before async work", async () => {

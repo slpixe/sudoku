@@ -54,6 +54,7 @@ function snapshotFromEvent(confirmed: RoomSnapshot, event: RoomEvent): RoomSnaps
     board: event.board,
     revision: event.revision,
     status: event.status,
+    timerStarted: event.timerStarted,
     elapsedMs: event.elapsedMs,
     runningSince: event.runningSince,
     serverNow: event.serverNow,

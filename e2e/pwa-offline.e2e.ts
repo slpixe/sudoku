@@ -118,6 +118,37 @@ test("keeps built-in game flows usable after a warmed-cache offline reload", asy
   }
 });
 
+test("shows the online-required state for a warmed-cache offline room deep link without opening a socket", async ({
+  context,
+  page,
+}) => {
+  const multiplayerRequests: string[] = [];
+  page.on("request", (request) => {
+    if (new URL(request.url()).hostname === "multi.sudoku.slpixe.com") {
+      multiplayerRequests.push(request.url());
+    }
+  });
+
+  await page.goto("/#/select-game");
+  await waitForServiceWorkerControl(page);
+  const cachedPathnames = await getCachedPathnames(page);
+  expectCached(
+    cachedPathnames,
+    (pathname) => /^\/assets\/MultiplayerGame-[\w-]+\.js$/.test(pathname),
+    "Multiplayer room route chunk",
+  );
+
+  await context.setOffline(true);
+  try {
+    await page.goto("/#/room/ABC234", {waitUntil: "domcontentloaded"});
+    await expect(page.getByText(/internet connection is required/i)).toBeVisible();
+    await expect(page.getByTestId("multiplayer-room-code")).toHaveText("ABC234");
+    expect(multiplayerRequests).toEqual([]);
+  } finally {
+    await context.setOffline(false);
+  }
+});
+
 test("does not support a first-ever cold offline load before caches exist", async ({baseURL, browser}) => {
   if (!baseURL) {
     throw new Error("Playwright baseURL must be configured for PWA offline tests");

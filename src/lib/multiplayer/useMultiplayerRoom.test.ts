@@ -49,6 +49,7 @@ function createSnapshot(revision = 0, board = createBoard(), roomCode = "ABC234"
     board,
     revision,
     status: "running",
+    timerStarted: false,
     elapsedMs: 0,
     runningSince: null,
     serverNow: 1_000,
@@ -189,6 +190,7 @@ function remoteEvent(revision: number, board: RoomBoard): Parameters<ServerToCli
     revision,
     board,
     status: "running",
+    timerStarted: true,
     elapsedMs: 0,
     runningSince: 1_000,
     serverNow: 1_100,
@@ -196,9 +198,41 @@ function remoteEvent(revision: number, board: RoomBoard): Parameters<ServerToCli
   } satisfies RoomEvent;
 }
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
 
 describe("useMultiplayerRoom", () => {
+  it("defers room connections while offline and reconnects when the browser comes online", () => {
+    const online = vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(false);
+    const socket = new FakeSocket();
+    const {result} = renderHook(() =>
+      useMultiplayerRoom("ABC234", {storage: createStorage(), socketFactory: () => socket.asSocket()}),
+    );
+
+    expect(result.current.online).toBe(false);
+    expect(result.current.status).toBe("disconnected");
+    expect(socket.connectCalls).toBe(0);
+    expect(events(socket, "room:join")).toHaveLength(0);
+
+    online.mockReturnValue(true);
+    act(() => window.dispatchEvent(new Event("online")));
+    expect(result.current.online).toBe(true);
+    expect(result.current.status).toBe("connecting");
+    expect(socket.connectCalls).toBe(1);
+    expect(events(socket, "room:join")).toHaveLength(1);
+
+    act(() => socket.serverEmit("room:snapshot", createSnapshot()));
+    expect(result.current.status).toBe("connected");
+
+    online.mockReturnValue(false);
+    act(() => window.dispatchEvent(new Event("offline")));
+    expect(result.current.online).toBe(false);
+    expect(result.current.status).toBe("disconnected");
+    expect(result.current.confirmed?.roomCode).toBe("ABC234");
+  });
+
   it("retains one fallback guest identity across remounts when localStorage access throws", () => {
     const localStorageGetter = vi.spyOn(window, "localStorage", "get").mockImplementation(() => {
       throw new DOMException("Storage access denied", "SecurityError");

@@ -125,6 +125,7 @@ const DifficultyShow = ({children, ...props}: React.HTMLAttributes<HTMLDivElemen
 export const GameHeader: React.FC<{
   blocked: boolean;
   canUndo: boolean;
+  clearWhenInactive?: boolean;
   collectionName: string;
   locked: boolean;
   pauseForClearConfirmation: boolean;
@@ -140,6 +141,7 @@ export const GameHeader: React.FC<{
 }> = ({
   blocked,
   canUndo,
+  clearWhenInactive = false,
   collectionName,
   locked,
   pauseForClearConfirmation,
@@ -155,6 +157,8 @@ export const GameHeader: React.FC<{
 }) => {
   const interactionsBlocked = blocked || locked;
   const paused = status === GameStateMachine.paused;
+  const clearBlocked = interactionsBlocked || (won && !clearWhenInactive);
+  const clearDisabled = clearBlocked || (paused && !clearWhenInactive);
   return (
     <header
       className="sudoku-game-header flex items-center justify-between gap-2 pt-4 text-sm sm:text-base"
@@ -176,8 +180,8 @@ export const GameHeader: React.FC<{
           undo={onUndo}
         />
         <ClearGameButton
-          blocked={interactionsBlocked || won}
-          disabled={interactionsBlocked || won || paused}
+          blocked={clearBlocked}
+          disabled={clearDisabled}
           onClearConfirmed={onClearConfirmed}
           onPause={onPause}
           onResume={onResume}
