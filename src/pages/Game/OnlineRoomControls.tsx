@@ -68,7 +68,7 @@ export function OnlineRoomControls({creating, error, mode, online, onJoin, onMod
           onSelect={onModeChange}
         />
         <ModeAction
-          disabled={!online || creating}
+          disabled={!online}
           label={t("select_mode_join_online")}
           mode="join-online"
           selectedMode={mode}

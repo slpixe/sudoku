@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import * as React from "react";
-import {act, cleanup, render, screen, waitFor} from "@testing-library/react";
+import {act, cleanup, fireEvent, render, screen, waitFor} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest";
 
@@ -14,7 +14,10 @@ import SelectGame from "./SelectGame";
 const navigate = vi.fn();
 const multiplayer = vi.hoisted(() => {
   let connectHandler: (() => void) | undefined;
+  let connectErrorHandler: ((error: Error) => void) | undefined;
+  let acknowledgementHandler: ((result: unknown) => void) | undefined;
   let connectImmediately = true;
+  let acknowledgeImmediately = true;
   const socket = {
     connect: vi.fn(() => {
       if (connectImmediately) {
@@ -24,24 +27,48 @@ const multiplayer = vi.hoisted(() => {
     }),
     disconnect: vi.fn(() => socket),
     emit: vi.fn((event: string, request: unknown, acknowledge: (result: unknown) => void) => {
-      acknowledge({ok: true, snapshot: {roomCode: "ABC234"}});
+      if (acknowledgeImmediately) {
+        acknowledge({ok: true, snapshot: {roomCode: "ABC234"}});
+      } else {
+        acknowledgementHandler = acknowledge;
+      }
       return socket;
     }),
-    once: vi.fn((event: string, handler: () => void) => {
+    off: vi.fn((event: string, handler: (error?: Error) => void) => {
+      if (event === "connect" && connectHandler === handler) {
+        connectHandler = undefined;
+      }
+      if (event === "connect_error" && connectErrorHandler === handler) {
+        connectErrorHandler = undefined;
+      }
+      return socket;
+    }),
+    once: vi.fn((event: string, handler: (error?: Error) => void) => {
       if (event === "connect") {
-        connectHandler = handler;
+        connectHandler = handler as () => void;
+      }
+      if (event === "connect_error") {
+        connectErrorHandler = handler as (error: Error) => void;
       }
       return socket;
     }),
   };
   return {
+    holdAcknowledgement: () => {
+      acknowledgeImmediately = false;
+    },
     holdConnection: () => {
       connectImmediately = false;
     },
     reset: () => {
       connectHandler = undefined;
+      connectErrorHandler = undefined;
+      acknowledgementHandler = undefined;
       connectImmediately = true;
+      acknowledgeImmediately = true;
     },
+    resolveAcknowledgement: (result: unknown = {ok: true, snapshot: {roomCode: "ABC234"}}) =>
+      acknowledgementHandler?.(result),
     resolveConnection: () => connectHandler?.(),
     socket,
   };
@@ -78,6 +105,7 @@ beforeEach(() => {
   multiplayer.socket.connect.mockClear();
   multiplayer.socket.disconnect.mockClear();
   multiplayer.socket.emit.mockClear();
+  multiplayer.socket.off.mockClear();
   multiplayer.socket.once.mockClear();
   setOnline(true);
   vi.spyOn(appPersistence.collections, "loadIndex").mockReturnValue([{id: "custom-one", name: "My puzzles"}]);
@@ -107,6 +135,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   vi.restoreAllMocks();
 });
 
@@ -184,6 +213,47 @@ describe("SelectGame", () => {
     act(() => multiplayer.resolveConnection());
     await waitFor(() => expect(multiplayer.socket.disconnect).toHaveBeenCalledOnce());
     expect(multiplayer.socket.emit).toHaveBeenCalledOnce();
+  });
+
+  it("cancels creation on mode exit and ignores a late acknowledgement", async () => {
+    const user = userEvent.setup();
+    multiplayer.holdAcknowledgement();
+    renderSelectGame();
+
+    await user.click(screen.getByRole("button", {name: "select_mode_create_online"}));
+    await user.click(screen.getByTestId("sudoku-preview-1"));
+    await waitFor(() => expect(multiplayer.socket.emit).toHaveBeenCalledOnce());
+
+    await user.click(screen.getByRole("button", {name: "select_mode_join_online"}));
+
+    expect(multiplayer.socket.disconnect).toHaveBeenCalledOnce();
+    expect(screen.getByLabelText("multiplayer_room_code")).toBeTruthy();
+    expect(screen.getByRole("button", {name: "select_mode_create_online"})).toBeTruthy();
+
+    act(() => multiplayer.resolveAcknowledgement());
+    await act(async () => Promise.resolve());
+
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it("times out a missing create acknowledgement and restores the picker", async () => {
+    vi.useFakeTimers();
+    multiplayer.holdAcknowledgement();
+    renderSelectGame();
+
+    fireEvent.click(screen.getByRole("button", {name: "select_mode_create_online"}));
+    fireEvent.click(screen.getByTestId("sudoku-preview-1"));
+    await vi.waitFor(() => expect(multiplayer.socket.emit).toHaveBeenCalledOnce());
+
+    await act(async () => {
+      vi.advanceTimersByTime(10_000);
+      await Promise.resolve();
+    });
+
+    expect(multiplayer.socket.disconnect).toHaveBeenCalledOnce();
+    expect((screen.getByTestId("sudoku-preview-1") as HTMLButtonElement).disabled).toBe(false);
+    expect(screen.getByRole("alert").textContent).toBe("multiplayer_service_unavailable");
+    expect(navigate).not.toHaveBeenCalled();
   });
 
   it("reacts to offline state without disabling Solo", async () => {
