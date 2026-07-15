@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import type {RoomBoard, RoomSnapshot} from "@sudoku/multiplayer-protocol";
-import {act, cleanup, fireEvent, render, screen, waitFor} from "@testing-library/react";
+import {act, cleanup, fireEvent, render, screen} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import hotkeys from "hotkeys-js";
 import * as React from "react";
@@ -330,7 +330,8 @@ describe("MultiplayerGameController", () => {
     expect(room.send).not.toHaveBeenCalled();
   });
 
-  it("copies the current hash room URL and announces success accessibly", async () => {
+  it("copies the current hash room URL, shows success in-button, and resets the label", async () => {
+    vi.useFakeTimers();
     const originalClipboard = Object.getOwnPropertyDescriptor(navigator, "clipboard");
     const writeText = vi.fn(() => Promise.resolve());
     Object.defineProperty(navigator, "clipboard", {configurable: true, value: {writeText}});
@@ -340,8 +341,11 @@ describe("MultiplayerGameController", () => {
       renderController(createRoom());
       fireEvent.click(screen.getByRole("button", {name: "multiplayer_copy_link"}));
 
-      await waitFor(() => expect(writeText).toHaveBeenCalledWith(window.location.href));
-      expect(screen.getByRole("status").textContent).toContain("multiplayer_link_copied");
+      await act(async () => Promise.resolve());
+      expect(writeText).toHaveBeenCalledWith(window.location.href);
+      expect(screen.getByTestId("multiplayer-copy-button").textContent).toContain("multiplayer_copied");
+      act(() => vi.advanceTimersByTime(2_000));
+      expect(screen.getByTestId("multiplayer-copy-button").textContent).toContain("multiplayer_copy");
     } finally {
       if (originalClipboard) {
         Object.defineProperty(navigator, "clipboard", originalClipboard);
@@ -351,7 +355,8 @@ describe("MultiplayerGameController", () => {
     }
   });
 
-  it("announces the room URL as a fallback when the Clipboard API is unavailable", async () => {
+  it("shows copy failure in-button without exposing the room URL when the Clipboard API is unavailable", async () => {
+    vi.useFakeTimers();
     const originalClipboard = Object.getOwnPropertyDescriptor(navigator, "clipboard");
     Object.defineProperty(navigator, "clipboard", {configurable: true, value: undefined});
 
@@ -359,7 +364,9 @@ describe("MultiplayerGameController", () => {
       renderController(createRoom());
       fireEvent.click(screen.getByRole("button", {name: "multiplayer_copy_link"}));
 
-      await waitFor(() => expect(screen.getByRole("status").textContent).toContain("multiplayer_copy_link_fallback"));
+      await act(async () => Promise.resolve());
+      expect(screen.getByTestId("multiplayer-copy-button").textContent).toContain("multiplayer_copy_failed");
+      expect(screen.queryByText(window.location.href)).toBeNull();
     } finally {
       if (originalClipboard) {
         Object.defineProperty(navigator, "clipboard", originalClipboard);

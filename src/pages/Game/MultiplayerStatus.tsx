@@ -34,7 +34,7 @@ function connectionStatusKey(status: MultiplayerRoomStatus): string | null {
 }
 
 export interface MultiplayerStatusProps {
-  copyMessage: string | null;
+  copyState: CopyState;
   error: RoomError | null;
   presence: 0 | 1 | 2;
   online: boolean;
@@ -44,8 +44,10 @@ export interface MultiplayerStatusProps {
   onRetry: () => void;
 }
 
+export type CopyState = "idle" | "copied" | "failed";
+
 export function MultiplayerStatus({
-  copyMessage,
+  copyState,
   error,
   presence,
   online,
@@ -66,15 +68,30 @@ export function MultiplayerStatus({
       data-testid="multiplayer-status"
       role="status"
     >
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <span className="font-mono font-bold" data-testid="multiplayer-room-code">
-            {roomCode}
-          </span>
-          <span>{t("multiplayer_connected_count", {count: presence})}</span>
-        </div>
-        <Button className="min-h-9 bg-teal-700 text-white dark:bg-teal-600" onClick={onCopyLink}>
-          {t("multiplayer_copy_link")}
+      <div className="flex min-w-0 flex-wrap items-center gap-2" data-testid="multiplayer-primary-row">
+        <span>{t("multiplayer_room_label")}</span>
+        <span className="font-mono font-bold" data-testid="multiplayer-room-code">
+          {roomCode}
+        </span>
+        <span
+          aria-hidden="true"
+          className={`h-2 w-2 rounded-full ${online && status === "connected" && error === null ? "bg-emerald-400" : "bg-amber-400"}`}
+          data-testid="multiplayer-presence-dot"
+        />
+        <span aria-label={t("multiplayer_connected_count", {count: presence})}>
+          {t("multiplayer_presence_fraction", {count: presence})}
+        </span>
+        <Button
+          aria-label={t("multiplayer_copy_link")}
+          className="ml-auto min-h-9 bg-teal-700 text-white dark:bg-teal-600"
+          data-testid="multiplayer-copy-button"
+          onClick={onCopyLink}
+        >
+          {copyState === "copied"
+            ? `${t("multiplayer_copied")} ✓`
+            : copyState === "failed"
+              ? t("multiplayer_copy_failed")
+              : t("multiplayer_copy")}
         </Button>
       </div>
       {statusKey || error ? (
@@ -91,7 +108,13 @@ export function MultiplayerStatus({
           ) : null}
         </div>
       ) : null}
-      {copyMessage ? <p className="break-all text-emerald-200">{copyMessage}</p> : null}
+      <span aria-live="polite" className="sr-only" data-testid="multiplayer-copy-announcement">
+        {copyState === "copied"
+          ? t("multiplayer_link_copied")
+          : copyState === "failed"
+            ? t("multiplayer_copy_failed")
+            : ""}
+      </span>
     </section>
   );
 }

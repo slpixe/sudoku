@@ -1,6 +1,5 @@
 import type {RoomAction, RoomBoard, RoomSnapshot} from "@sudoku/multiplayer-protocol";
 import * as React from "react";
-import {useTranslation} from "react-i18next";
 
 import {Container} from "src/components/Layout";
 import {GameStateMachine} from "src/context/GameContext";
@@ -13,7 +12,7 @@ import type {UseMultiplayerRoomResult} from "src/lib/multiplayer/useMultiplayerR
 import {GameTimer} from "./GameTimer";
 import {GameView} from "./GameView";
 import {MultiplayerCompletionPanel} from "./MultiplayerCompletionPanel";
-import {MultiplayerStatus} from "./MultiplayerStatus";
+import {type CopyState, MultiplayerStatus} from "./MultiplayerStatus";
 
 const noop = () => {};
 
@@ -57,7 +56,6 @@ export interface MultiplayerGameControllerProps {
 }
 
 export function MultiplayerGameController({room, roomCode, onNewGame, onRetry}: MultiplayerGameControllerProps) {
-  const {t} = useTranslation();
   const {
     state: preferences,
     toggleShowConflicts,
@@ -68,7 +66,8 @@ export function MultiplayerGameController({room, roomCode, onNewGame, onRetry}: 
   const [showMenu, setShowMenu] = React.useState(false);
   const [notesMode, setNotesMode] = React.useState(false);
   const [clipboardNotes, setClipboardNotes] = React.useState<number[] | null>(null);
-  const [copyMessage, setCopyMessage] = React.useState<string | null>(null);
+  const [copyState, setCopyState] = React.useState<CopyState>("idle");
+  const copyResetTimerRef = React.useRef<number | null>(null);
   const announceActiveCell = room.announceActiveCell;
   const confirmed = room.confirmed;
   const blocked = room.status !== "connected" || room.error !== null;
@@ -106,22 +105,41 @@ export function MultiplayerGameController({room, roomCode, onNewGame, onRetry}: 
     [blocked, cells, send],
   );
 
+  const showCopyState = React.useCallback((nextState: Exclude<CopyState, "idle">) => {
+    if (copyResetTimerRef.current !== null) {
+      window.clearTimeout(copyResetTimerRef.current);
+    }
+    setCopyState(nextState);
+    copyResetTimerRef.current = window.setTimeout(() => {
+      setCopyState("idle");
+      copyResetTimerRef.current = null;
+    }, 2_000);
+  }, []);
+
+  React.useEffect(
+    () => () => {
+      if (copyResetTimerRef.current !== null) {
+        window.clearTimeout(copyResetTimerRef.current);
+      }
+    },
+    [],
+  );
+
   const copyRoomLink = React.useCallback(async () => {
-    const url = window.location.href;
     try {
       if (!navigator.clipboard?.writeText) {
         throw new Error("Clipboard API unavailable");
       }
-      await navigator.clipboard.writeText(url);
-      setCopyMessage(t("multiplayer_link_copied"));
+      await navigator.clipboard.writeText(window.location.href);
+      showCopyState("copied");
     } catch {
-      setCopyMessage(t("multiplayer_copy_link_fallback", {url}));
+      showCopyState("failed");
     }
-  }, [t]);
+  }, [showCopyState]);
 
   const statusContent = (
     <MultiplayerStatus
-      copyMessage={copyMessage}
+      copyState={copyState}
       error={room.error}
       online={room.online}
       presence={room.presence}
@@ -136,7 +154,7 @@ export function MultiplayerGameController({room, roomCode, onNewGame, onRetry}: 
     return (
       <Container>
         <MultiplayerStatus
-          copyMessage={copyMessage}
+          copyState={copyState}
           error={room.error}
           online={room.online}
           presence={room.presence}
