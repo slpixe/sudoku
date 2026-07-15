@@ -11,6 +11,15 @@ permissions:
   pull-requests: write
 
 jobs:
+  multiplayer-image:
+    name: Build multiplayer image
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check out code
+      uses: actions/checkout@v4
+    - name: Build image without publishing
+      run: docker build -f server/Dockerfile -t sudoku-multiplayer:ci .
+
   test:
     runs-on: ubuntu-latest
     steps:

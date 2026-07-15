@@ -9,6 +9,24 @@
 
 This project is a React, TypeScript, Vite, and Tailwind Sudoku web app based on an upstream Sudoku app by TN1ck. It includes a Sudoku game UI, puzzle collections, solver/generator logic, local progress persistence, internationalization, PWA support, unit tests, and Playwright e2e coverage.
 
+# Multiplayer Architecture and Operations
+
+- Netlify continues to serve the static PWA at `https://sudoku.slpixe.com`; it connects directly to the Fly Socket.IO service at `https://multi.sudoku.slpixe.com`. Netlify does not proxy multiplayer traffic.
+- Production uses exactly one 512 MB Fly Machine in `lhr` and a pooled Neon Postgres `DATABASE_URL` in AWS London (`eu-west-2`). Presence, reconnect reservations, and per-room queues are process-local, so do not scale past one Machine until cross-instance Socket.IO fan-out, distributed presence/reservations, command serialization, and multi-instance tests exist.
+- `pnpm run deploy:multiplayer` is the required deployment entry point: it disables Fly HA creation and resets the app to one Machine. The release command runs `node server/dist/db/migrate.js` before the serving Machine is replaced. Do not add automated deployment or registry publishing to CI.
+- Production allows only the exact browser origin `https://sudoku.slpixe.com`. Configure `VITE_MULTIPLAYER_URL=https://multi.sudoku.slpixe.com` in Netlify's Production build context. Never commit or log `DATABASE_URL`.
+- Treat migrations as forward-only and use expand/contract changes. Take a Neon snapshot before schema releases; prefer a forward fix, and restore a database snapshot only as a last resort because it discards newer room activity.
+- `/health` reports process liveness, `/ready` checks Postgres, and `/metrics` exposes process-local aggregate operational counts. Logs and metrics must not contain database URLs, secrets, room codes, guest/connection IDs, snapshots, or command payloads.
+- The full production setup, DNS/certificate, monitoring, redaction, backup, rollback, and local runbook is in `docs/multiplayer-operations.md`.
+
+# Multiplayer Product Contracts
+
+- Multiplayer is guest-first: each browser profile keeps an opaque UUID in local storage under `sudoku-multiplayer-guest-id`; there are no accounts, names, or host privileges.
+- A room has two seats for two distinct guest IDs. Extra tabs in the same browser profile reuse that guest's seat. The final disconnect reserves the guest's seat for 60 seconds before a different guest may take it.
+- Values, notes, hint, room-wide undo, timer, pause/resume, completion, and confirmed Clear are authoritative shared state. Clear removes entered values and shared notes, resets timer/completion, resumes the room, and clears undo history; it is not undoable.
+- Active connections protect rooms from cleanup. Creation, join, accepted commands, and final disconnect refresh the 24-hour inactive TTL. Cleanup runs at startup and every 15 minutes.
+- Built-in puzzle files are the static multiplayer catalog. The collection, one-based line number, and 81-character givens line are the creation fingerprint. Never reorder, replace, or remove deployed lines; append only, and deploy frontend/backend with compatible catalogs.
+
 # Current Goals
 
 - Refactor the codebase to make it easier to maintain and extend.
@@ -34,6 +52,8 @@ This project is a React, TypeScript, Vite, and Tailwind Sudoku web app based on 
 - `pnpm-workspace.yaml` currently approves `esbuild` builds with `allowBuilds: esbuild: true`; keep it with the lockfile and Docker install layer.
 - pnpm's strict dependency layout exposed previously hoisted imports. Prefer explicit direct dependencies and imports from declared packages, for example `lodash-es/*` instead of undeclared `lodash`.
 - The current baseline checks after the pnpm migration are `pnpm run typecheck`, `pnpm run lint`, `pnpm test`, and `pnpm build`; include `pnpm run test:e2e` before reporting full checks passed for app behavior changes.
+- Multiplayer changes additionally require `pnpm run test:e2e:multiplayer`; the dedicated suite starts an isolated frontend and real Socket.IO backend using the in-memory room repository on worktree-derived ports.
+- Verify the production backend image with `docker build -f server/Dockerfile -t sudoku-multiplayer:verify .` when a local container engine is running. If it is unavailable, record that limitation and rely on the non-publishing CI image-build job; never claim a local pass.
 - Docker uses Node 24 and Corepack. If testing Docker locally, the container engine must be running; this workspace may report Docker through Podman.
 - `pnpm-workspace.yaml` includes targeted security `overrides` for vulnerable transitive dependency ranges; review them during dependency upgrades and remove any that upstream packages no longer need.
 
@@ -43,6 +63,7 @@ This project is a React, TypeScript, Vite, and Tailwind Sudoku web app based on 
 - Before starting a dev or preview server for browser/manual checks, check whether the user already has one running, commonly at `http://localhost:3000`, and reuse it when possible.
 - Do not start a second Vite server on `5173` or another fallback port unless the user asks for it or the existing server is unavailable for the task; if a temporary server is necessary, stop it when finished.
 - The exception is `pnpm run test:e2e`, which intentionally starts an isolated preview server on port `4179` through Playwright.
+- `pnpm run test:e2e:multiplayer` intentionally starts a disposable in-memory/Socket.IO backend with `RECONNECT_GRACE_SECONDS=1` and an isolated preview frontend on separate worktree-derived ports with `reuseExistingServer` disabled. The accelerated test harness accepts a reconnect grace no greater than 5 seconds; production remains 60 seconds.
 - After implementing a user-visible feature in a worktree, ask whether the user wants that worktree started on a host-mode web server for manual review before merge/push/cleanup.
 - For a non-default manual-review port, prefer `pnpm exec vite --host 0.0.0.0 --port <port> --strictPort` from the target worktree. Do not rely on extra args passing through `pnpm start`.
 - Verify manual-review servers with both `lsof -nP -iTCP:<port> -sTCP:LISTEN` and `curl -I --max-time 5 http://127.0.0.1:<port>/`; report the Vite network URL for phone/tablet testing.
@@ -55,6 +76,7 @@ This project is a React, TypeScript, Vite, and Tailwind Sudoku web app based on 
 - For Playwright UI visual review, report the Playwright UI URL and app server URL, then let the user decide whether to open the UI. Do not repeatedly open or restart Playwright UI when one may already be open unless the user asks.
 - When running Playwright UI for workspace-specific visual review, use distinct Playwright UI and app ports so multiple workspaces can run side by side.
 - Run `pnpm run test:e2e` after changes that affect routing, game interactions, persistence, puzzle selection, sharing, or other user-visible app flows.
+- Run both `pnpm run test:e2e` and `pnpm run test:e2e:multiplayer` after changes to online selection, room routing, guest identity, shared gameplay, reconnect behavior, presence, server persistence, protocol, or multiplayer deployment configuration.
 - Local artifact directories such as `.worktrees/` and `.pnpm-store/` can affect repo-wide commands. If `pnpm run lint` or `pnpm test` reports failures from those paths, first check tool ignore/discovery config before treating the output as a feature regression.
 - `eslint.config.js` ignores `.worktrees/**` and `.pnpm-store/**`; keep that coverage if lint config is refactored. Vitest may still discover tests in those local artifact paths, so use or add explicit test exclude config if duplicate local test execution becomes noisy or slow.
 - For touch or multi-finger behavior, do not rely only on Playwright `click()`. Add pointer-event coverage for the relevant touch path, including secondary touches when the feature depends on more than one finger.

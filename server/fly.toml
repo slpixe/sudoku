@@ -32,6 +32,15 @@ primary_region = "lhr"
     protocol = "http"
     timeout = "2s"
 
+  # Readiness also verifies that the authoritative Postgres store is reachable.
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "15s"
+    method = "GET"
+    path = "/ready"
+    protocol = "http"
+    timeout = "2s"
+
 [[vm]]
   cpu_kind = "shared"
   cpus = 1
