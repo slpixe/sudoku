@@ -229,6 +229,11 @@ contract changes so the previous server image remains compatible during the
 rollback window. Never edit an applied migration, delete a
 `schema_migrations` row, or run an improvised down migration in production.
 
+Migration `002_timer_started.sql` deliberately retains compatibility triggers
+for writes from the pre-migration server during the Fly release-command and
+rollback windows. Remove them only in a later numbered contract migration,
+after that older server image can no longer receive production writes.
+
 For an application regression with a compatible database, find the preceding
 image and redeploy it while retaining one Machine:
 

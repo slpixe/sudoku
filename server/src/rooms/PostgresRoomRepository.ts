@@ -44,11 +44,37 @@ async function loadRoom(executor: QueryExecutor, code: string, now: Date, forUpd
 function mutationHelpers(tx: QueryExecutor, roomId: string, now: Date): RoomMutationHelpers {
   return {
     async getProcessedCommand(commandId: string): Promise<RoomEvent | null> {
-      const result = await tx.query<{event: unknown}>(
-        "SELECT event FROM processed_commands WHERE room_id = $1 AND command_id = $2",
+      const result = await tx.query<{event: unknown; inferred_timer_started: boolean}>(
+        `SELECT
+           target.event,
+           CASE
+             WHEN decisive.action_type = 'clear' THEN false
+             WHEN decisive.action_type IS NOT NULL THEN true
+             ELSE false
+           END AS inferred_timer_started
+         FROM processed_commands AS target
+         LEFT JOIN LATERAL (
+           SELECT history.event -> 'action' ->> 'type' AS action_type
+           FROM processed_commands AS history
+           WHERE history.room_id = target.room_id
+             AND history.revision <= target.revision
+             AND history.event -> 'action' ->> 'type'
+               IN ('setNumber', 'setNotes', 'clearCell', 'hint', 'clear')
+           ORDER BY history.revision DESC, history.command_id DESC
+           LIMIT 1
+         ) AS decisive ON true
+         WHERE target.room_id = $1 AND target.command_id = $2`,
         [roomId, commandId],
       );
-      return result.rowCount === 0 ? null : mapRoomEvent(result.rows[0].event);
+      if (result.rowCount === 0) {
+        return null;
+      }
+      const {event, inferred_timer_started: inferredTimerStarted} = result.rows[0];
+      const compatibleEvent =
+        typeof event === "object" && event !== null && !Array.isArray(event) && !("timerStarted" in event)
+          ? {...event, timerStarted: inferredTimerStarted}
+          : event;
+      return mapRoomEvent(compatibleEvent);
     },
     async recordCommand(commandId: string, event: RoomEvent): Promise<void> {
       await tx.query(

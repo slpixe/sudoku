@@ -4,6 +4,7 @@ import type {Database, QueryExecutor, QueryResult} from "../db/Database.js";
 
 interface PgliteQueryExecutor {
   query<Row>(text: string, values?: unknown[]): Promise<{rows: Row[]; affectedRows?: number}>;
+  exec(text: string): Promise<unknown>;
 }
 
 function executor(database: PgliteQueryExecutor): QueryExecutor {
@@ -12,8 +13,11 @@ function executor(database: PgliteQueryExecutor): QueryExecutor {
       const result = await database.query<Row>(text, values.length === 0 ? undefined : [...values]);
       return {
         rows: result.rows,
-        rowCount: result.rows.length > 0 ? result.rows.length : (result.affectedRows ?? 0),
+        rowCount: result.rows.length > 0 ? result.rows.length : result.affectedRows ?? 0,
       };
+    },
+    async executeScript(text: string): Promise<void> {
+      await database.exec(text);
     },
   };
 }
@@ -27,6 +31,10 @@ export class PgliteDatabase implements Database {
 
   async query<Row>(text: string, values: readonly unknown[] = []): Promise<QueryResult<Row>> {
     return executor(this.#database).query<Row>(text, values);
+  }
+
+  async executeScript(text: string): Promise<void> {
+    await this.#database.exec(text);
   }
 
   async transaction<T>(work: (tx: QueryExecutor) => Promise<T>): Promise<T> {

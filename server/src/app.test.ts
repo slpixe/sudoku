@@ -32,6 +32,7 @@ function createTestContext(): TestContext {
   const metrics = new MultiplayerMetrics();
   const database: Database = {
     query: vi.fn(),
+    executeScript: vi.fn(),
     transaction: vi.fn(),
     close: vi.fn().mockResolvedValue(undefined),
   };
@@ -69,10 +70,7 @@ async function request(app: MultiplayerApp, path: string): Promise<{body: unknow
       },
     };
 
-    Reflect.apply(handler, app.httpServer, [
-      {method: "GET", url: path},
-      response as unknown as ServerResponse,
-    ]);
+    Reflect.apply(handler, app.httpServer, [{method: "GET", url: path}, response as unknown as ServerResponse]);
   });
 }
 

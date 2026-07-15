@@ -29,18 +29,16 @@ describe("PgDatabase", () => {
     const {pool, query, release} = fakePool();
     const database = new PgDatabase(pool as never);
 
-    await expect(database.transaction(async (tx) => {
-      await tx.query("UPDATE rooms SET revision = $1", [1]);
-      return "committed";
-    })).resolves.toBe("committed");
+    await expect(
+      database.transaction(async (tx) => {
+        await tx.query("UPDATE rooms SET revision = $1", [1]);
+        return "committed";
+      }),
+    ).resolves.toBe("committed");
 
     expect(pool.connect).toHaveBeenCalledOnce();
     expect(pool.query).not.toHaveBeenCalled();
-    expect(query.mock.calls.map(([text]) => text)).toEqual([
-      "BEGIN",
-      "UPDATE rooms SET revision = $1",
-      "COMMIT",
-    ]);
+    expect(query.mock.calls.map(([text]) => text)).toEqual(["BEGIN", "UPDATE rooms SET revision = $1", "COMMIT"]);
     expect(release).toHaveBeenCalledOnce();
   });
 
@@ -48,12 +46,26 @@ describe("PgDatabase", () => {
     const {pool, query, release} = fakePool();
     const database = new PgDatabase(pool as never);
 
-    await expect(database.transaction(async (tx) => {
-      await tx.query("DELETE FROM rooms");
-      throw new Error("write failed");
-    })).rejects.toThrow("write failed");
+    await expect(
+      database.transaction(async (tx) => {
+        await tx.query("DELETE FROM rooms");
+        throw new Error("write failed");
+      }),
+    ).rejects.toThrow("write failed");
 
     expect(query.mock.calls.map(([text]) => text)).toEqual(["BEGIN", "DELETE FROM rooms", "ROLLBACK"]);
     expect(release).toHaveBeenCalledOnce();
+  });
+
+  it("executes a complete migration script without splitting function bodies", async () => {
+    const {pool, query} = fakePool();
+    const database = new PgDatabase(pool as never);
+    const script = "CREATE FUNCTION example() RETURNS void AS $$ BEGIN PERFORM 1; END; $$ LANGUAGE plpgsql;";
+
+    await database.transaction(async (tx) => {
+      await tx.executeScript(script);
+    });
+
+    expect(query.mock.calls.map(([text]) => text)).toEqual(["BEGIN", script, "COMMIT"]);
   });
 });

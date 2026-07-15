@@ -162,28 +162,7 @@ export function mapRoomRow(
 }
 
 export function mapRoomEvent(value: unknown): RoomEvent {
-  if (typeof value !== "object" || value === null || Array.isArray(value) || "timerStarted" in value) {
-    return roomEventSchema.parse(value);
-  }
-
-  const legacy = value as Record<string, unknown>;
-  const action =
-    typeof legacy.action === "object" && legacy.action !== null && "type" in legacy.action
-      ? (legacy.action as {type?: unknown}).type
-      : undefined;
-  const timerStarted =
-    action !== "clear" &&
-    (legacy.status === "completed" ||
-      typeof legacy.runningSince === "number" ||
-      (typeof legacy.elapsedMs === "number" && legacy.elapsedMs > 0) ||
-      legacy.canUndo === true ||
-      action === "setNumber" ||
-      action === "setNotes" ||
-      action === "clearCell" ||
-      action === "hint" ||
-      action === "undo");
-
-  return roomEventSchema.parse({...legacy, timerStarted});
+  return roomEventSchema.parse(value);
 }
 
 export function mapUndoEntry(value: unknown): UndoEntry {

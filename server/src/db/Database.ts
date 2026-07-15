@@ -5,6 +5,7 @@ export interface QueryResult<Row> {
 
 export interface QueryExecutor {
   query<Row>(text: string, values?: readonly unknown[]): Promise<QueryResult<Row>>;
+  executeScript(text: string): Promise<void>;
 }
 
 export interface Database extends QueryExecutor {

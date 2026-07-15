@@ -55,6 +55,9 @@ export function readTestServerOptions(environment: Environment = process.env): T
 function createDisposableDatabase(): Database {
   return {
     async close(): Promise<void> {},
+    async executeScript(): Promise<void> {
+      throw new Error("The disposable multiplayer server does not execute database scripts");
+    },
     async query<Row>(): Promise<QueryResult<Row>> {
       throw new Error("The disposable multiplayer server does not use database queries");
     },

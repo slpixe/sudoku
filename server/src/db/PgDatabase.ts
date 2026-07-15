@@ -20,6 +20,9 @@ function queryExecutor(client: PoolClient): QueryExecutor {
     async query<Row>(text: string, values: readonly unknown[] = []): Promise<QueryResult<Row>> {
       return normalizeResult<Row>(await client.query(text, values.length === 0 ? undefined : [...values]));
     },
+    async executeScript(text: string): Promise<void> {
+      await client.query(text);
+    },
   };
 }
 
@@ -27,13 +30,18 @@ export class PgDatabase implements Database {
   readonly #pool: PoolLike;
 
   constructor(connection: string | PoolConfig | PoolLike) {
-    this.#pool = typeof connection === "string" || !("connect" in connection) ? new Pool(
-      typeof connection === "string" ? {connectionString: connection} : connection,
-    ) : connection;
+    this.#pool =
+      typeof connection === "string" || !("connect" in connection)
+        ? new Pool(typeof connection === "string" ? {connectionString: connection} : connection)
+        : connection;
   }
 
   async query<Row>(text: string, values: readonly unknown[] = []): Promise<QueryResult<Row>> {
     return normalizeResult<Row>(await this.#pool.query(text, values.length === 0 ? undefined : [...values]));
+  }
+
+  async executeScript(text: string): Promise<void> {
+    await this.#pool.query(text);
   }
 
   async transaction<T>(work: (tx: QueryExecutor) => Promise<T>): Promise<T> {

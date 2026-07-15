@@ -124,26 +124,55 @@ describe("PostgresRoomRepository", () => {
     expect(inverse).toEqual({cells: [{cellIndex: 1, value: 0, notes: []}]});
   });
 
-  it("recovers legacy command receipts created before timerStarted was persisted", async () => {
+  it("recovers a legacy ambiguous receipt from ordered decisive command history", async () => {
     await repository.create({id: roomId, snapshot: createSnapshot(), now});
-    await repository.mutate("ABC234", now, async (room, helpers) => {
-      room.revision = 1;
-      room.timerStarted = true;
-      room.runningSince = now.getTime();
-      await helpers.recordCommand(commandId, createEvent(room));
-      return room;
-    });
+    const started = createSnapshot({revision: 1, timerStarted: true, runningSince: now.getTime(), canUndo: true});
+    const events: RoomEvent[] = [
+      createEvent(started),
+      {
+        ...createEvent(started),
+        commandId: "123e4567-e89b-42d3-a456-426614174002",
+        action: {type: "undo"},
+        revision: 2,
+        canUndo: false,
+      },
+      {
+        ...createEvent(started),
+        commandId: "123e4567-e89b-42d3-a456-426614174003",
+        action: {type: "pause"},
+        revision: 3,
+        status: "paused",
+        runningSince: null,
+        canUndo: false,
+      },
+    ];
+    for (const event of events) {
+      await database.query(
+        `INSERT INTO processed_commands (room_id, command_id, revision, event, created_at)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [roomId, event.commandId, event.revision, JSON.stringify(event), now],
+      );
+    }
+    const ambiguousCommandId = events[2].commandId;
     await database.query("UPDATE processed_commands SET event = event - 'timerStarted' WHERE command_id = $1", [
-      commandId,
+      ambiguousCommandId,
     ]);
 
     let receipt: RoomEvent | null = null;
     await repository.mutate("ABC234", now, async (room, helpers) => {
-      receipt = await helpers.getProcessedCommand(commandId);
+      receipt = await helpers.getProcessedCommand(ambiguousCommandId);
       return room;
     });
 
-    expect(receipt).toMatchObject({commandId, timerStarted: true, runningSince: now.getTime()});
+    expect(receipt).toMatchObject({
+      commandId: ambiguousCommandId,
+      action: {type: "pause"},
+      status: "paused",
+      timerStarted: true,
+      elapsedMs: 0,
+      runningSince: null,
+      canUndo: false,
+    });
   });
 
   it("rolls back every mutation write when work fails", async () => {

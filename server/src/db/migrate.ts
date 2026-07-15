@@ -25,9 +25,9 @@ export async function runMigrations(database: Database, directory = migrationsDi
         return;
       }
 
-      for (const statement of sql.split(";").map((part) => part.trim()).filter(Boolean)) {
-        await tx.query(statement);
-      }
+      // A migration is one PostgreSQL script. Splitting on semicolons corrupts
+      // PL/pgSQL function bodies and quoted strings.
+      await tx.executeScript(sql);
       await tx.query("INSERT INTO schema_migrations (name, applied_at) VALUES ($1, $2)", [name, new Date()]);
     });
   }
