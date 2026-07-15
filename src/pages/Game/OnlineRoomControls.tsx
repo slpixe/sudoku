@@ -53,6 +53,14 @@ export function OnlineRoomControls({
   const {t} = useTranslation();
   const [roomCode, setRoomCode] = React.useState(() => initialRoomCode.toUpperCase());
   const [invalidCode, setInvalidCode] = React.useState(false);
+  const roomCodeInputRef = React.useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    const finePointer = typeof window.matchMedia !== "function" || window.matchMedia("(pointer: fine)").matches;
+    if (mode === "join-online" && finePointer) {
+      roomCodeInputRef.current?.focus();
+    }
+  }, [mode]);
 
   const submitRoomCode = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -88,39 +96,49 @@ export function OnlineRoomControls({
       {!online ? <p className="mt-3 text-amber-200">{t("multiplayer_online_required")}</p> : null}
 
       {mode === "join-online" ? (
-        <form className="mt-6 max-w-md" onSubmit={submitRoomCode}>
-          <label className="mb-2 block text-sm font-medium text-white" htmlFor="multiplayer-room-code">
+        <form
+          className="mx-auto mt-6 flex max-w-sm flex-col items-center text-center"
+          data-testid="join-room-form"
+          onSubmit={submitRoomCode}
+        >
+          <h2 className="text-lg font-semibold text-white">{t("select_mode_join_online")}</h2>
+          <p className="mt-1 text-sm text-gray-300">{t("multiplayer_join_description")}</p>
+          <label className="mt-4 block text-sm font-medium text-white" htmlFor="multiplayer-room-code">
             {t("multiplayer_room_code")}
           </label>
-          <div className="flex gap-2">
-            <input
-              aria-invalid={invalidCode}
-              autoCapitalize="characters"
-              autoComplete="off"
-              className="min-w-0 flex-1 rounded-sm border border-gray-400 bg-white px-3 py-2 font-mono uppercase text-gray-900 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-300"
-              disabled={!online || creating}
-              id="multiplayer-room-code"
-              maxLength={6}
-              onChange={(event) => {
-                setRoomCode(event.target.value.toUpperCase());
-                setInvalidCode(false);
-              }}
-              placeholder="ABC234"
-              value={roomCode}
-            />
-            <Button className="bg-teal-600 text-white dark:bg-teal-600" disabled={!online || creating} type="submit">
-              {t("multiplayer_join")}
-            </Button>
-          </div>
+          <input
+            ref={roomCodeInputRef}
+            aria-invalid={invalidCode}
+            autoCapitalize="characters"
+            autoComplete="off"
+            className="mt-2 w-full max-w-xs rounded-sm border border-gray-400 bg-white px-3 py-2 text-center font-mono uppercase text-gray-900 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-300"
+            disabled={!online || creating}
+            id="multiplayer-room-code"
+            maxLength={6}
+            onChange={(event) => {
+              setRoomCode(event.target.value.toUpperCase());
+              setInvalidCode(false);
+            }}
+            placeholder="ABC234"
+            value={roomCode}
+          />
+          <Button className="mt-3 bg-teal-600 text-white dark:bg-teal-600" disabled={!online || creating} type="submit">
+            {t("multiplayer_join_room")}
+          </Button>
           {invalidCode ? (
             <p className="mt-2 text-sm text-red-300" role="alert">
               {t("multiplayer_invalid_room_code")}
             </p>
           ) : null}
+          {error ? (
+            <p className="mt-3 text-sm text-red-300" role="alert">
+              {error}
+            </p>
+          ) : null}
         </form>
       ) : null}
 
-      {error ? (
+      {error && mode !== "join-online" ? (
         <p className="mt-3 text-sm text-red-300" role="alert">
           {error}
         </p>
