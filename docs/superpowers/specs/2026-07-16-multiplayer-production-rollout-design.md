@@ -12,6 +12,26 @@ Roll out the merged guest-first multiplayer service to Neon, Fly.io, Cloudflare 
 - Neon hosts PostgreSQL in AWS London (`eu-west-2`) using project `sudoku-multiplayer`.
 - The initial Fly deployment remains exactly one shared-CPU, 512 MB Machine.
 
+## Fly build-path correction
+
+The first deployment attempt stopped before building because the Dockerfile
+path in `server/fly.toml` was written as `server/Dockerfile`. Fly resolves that
+setting relative to the directory containing the selected configuration file,
+so it looked for the nonexistent `server/server/Dockerfile`.
+
+Keep `server/fly.toml` in place and set its build Dockerfile to `Dockerfile`.
+This resolves to the checked-in `server/Dockerfile` while preserving the
+repository root as the Docker build context required by the monorepo `COPY`
+instructions. Do not move the Fly configuration, change the build context, or
+duplicate the Dockerfile path in the deployment command.
+
+Extend the deployment-configuration test to read the configured Dockerfile
+path, resolve it relative to `server/fly.toml`, and assert that the resulting
+file exists. The correction changes only build-file discovery; topology,
+runtime image contents, migrations, secrets, and the deployment wrapper remain
+unchanged. After focused tests and independent review pass, retry the same
+`pnpm run deploy:multiplayer` command.
+
 ## Neon and secrets
 
 The Neon project uses its default production branch, database, and owner role. The pooled TLS connection URL, including `sslmode=require`, is used by both the running service and Fly's release-command migration runner.
