@@ -25,10 +25,12 @@
 ### Task 1: Align the Operations Runbook With the Approved Rollout
 
 **Files:**
+
 - Modify: `docs/multiplayer-operations.md`
 - Test: `server/src/deploymentConfig.test.ts`
 
 **Interfaces:**
+
 - Consumes: approved rollout design at `docs/superpowers/specs/2026-07-16-multiplayer-production-rollout-design.md`.
 - Produces: a credential-safe operator runbook using Fly organization `personal`, Fly Secrets only, and the local domains repository workflow.
 
@@ -122,11 +124,13 @@ git commit -m "docs: finalize multiplayer production runbook"
 ### Task 2: Create and Secure the Fly Application
 
 **Files:**
+
 - Read: `server/fly.toml`
 - Read: `server/Dockerfile`
 - Append after successful checks: `.superpowers/deployments/multiplayer-production-report.md`
 
 **Interfaces:**
+
 - Consumes: authenticated Fly account `slpixe@gmail.com`, organization `personal`, and the private pooled Neon URL held by the operator.
 - Produces: undeployed Fly app `sudoku-multiplayer` with validated configuration and staged secret name `DATABASE_URL`; no secret value enters the report.
 
@@ -183,10 +187,12 @@ Create `.superpowers/deployments/multiplayer-production-report.md` and record th
 ### Task 3: Establish the Fly Certificate and Apply DNS
 
 **Files:**
+
 - Modify in separate repository: `/Users/slpixe/web/me/domains/main.tf`
 - Append: `.superpowers/deployments/multiplayer-production-report.md`
 
 **Interfaces:**
+
 - Consumes: Fly app from Task 2 and exact DNS/IP records returned by Fly.
 - Produces: authoritative DNS records for `multi.sudoku.slpixe.com`, a completed GitLab OpenTofu pipeline, and a valid Fly certificate.
 
@@ -258,9 +264,94 @@ Expected: public DNS matches Fly's records and Fly reports a valid certificate. 
 
 ---
 
+### Task 4A: Correct Fly Dockerfile Resolution
+
+**Files:**
+
+- Modify: `server/fly.toml`
+- Test: `server/src/deploymentConfig.test.ts`
+
+**Interfaces:**
+
+- Consumes: the repository-root build context and `server/Dockerfile` monorepo image definition.
+- Produces: a Fly build configuration whose Dockerfile path resolves relative to `server/fly.toml` while retaining the repository root as build context.
+
+- [ ] **Step 1: Add a failing configured-path regression test**
+
+Add this test to `server/src/deploymentConfig.test.ts`:
+
+```ts
+it("resolves the configured Dockerfile relative to fly.toml", async () => {
+  const flyConfigPath = path.join(repositoryRoot, "server/fly.toml");
+  const flyConfig = await readFile(flyConfigPath, "utf8");
+  const configuredDockerfile = flyConfig.match(/^\s*dockerfile\s*=\s*"([^"]+)"/m)?.[1];
+
+  expect(configuredDockerfile).toBe("Dockerfile");
+
+  const dockerfilePath = path.resolve(path.dirname(flyConfigPath), configuredDockerfile ?? "");
+  await expect(readFile(dockerfilePath, "utf8")).resolves.toContain("FROM node:${NODE_VERSION}");
+});
+```
+
+- [ ] **Step 2: Run the focused test and confirm RED**
+
+Run:
+
+```bash
+pnpm --filter @sudoku/multiplayer-server exec vitest run src/deploymentConfig.test.ts
+```
+
+Expected: the new test fails because the configured value is
+`server/Dockerfile`, and resolving it from `server/fly.toml` produces the
+missing path `server/server/Dockerfile`.
+
+- [ ] **Step 3: Apply the minimal Fly configuration correction**
+
+Change only the build path in `server/fly.toml`:
+
+```toml
+[build]
+  dockerfile = "Dockerfile"
+```
+
+Do not move `server/fly.toml`, change the build context, modify the Dockerfile,
+or add a duplicate `--dockerfile` flag to the deployment wrapper.
+
+- [ ] **Step 4: Run focused and static checks**
+
+Run:
+
+```bash
+pnpm --filter @sudoku/multiplayer-server exec vitest run src/deploymentConfig.test.ts
+pnpm exec prettier --check server/src/deploymentConfig.test.ts
+fly config validate --strict --config server/fly.toml
+git diff --check
+```
+
+Expected: all deployment-configuration tests pass, the TypeScript test is
+formatted, Fly validates the configuration, and the diff has no whitespace
+errors.
+
+- [ ] **Step 5: Commit the correction**
+
+```bash
+git add server/fly.toml server/src/deploymentConfig.test.ts
+git commit -m "fix: resolve Fly Dockerfile from config directory"
+```
+
+- [ ] **Step 6: Independently review before retrying deployment**
+
+The reviewer must confirm that `Dockerfile` resolves to the checked-in
+`server/Dockerfile`, the repository-root build context is unchanged, the test
+would fail for the prior `server/Dockerfile` value, and no topology, runtime,
+migration, secret, or provider setting changed.
+
+---
+
 ### Task 4: Deploy the Backend and Verify Neon Persistence
 
 **Files:**
+
 - Read: `package.json`
 - Read: `server/fly.toml`
 - Read: `server/migrations/001_multiplayer_rooms.sql`
@@ -268,6 +359,7 @@ Expected: public DNS matches Fly's records and Fly reports a valid certificate. 
 - Append: `.superpowers/deployments/multiplayer-production-report.md`
 
 **Interfaces:**
+
 - Consumes: staged `DATABASE_URL`, valid Fly certificate/DNS, and the checked-in container/migrations.
 - Produces: one healthy production Machine with migrated Neon schema and public HTTPS/WSS endpoints.
 
@@ -330,10 +422,12 @@ Append the image reference, release/migration result, Machine count/region/size,
 ### Task 5: Configure Netlify and Prove the Live Product
 
 **Files:**
+
 - Read: `src/lib/multiplayer/createMultiplayerSocket.ts`
 - Append: `.superpowers/deployments/multiplayer-production-report.md`
 
 **Interfaces:**
+
 - Consumes: healthy public Fly backend from Task 4 and the existing Netlify site `slpixe-sudoku` serving `sudoku.slpixe.com`.
 - Produces: a production frontend bundle using `https://multi.sudoku.slpixe.com` and verified live/offline flows.
 
@@ -376,10 +470,12 @@ Expected: Solo remains playable without a request to `multi.sudoku.slpixe.com`; 
 ### Task 6: Publish the Rollout Record and Close the Production Branch
 
 **Files:**
+
 - Create: `docs/deployments/2026-07-16-multiplayer-production.md`
 - Modify if commands changed during rollout: `docs/multiplayer-operations.md`
 
 **Interfaces:**
+
 - Consumes: sanitized non-secret report from Tasks 2-5.
 - Produces: durable deployment record, reviewed operations updates, and a clean GitHub PR for documentation changes.
 
