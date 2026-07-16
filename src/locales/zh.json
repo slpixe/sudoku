@@ -74,7 +74,7 @@
   "confirm_clear": "确定要重开这局吗？你的进度将会丢失。",
   "confirm_restart_finished": "确定吗？这会重新开始该数独并重置计时器，但仍会显示你已经解出过它。",
   "invalid_sudoku_url": "URL 中的数独无效。",
-  "select_sudoku": "选择数独 {{sudokuIndex}}",
+  "select_sudoku": "选择{{difficulty}}数独 {{puzzleLabel}}",
   "dialog_confirmation": "确认",
   "dialog_message": "消息",
   "dialog_ok": "确定",

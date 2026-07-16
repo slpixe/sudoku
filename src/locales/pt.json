@@ -74,7 +74,7 @@
   "confirm_clear": "Tem certeza de que deseja reiniciar este jogo? Seu progresso será perdido.",
   "confirm_restart_finished": "Tem certeza? Isso reiniciará o sudoku e zerará o cronômetro. Ele continuará indicando que você o resolveu.",
   "invalid_sudoku_url": "O sudoku no URL é inválido.",
-  "select_sudoku": "Selecionar sudoku {{sudokuIndex}}",
+  "select_sudoku": "Selecionar sudoku {{puzzleLabel}} de dificuldade {{difficulty}}",
   "dialog_confirmation": "Confirmação",
   "dialog_message": "Mensagem",
   "dialog_ok": "OK",

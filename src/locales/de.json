@@ -74,7 +74,7 @@
   "confirm_clear": "Sind Sie sicher, dass Sie dieses Spiel neu starten möchten? Ihr Fortschritt geht verloren.",
   "confirm_restart_finished": "Sind Sie sicher? Dadurch wird das Sudoku neu gestartet und der Timer zurückgesetzt. Es wird weiterhin angezeigt, dass Sie es gelöst haben.",
   "invalid_sudoku_url": "Das Sudoku in der URL ist ungültig.",
-  "select_sudoku": "Sudoku {{sudokuIndex}} auswählen",
+  "select_sudoku": "Sudoku {{puzzleLabel}} ({{difficulty}}) auswählen",
   "dialog_confirmation": "Bestätigung",
   "dialog_message": "Nachricht",
   "dialog_ok": "OK",

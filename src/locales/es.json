@@ -74,7 +74,7 @@
   "confirm_clear": "¿Estás seguro de que quieres reiniciar este juego? Tu progreso se perderá.",
   "confirm_restart_finished": "¿Estás seguro? Esto reiniciará el sudoku y restablecerá el temporizador. Seguirá indicando que ya lo resolviste.",
   "invalid_sudoku_url": "El sudoku de la URL no es válido.",
-  "select_sudoku": "Seleccionar sudoku {{sudokuIndex}}",
+  "select_sudoku": "Seleccionar sudoku {{puzzleLabel}} de dificultad {{difficulty}}",
   "dialog_confirmation": "Confirmación",
   "dialog_message": "Mensaje",
   "dialog_ok": "Aceptar",

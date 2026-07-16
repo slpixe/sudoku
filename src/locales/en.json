@@ -74,7 +74,7 @@
   "confirm_clear": "Are you sure you want to restart this game? Your progress will be lost.",
   "confirm_restart_finished": "Are you sure? This will restart the sudoku and reset the timer. It will continue to say that you solved it.",
   "invalid_sudoku_url": "The Sudoku in the URL is invalid.",
-  "select_sudoku": "Select sudoku {{sudokuIndex}}",
+  "select_sudoku": "Select {{difficulty}} puzzle {{puzzleLabel}}",
   "dialog_confirmation": "Confirmation",
   "dialog_message": "Message",
   "dialog_ok": "OK",

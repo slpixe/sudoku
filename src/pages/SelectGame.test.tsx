@@ -157,7 +157,9 @@ describe("SelectGame", () => {
 
     expect(screen.getByTestId("select-game-collection-custom-one")).toBeTruthy();
     expect(screen.getByTestId("select-game-card-status-1")).toBeTruthy();
+    expect(screen.getByTestId("sudoku-preview-number-1").textContent).toBe("E-1");
     await user.click(screen.getByTestId("select-game-collection-custom-one"));
+    expect(screen.getByTestId("sudoku-preview-number-1").textContent).toBe("1");
 
     await user.click(screen.getByRole("button", {name: "select_mode_create_online"}));
 
