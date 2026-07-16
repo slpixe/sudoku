@@ -199,7 +199,7 @@ fly ips allocate --app sudoku-multiplayer
 fly ips list --json --app sudoku-multiplayer
 ```
 
-Expected: Fly allocates its recommended shared IPv4 and public IPv6 addresses and returns them as public JSON. Record those exact addresses in the deployment report.
+Expected: Fly allocates its recommended public ingress addresses and returns them as public JSON. Record each exact address and type in the deployment report.
 
 - [ ] **Step 2: Request the certificate and exact DNS instructions**
 
@@ -228,20 +228,7 @@ Expected: clean `main` aligned with `origin/main`. Stop if unrelated local edits
 
 Edit `main.tf` with resource labels `multi-sudoku-a`, `multi-sudoku-aaaa`, and, only when Fly requests it, `acme-challenge-multi-sudoku`.
 
-For each address record use:
-
-```hcl
-resource "cloudflare_record" "multi-sudoku-aaaa" {
-  name    = "multi.sudoku"
-  type    = "AAAA"
-  content = "the exact IPv6 address printed by fly ips list"
-  proxied = false
-  ttl     = 1
-  zone_id = "5c01c1924037fcc91c4e6389d992f8d1"
-}
-```
-
-Use the equivalent `A` resource only when Fly lists an IPv4 address. If Fly requests validation, use its exact record name, CNAME target, and the same `proxied = false`, `ttl = 1`, and zone ID. Do not add guessed records.
+Every created `cloudflare_record` must use zone ID `5c01c1924037fcc91c4e6389d992f8d1`, `proxied = false`, and `ttl = 1`. The address resources use `name = "multi.sudoku"`; `multi-sudoku-a` uses `type = "A"` only when Fly returned an IPv4 address, and `multi-sudoku-aaaa` uses `type = "AAAA"` only when Fly returned an IPv6 address. Set each `content` field to the literal public address copied from the Task 3 Step 1 JSON before applying the patch. If Fly requests validation, use its literal record name, type, and target under resource label `acme-challenge-multi-sudoku`. The controller must inspect the final HCL diff and reject any descriptive text, shell variable, placeholder, or guessed record value before commit.
 
 - [ ] **Step 5: Validate, commit, and push the small DNS change**
 
@@ -410,10 +397,10 @@ Record:
 Run a secret scan before staging:
 
 ```bash
-rg -n "postgres(ql)?://|DATABASE_URL=|FLY_API_TOKEN|NETLIFY_AUTH_TOKEN" docs/deployments docs/multiplayer-operations.md
+rg -n "postgres(ql)?://|FLY_API_TOKEN=|NETLIFY_AUTH_TOKEN=" docs/deployments/2026-07-16-multiplayer-production.md
 ```
 
-Expected: no secret value or token assignment is present. The literal variable name `DATABASE_URL` may appear only without a value.
+Expected: no database URL or token assignment is present. The literal variable name `DATABASE_URL` may appear only without a value.
 
 - [ ] **Step 2: Run final repository checks**
 
