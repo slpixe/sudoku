@@ -2,7 +2,7 @@ app = "sudoku-multiplayer"
 primary_region = "lhr"
 
 [build]
-  dockerfile = "server/Dockerfile"
+  dockerfile = "Dockerfile"
 
 [env]
   NODE_ENV = "production"

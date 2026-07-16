@@ -10,6 +10,17 @@ async function readRepositoryFile(relativePath: string): Promise<string> {
 }
 
 describe("multiplayer deployment configuration", () => {
+  it("resolves the configured Dockerfile relative to fly.toml", async () => {
+    const flyConfigPath = path.join(repositoryRoot, "server/fly.toml");
+    const flyConfig = await readFile(flyConfigPath, "utf8");
+    const configuredDockerfile = flyConfig.match(/^\s*dockerfile\s*=\s*"([^"]+)"/m)?.[1];
+
+    expect(configuredDockerfile).toBe("Dockerfile");
+
+    const dockerfilePath = path.resolve(path.dirname(flyConfigPath), configuredDockerfile ?? "");
+    await expect(readFile(dockerfilePath, "utf8")).resolves.toContain("FROM node:${NODE_VERSION}");
+  });
+
   it("runs production and release processes directly with Node", async () => {
     const [dockerfile, flyConfig] = await Promise.all([
       readRepositoryFile("server/Dockerfile"),
