@@ -35,6 +35,29 @@ it("renders the compact room status with in-button copy feedback", () => {
   expect(screen.queryByText(/https?:\/\//)).toBeNull();
 });
 
+it("scopes polite atomic live semantics to the connected presence count", () => {
+  render(
+    <MultiplayerStatus
+      copyState="idle"
+      error={null}
+      online
+      presence={2}
+      roomCode="ABC234"
+      status="connected"
+      onCopyLink={vi.fn()}
+      onRetry={vi.fn()}
+    />,
+  );
+
+  const presenceStatus = screen.getByLabelText("multiplayer_connected_count:2");
+  expect(presenceStatus.getAttribute("role")).toBe("status");
+  expect(presenceStatus.getAttribute("aria-live")).toBe("polite");
+  expect(presenceStatus.getAttribute("aria-atomic")).toBe("true");
+  expect(presenceStatus.textContent).toBe("multiplayer_presence_fraction:2");
+  expect(screen.getAllByRole("status")).toEqual([presenceStatus]);
+  expect(presenceStatus.parentElement?.closest('[aria-live], [role="status"]')).toBeNull();
+});
+
 it("scopes live connection status to the recovery row", () => {
   render(
     <MultiplayerStatus
@@ -49,6 +72,15 @@ it("scopes live connection status to the recovery row", () => {
     />,
   );
 
-  expect(screen.getByRole("status").textContent).toContain("multiplayer_online_required");
-  expect(screen.getByTestId("multiplayer-copy-announcement").closest('[role="status"]')).toBeNull();
+  const presenceStatus = screen.getByLabelText("multiplayer_connected_count:1");
+  const recoveryMessage = screen.getByText("multiplayer_online_required");
+  const recoveryStatus = recoveryMessage.closest('[role="status"]');
+  const copyAnnouncement = screen.getByTestId("multiplayer-copy-announcement");
+
+  expect(recoveryStatus).not.toBeNull();
+  expect(recoveryStatus).not.toBe(presenceStatus);
+  expect(recoveryStatus?.contains(presenceStatus)).toBe(false);
+  expect(recoveryStatus?.contains(copyAnnouncement)).toBe(false);
+  expect(copyAnnouncement.closest('[role="status"]')).toBeNull();
+  expect(recoveryStatus?.parentElement?.closest('[aria-live], [role="status"]')).toBeNull();
 });

@@ -51,6 +51,7 @@
   "select_new_sudoku": "选择新数独",
   "collection_finished": "恭喜！你已完成合集“{{collection}}”。请选择新的数独继续。",
   "sudoku": "Sudoku",
+  "sudoku_other_player_selected": "另一位玩家已选择",
   "erase_btn": "擦除",
   "undo_btn": "撤销",
   "note_btn": "笔记",

@@ -18,6 +18,9 @@ import {ShortcutScope} from "./shortcuts/ShortcutScope";
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string, values?: {count?: number; roomCode?: string; url?: string}) => {
+      if (key === "sudoku_other_player_selected") {
+        return "other player selected";
+      }
       if (values?.url !== undefined) {
         return `${key}:${values.url}`;
       }
@@ -245,7 +248,7 @@ describe("MultiplayerGameController", () => {
     const {onRetry} = renderController(room);
 
     expect(screen.getByTestId("sudoku-cell-value-0-0").textContent).toBe("7");
-    expect(screen.getByRole("status").textContent).toContain("multiplayer_reconnecting");
+    expect(screen.getByText("multiplayer_reconnecting").closest('[role="status"]')).not.toBeNull();
     await user.click(screen.getByTestId("sudoku-cell-0-0"));
     await user.click(screen.getByTestId("sudoku-number-4"));
     await user.click(screen.getByRole("button", {name: "multiplayer_retry"}));
@@ -273,7 +276,7 @@ describe("MultiplayerGameController", () => {
   it("shows the online-required message and no retry action for an offline room link", () => {
     renderController(createRoom({online: false, status: "disconnected"}));
 
-    expect(screen.getByRole("status").textContent).toContain("multiplayer_online_required");
+    expect(screen.getByText("multiplayer_online_required").closest('[role="status"]')).not.toBeNull();
     expect(screen.queryByRole("button", {name: "multiplayer_retry"})).toBeNull();
   });
 

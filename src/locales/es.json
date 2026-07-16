@@ -51,6 +51,7 @@
   "select_new_sudoku": "Seleccionar nuevo sudoku",
   "collection_finished": "¡Felicidades! Llegaste al final de la colección \"{{collection}}\". Selecciona un nuevo sudoku para jugar.",
   "sudoku": "Sudoku",
+  "sudoku_other_player_selected": "seleccionada por el otro jugador",
   "erase_btn": "Borrar",
   "undo_btn": "Deshacer",
   "note_btn": "Notas",

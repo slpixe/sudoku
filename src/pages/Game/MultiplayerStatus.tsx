@@ -75,7 +75,12 @@ export function MultiplayerStatus({
           className={`h-2 w-2 rounded-full ${online && status === "connected" && error === null ? "bg-emerald-400" : "bg-amber-400"}`}
           data-testid="multiplayer-presence-dot"
         />
-        <span aria-label={t("multiplayer_connected_count", {count: presence})}>
+        <span
+          aria-atomic="true"
+          aria-label={t("multiplayer_connected_count", {count: presence})}
+          aria-live="polite"
+          role="status"
+        >
           {t("multiplayer_presence_fraction", {count: presence})}
         </span>
         <Button
