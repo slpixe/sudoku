@@ -107,7 +107,6 @@ generates all DNS target values; never guess or copy them from another app:
 fly certs add multi.sudoku.slpixe.com --app sudoku-multiplayer
 fly certs setup multi.sudoku.slpixe.com --app sudoku-multiplayer
 fly ips list --app sudoku-multiplayer
-fly certs check multi.sudoku.slpixe.com --app sudoku-multiplayer
 ```
 
 The authoritative DNS configuration lives at
@@ -127,8 +126,13 @@ git push origin main
 ```
 
 The push triggers the existing GitLab OpenTofu CI workflow. Wait for that
-pipeline to finish successfully before checking public DNS. Then wait until
-`fly certs check` reports valid DNS and certificate state.
+pipeline to finish successfully before checking public DNS. Then run:
+
+```bash
+fly certs check multi.sudoku.slpixe.com --app sudoku-multiplayer
+```
+
+Do not continue until Fly reports valid DNS and certificate state.
 
 Create a Neon snapshot, then deploy through the checked-in single-instance
 wrapper:

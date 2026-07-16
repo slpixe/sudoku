@@ -30,6 +30,14 @@ describe("multiplayer deployment configuration", () => {
     ]);
     const packageJson = JSON.parse(packageContents) as {scripts?: Record<string, string>};
     const deploymentCommand = packageJson.scripts?.["deploy:multiplayer"];
+    const flyDnsSetupIndex = operations.indexOf("fly certs setup multi.sudoku.slpixe.com --app sudoku-multiplayer");
+    const flyIpLookupIndex = operations.indexOf("fly ips list --app sudoku-multiplayer");
+    const domainsFileIndex = operations.indexOf("/Users/slpixe/web/me/domains/main.tf");
+    const domainsPushIndex = operations.indexOf("git push origin main");
+    const openTofuSuccessIndex = operations.indexOf("pipeline to finish successfully");
+    const certificateCheckIndex = operations.indexOf(
+      "fly certs check multi.sudoku.slpixe.com --app sudoku-multiplayer",
+    );
 
     expect(deploymentCommand).toContain("fly deploy --ha=false --config server/fly.toml");
     expect(deploymentCommand).toContain("fly scale count 1 --config server/fly.toml");
@@ -39,6 +47,12 @@ describe("multiplayer deployment configuration", () => {
     expect(operations).toContain("fly apps create sudoku-multiplayer --org personal");
     expect(operations).toContain("/Users/slpixe/web/me/domains/main.tf");
     expect(operations).toContain("git push origin main");
+    expect(operations).toContain("GitLab OpenTofu CI workflow");
+    expect(flyIpLookupIndex).toBeGreaterThan(flyDnsSetupIndex);
+    expect(domainsFileIndex).toBeGreaterThan(flyIpLookupIndex);
+    expect(domainsPushIndex).toBeGreaterThan(domainsFileIndex);
+    expect(openTofuSuccessIndex).toBeGreaterThan(domainsPushIndex);
+    expect(certificateCheckIndex).toBeGreaterThan(openTofuSuccessIndex);
     expect(operations).not.toContain("op read");
     expect(operations).not.toContain("<FLY_ORGANIZATION>");
     expect(workflow).not.toContain("deploy:multiplayer");
