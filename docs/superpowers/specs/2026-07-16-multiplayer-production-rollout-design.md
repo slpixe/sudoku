@@ -34,7 +34,18 @@ unchanged. After focused tests and independent review pass, retry the same
 
 ## Neon and secrets
 
-The Neon project uses its default production branch, database, and owner role. The pooled TLS connection URL, including `sslmode=require`, is used by both the running service and Fly's release-command migration runner.
+The initial rollout design allows the Neon project's default production
+branch, database, and owner role to reduce first-release moving parts. This is
+a historical rollout allowance, not the canonical recommendation for future
+deployments or recreations. The canonical operations runbook recommends a
+dedicated least-privilege application role. The runtime and Fly release-command
+migration runner still share one role; separate runtime and migration roles
+remain out of scope. The pooled TLS connection URL, including
+`sslmode=require`, is used by both processes.
+
+The exact role name selected during the production rollout was not preserved in
+the durable deployment evidence, so the production record does not infer
+whether the initial allowance was used.
 
 Fly Secrets is the only production secret store in this rollout. There is no BWS, 1Password, or runtime secret-fetch integration. The Neon URL is entered through a non-echoing operator flow and imported as the staged Fly secret `DATABASE_URL`; it must never be committed, written to a project `.env` file, pasted into chat, or printed in command output. Netlify never receives database credentials.
 

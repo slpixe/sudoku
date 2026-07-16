@@ -16,6 +16,11 @@ private tokens, connection strings, and raw room payloads.
   default `neondb` database. Use of a pooled Transport Layer Security (TLS)
   connection was confirmed. A recovery snapshot was confirmed before the first
   backend deployment.
+- The exact production Neon role name was not recorded. This record therefore
+  does not infer whether the rollout used the default owner role allowed by the
+  initial plan or a dedicated application role. Future deployments and
+  recreations should follow the canonical runbook and use one dedicated
+  least-privilege application role shared by the runtime and migration runner.
 - Fly application `sudoku-multiplayer` belongs to the `personal` organization
   and runs in London (`lhr`). Its serving topology is exactly one shared-CPU
   Machine with 1 CPU and 512 MB of memory.
@@ -100,6 +105,8 @@ second Chrome profile and represented the second and third guests. Every
 synchronized action was still rendered and checked in Chrome. No rollback was
 required.
 
-The operator commands and production facts remain consistent with
-[`docs/multiplayer-operations.md`](../multiplayer-operations.md), so the runbook
-did not require a rollout-specific amendment.
+The recorded operator commands and production facts remain consistent with
+[`docs/multiplayer-operations.md`](../multiplayer-operations.md), apart from the
+explicitly documented role-name evidence gap. The runbook's dedicated-role
+guidance is the canonical recommendation for future setup; it is not a claim
+about the unrecorded production role name.

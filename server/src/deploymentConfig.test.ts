@@ -1,4 +1,5 @@
 import {readFile} from "node:fs/promises";
+import {spawnSync} from "node:child_process";
 import {fileURLToPath} from "node:url";
 import path from "node:path";
 import {describe, expect, it} from "vitest";
@@ -7,6 +8,40 @@ const repositoryRoot = fileURLToPath(new URL("../../", import.meta.url));
 
 async function readRepositoryFile(relativePath: string): Promise<string> {
   return readFile(path.join(repositoryRoot, relativePath), "utf8");
+}
+
+function expectSecretEntryBlockToRunWithBash(document: string): void {
+  const bashBlocks = [...document.matchAll(/```bash\n([\s\S]*?)\n```/g)].map((match) => match[1]);
+  const secretEntryBlock = bashBlocks.find((block) =>
+    block.includes("fly secrets import --stage --app sudoku-multiplayer"),
+  );
+  const fixtureUrl = ["postgresql", "://", "deployment-test-pooler.invalid/neondb?sslmode=require"].join("");
+
+  expect(secretEntryBlock).toBeDefined();
+
+  const result = spawnSync(
+    "bash",
+    [
+      "-c",
+      `set -e
+fly() {
+  if [[ "$1 $2" == "secrets import" ]]; then
+    IFS= read -r imported_secret
+    [[ "$imported_secret" == "DATABASE_URL=$EXPECTED_DATABASE_URL" ]]
+  fi
+}
+${secretEntryBlock ?? ""}
+[[ -z \${DATABASE_URL+x} ]]
+`,
+    ],
+    {
+      encoding: "utf8",
+      env: {...process.env, EXPECTED_DATABASE_URL: fixtureUrl},
+      input: `${fixtureUrl}\n`,
+    },
+  );
+
+  expect(result.status, result.stderr).toBe(0);
 }
 
 describe("multiplayer deployment configuration", () => {
@@ -41,8 +76,13 @@ describe("multiplayer deployment configuration", () => {
     ]);
     const packageJson = JSON.parse(packageContents) as {scripts?: Record<string, string>};
     const deploymentCommand = packageJson.scripts?.["deploy:multiplayer"];
+    const flyAppCreationIndex = operations.indexOf("fly apps create sudoku-multiplayer --org personal");
+    const flyIpAllocationIndex = operations.indexOf("fly ips allocate --app sudoku-multiplayer");
+    const flyIpJsonLookupIndex = operations.indexOf("fly ips list --json --app sudoku-multiplayer");
+    const flyCertificateCreationIndex = operations.indexOf(
+      "fly certs add multi.sudoku.slpixe.com --app sudoku-multiplayer",
+    );
     const flyDnsSetupIndex = operations.indexOf("fly certs setup multi.sudoku.slpixe.com --app sudoku-multiplayer");
-    const flyIpLookupIndex = operations.indexOf("fly ips list --app sudoku-multiplayer");
     const domainsFileIndex = operations.indexOf("/Users/slpixe/web/me/domains/main.tf");
     const domainsPushIndex = operations.indexOf("git push origin main");
     const openTofuSuccessIndex = operations.indexOf("pipeline to finish successfully");
@@ -59,13 +99,26 @@ describe("multiplayer deployment configuration", () => {
     expect(operations).toContain("/Users/slpixe/web/me/domains/main.tf");
     expect(operations).toContain("git push origin main");
     expect(operations).toContain("GitLab OpenTofu CI workflow");
-    expect(flyIpLookupIndex).toBeGreaterThan(flyDnsSetupIndex);
-    expect(domainsFileIndex).toBeGreaterThan(flyIpLookupIndex);
+    expect(flyIpAllocationIndex).toBeGreaterThan(flyAppCreationIndex);
+    expect(flyIpJsonLookupIndex).toBeGreaterThan(flyIpAllocationIndex);
+    expect(flyCertificateCreationIndex).toBeGreaterThan(flyIpJsonLookupIndex);
+    expect(flyDnsSetupIndex).toBeGreaterThan(flyCertificateCreationIndex);
+    expect(domainsFileIndex).toBeGreaterThan(flyDnsSetupIndex);
     expect(domainsPushIndex).toBeGreaterThan(domainsFileIndex);
     expect(openTofuSuccessIndex).toBeGreaterThan(domainsPushIndex);
     expect(certificateCheckIndex).toBeGreaterThan(openTofuSuccessIndex);
     expect(operations).not.toContain("op read");
     expect(operations).not.toContain("<FLY_ORGANIZATION>");
     expect(workflow).not.toContain("deploy:multiplayer");
+  });
+
+  it("uses hidden secret-entry blocks that execute successfully with Bash", async () => {
+    const [operations, rolloutPlan] = await Promise.all([
+      readRepositoryFile("docs/multiplayer-operations.md"),
+      readRepositoryFile("docs/superpowers/plans/2026-07-16-multiplayer-production-rollout.md"),
+    ]);
+
+    expectSecretEntryBlockToRunWithBash(operations);
+    expectSecretEntryBlockToRunWithBash(rolloutPlan);
   });
 });

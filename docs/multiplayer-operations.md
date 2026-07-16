@@ -44,6 +44,13 @@ count until those pieces and multi-instance tests exist.
    Neon snapshot (or verified point-in-time restore point) and confirm its
    retention covers the rollout window.
 
+The dedicated least-privilege application role is the canonical choice for
+future deployments and recreations. The initial 2026-07-16 rollout plan allowed
+Neon's default owner role to reduce first-release moving parts, but that
+historical allowance is not the recommendation for future setup. The runtime
+and migration runner currently share the application role; splitting them into
+separate roles remains a future hardening option.
+
 The application and the migration runner both use `DATABASE_URL`. The checked-
 in runner uses ordinary SQL transactions and does not depend on session state,
 so this project uses the pooled connection string for the Fly runtime and its
@@ -72,8 +79,9 @@ fly config validate --strict --config server/fly.toml
 (
   set -e
   set +x
-  read -r -s "DATABASE_URL?Paste the pooled Neon DATABASE_URL: "
-  printf '\n'
+  printf '%s' "Paste the pooled Neon DATABASE_URL: " >&2
+  IFS= read -r -s DATABASE_URL
+  printf '\n' >&2
   case "$DATABASE_URL" in
     postgres://*|postgresql://*) ;;
     *) printf '%s\n' "Expected a PostgreSQL URL" >&2; exit 1 ;;
@@ -88,11 +96,12 @@ fly config validate --strict --config server/fly.toml
 fly secrets list --app sudoku-multiplayer
 ```
 
-The prompt does not echo the database URL. `fly secrets import` reads the
-`NAME=value` record from standard input, so the URL is never a process argument
-or history entry, and `--stage` prevents secret configuration from causing an
-early deployment. Fly reports the secret name, not its value; still keep xtrace
-disabled until the variable has been unset.
+The Bash-compatible prompt also works in Zsh and does not echo the database
+URL. `fly secrets import` reads the `NAME=value` record from standard input, so
+the URL is never a process argument or history entry, and `--stage` prevents
+secret configuration from causing an early deployment. Fly reports the secret
+name, not its value; still keep xtrace disabled until the variable has been
+unset.
 
 `server/fly.toml` fixes the primary region to `lhr`, the service port to 8080,
 the VM to one shared CPU and 512 MB, the inactive-room TTL to 24 hours, the
@@ -100,20 +109,22 @@ reconnect reservation to 60 seconds, and the only production browser origin to
 `https://sudoku.slpixe.com`. Keep production origins exact; do not add `*` or
 preview/local origins to the production app.
 
-Attach the public hostname and follow Fly's generated DNS instructions. Fly
-generates all DNS target values; never guess or copy them from another app:
+Allocate Fly's recommended public addresses before requesting the certificate,
+then attach the public hostname and follow Fly's generated DNS instructions.
+Fly generates all DNS target values; never guess or copy them from another app:
 
 ```bash
+fly ips allocate --app sudoku-multiplayer
+fly ips list --json --app sudoku-multiplayer
 fly certs add multi.sudoku.slpixe.com --app sudoku-multiplayer
 fly certs setup multi.sudoku.slpixe.com --app sudoku-multiplayer
-fly ips list --app sudoku-multiplayer
 ```
 
 The authoritative DNS configuration lives at
 `/Users/slpixe/web/me/domains/main.tf`. Add only the exact A, AAAA, or validation
-records printed for this app by `fly certs setup` and `fly ips list`, initially
-with Cloudflare proxying disabled and automatic TTL. Commit that focused change
-directly to `main`, then push it:
+records printed for this app by `fly certs setup` and `fly ips list --json`,
+initially with Cloudflare proxying disabled and automatic TTL. Commit that
+focused change directly to `main`, then push it:
 
 ```bash
 cd /Users/slpixe/web/me/domains

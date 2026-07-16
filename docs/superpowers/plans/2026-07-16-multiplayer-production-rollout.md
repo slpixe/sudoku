@@ -12,7 +12,12 @@
 
 - The public PWA remains `https://sudoku.slpixe.com`; the multiplayer service is `https://multi.sudoku.slpixe.com`.
 - Fly app `sudoku-multiplayer` runs in organization `personal`, region `lhr`, with exactly one shared-CPU 512 MB Machine.
-- Neon project `sudoku-multiplayer` stays in AWS London `eu-west-2` and uses its default production branch, database, and owner role.
+- Neon project `sudoku-multiplayer` stays in AWS London `eu-west-2`. The initial
+  rollout may use its default production branch, database, and owner role to
+  reduce first-release moving parts; this is a historical rollout allowance,
+  not the canonical recommendation for future recreations. The canonical
+  runbook uses one dedicated least-privilege application role shared by the
+  runtime and migration runner.
 - The pooled Neon URL must contain a `-pooler` hostname and `sslmode=require`.
 - Fly Secrets is the only production secret store. Do not use BWS, 1Password, `.env`, GitHub secrets, Netlify, documentation, chat, or command arguments for `DATABASE_URL`.
 - The DNS repository change is committed directly to `main` and pushed so its existing GitLab OpenTofu pipeline validates and applies it.
@@ -82,8 +87,9 @@ Use this non-echoing secret block verbatim:
 (
   set -e
   set +x
-  read -r -s "DATABASE_URL?Paste the pooled Neon DATABASE_URL: "
-  printf '\n'
+  printf '%s' "Paste the pooled Neon DATABASE_URL: " >&2
+  IFS= read -r -s DATABASE_URL
+  printf '\n' >&2
   case "$DATABASE_URL" in
     postgres://*|postgresql://*) ;;
     *) printf '%s\n' "Expected a PostgreSQL URL" >&2; exit 1 ;;
