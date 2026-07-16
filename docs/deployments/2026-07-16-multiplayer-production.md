@@ -1,4 +1,4 @@
-# Multiplayer production rollout — 2026-07-16
+# Multiplayer production rollout: 2026-07-16
 
 The multiplayer service was released to production on 16 July 2026. This
 record contains only non-secret operational evidence. It deliberately omits
@@ -7,13 +7,15 @@ private tokens, connection strings, and raw room payloads.
 
 ## Production topology
 
-- The static PWA remains at <https://sudoku.slpixe.com> on Netlify and connects
-  directly to the Socket.IO service at
+- The static Progressive Web App (PWA) remains at
+  <https://sudoku.slpixe.com> on Netlify and connects directly to the Socket.IO
+  service at
   <https://multi.sudoku.slpixe.com>. Netlify does not proxy multiplayer
   traffic.
 - Neon project `sudoku-multiplayer` is in AWS London (`eu-west-2`) and uses the
-  default `neondb` database. Use of a pooled TLS connection was confirmed. A
-  recovery snapshot was confirmed before the first backend deployment.
+  default `neondb` database. Use of a pooled Transport Layer Security (TLS)
+  connection was confirmed. A recovery snapshot was confirmed before the first
+  backend deployment.
 - Fly application `sudoku-multiplayer` belongs to the `personal` organization
   and runs in London (`lhr`). Its serving topology is exactly one shared-CPU
   Machine with 1 CPU and 512 MB of memory.
