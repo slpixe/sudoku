@@ -9,9 +9,10 @@ proxy WebSocket traffic.
 
 No production resources are created by this repository. The commands below
 are an operator runbook. Angle-bracketed placeholders identify non-secret
-values such as the Fly organization or an image reference. Production secrets
-must be read from an approved secret manager using the non-echoing flow below;
-never paste them into a command line, shell history, file, or transcript.
+values such as an image reference. Fly Secrets is the sole production secret
+store for this rollout. Enter production secrets only through the non-echoing
+flow below; never paste them into a command line, shell history, file, or
+transcript.
 
 ## Why production must have one Fly Machine
 
@@ -36,12 +37,19 @@ count until those pieces and multi-instance tests exist.
 3. In **Connect**, enable connection pooling and copy the TLS connection
    string. A pooled Neon hostname contains `-pooler`; retain its
    `sslmode=require` query parameter.
-4. Store the value in an approved secret manager as the production
-   `DATABASE_URL`. Do not put it in `.env`, Fly configuration, CI output,
-   documentation, screenshots, or shell transcripts.
+4. Keep the value available only long enough to enter it into the hidden prompt
+   in the Fly setup below. Do not put it in `.env`, Fly configuration, another
+   secret manager, CI output, documentation, screenshots, or shell transcripts.
 5. Before the first release and every schema-changing release, create a named
    Neon snapshot (or verified point-in-time restore point) and confirm its
    retention covers the rollout window.
+
+The dedicated least-privilege application role is the canonical choice for
+future deployments and recreations. The initial 2026-07-16 rollout plan allowed
+Neon's default owner role to reduce first-release moving parts, but that
+historical allowance is not the recommendation for future setup. The runtime
+and migration runner currently share the application role; splitting them into
+separate roles remains a future hardening option.
 
 The application and the migration runner both use `DATABASE_URL`. The checked-
 in runner uses ordinary SQL transactions and does not depend on session state,
@@ -49,30 +57,9 @@ so this project uses the pooled connection string for the Fly runtime and its
 release command.
 
 Migrations are sorted from `server/migrations`, recorded in
-`schema_migrations`, and applied once per file inside a transaction. Build the
-runner, then load the connection string directly from the approved secret
-manager into an exported environment variable. The example below uses the
-1Password CLI; use the equivalent non-echoing read command for the deployed
-secret manager. Do not enable shell xtrace (`set -x`) around secret handling.
-The subshell and cleanup trap prevent the value from surviving the operation:
-
-```bash
-pnpm --filter @sudoku/multiplayer-server build
-(
-  set -e
-  set +x
-  export DATABASE_URL="$(op read 'op://Production/Sudoku Neon/DATABASE_URL')"
-  trap 'unset DATABASE_URL' EXIT HUP INT TERM
-  test -n "$DATABASE_URL"
-  pnpm --filter @sudoku/multiplayer-server migrate
-  unset DATABASE_URL
-  trap - EXIT HUP INT TERM
-)
-```
-
-That manual command is for a controlled connectivity check or recovery. The
-normal production path is the Fly release command already declared in
-`server/fly.toml`:
+`schema_migrations`, and applied once per file inside a transaction. The normal
+and only first-release migration path is the Fly release command already
+declared in `server/fly.toml`:
 
 ```text
 node server/dist/db/migrate.js
@@ -87,26 +74,34 @@ Install and authenticate `flyctl`, then run these commands from the repository
 root. Creating the app does not deploy it:
 
 ```bash
-fly apps create sudoku-multiplayer --org '<FLY_ORGANIZATION>'
+fly apps create sudoku-multiplayer --org personal
 fly config validate --strict --config server/fly.toml
 (
   set -e
   set +x
-  export DATABASE_URL="$(op read 'op://Production/Sudoku Neon/DATABASE_URL')"
-  trap 'unset DATABASE_URL' EXIT HUP INT TERM
-  test -n "$DATABASE_URL"
+  printf '%s' "Paste the pooled Neon DATABASE_URL: " >&2
+  IFS= read -r -s DATABASE_URL
+  printf '\n' >&2
+  case "$DATABASE_URL" in
+    postgres://*|postgresql://*) ;;
+    *) printf '%s\n' "Expected a PostgreSQL URL" >&2; exit 1 ;;
+  esac
+  case "$DATABASE_URL" in
+    *-pooler*sslmode=require*) ;;
+    *) printf '%s\n' "Expected the pooled Neon URL with sslmode=require" >&2; exit 1 ;;
+  esac
   printf '%s\n' "DATABASE_URL=$DATABASE_URL" | fly secrets import --stage --app sudoku-multiplayer
   unset DATABASE_URL
-  trap - EXIT HUP INT TERM
 )
 fly secrets list --app sudoku-multiplayer
 ```
 
-`fly secrets import` reads the `NAME=value` record from standard input. The
-database URL is never a process argument or history entry, and `--stage`
-prevents secret configuration from causing an early deployment. Fly reports
-the secret name, not its value; still keep xtrace disabled until the variable
-has been unset.
+The Bash-compatible prompt also works in Zsh and does not echo the database
+URL. `fly secrets import` reads the `NAME=value` record from standard input, so
+the URL is never a process argument or history entry, and `--stage` prevents
+secret configuration from causing an early deployment. Fly reports the secret
+name, not its value; still keep xtrace disabled until the variable has been
+unset.
 
 `server/fly.toml` fixes the primary region to `lhr`, the service port to 8080,
 the VM to one shared CPU and 512 MB, the inactive-room TTL to 24 hours, the
@@ -114,19 +109,41 @@ reconnect reservation to 60 seconds, and the only production browser origin to
 `https://sudoku.slpixe.com`. Keep production origins exact; do not add `*` or
 preview/local origins to the production app.
 
-Attach the public hostname and follow Fly's generated DNS instructions rather
-than guessing record values:
+Allocate Fly's recommended public addresses before requesting the certificate,
+then attach the public hostname and follow Fly's generated DNS instructions.
+Fly generates all DNS target values; never guess or copy them from another app:
 
 ```bash
+fly ips allocate --app sudoku-multiplayer
+fly ips list --json --app sudoku-multiplayer
 fly certs add multi.sudoku.slpixe.com --app sudoku-multiplayer
 fly certs setup multi.sudoku.slpixe.com --app sudoku-multiplayer
-fly ips list --app sudoku-multiplayer
+```
+
+The authoritative DNS configuration lives at
+`/Users/slpixe/web/me/domains/main.tf`. Add only the exact A, AAAA, or validation
+records printed for this app by `fly certs setup` and `fly ips list --json`,
+initially with Cloudflare proxying disabled and automatic TTL. Commit that
+focused change directly to `main`, then push it:
+
+```bash
+cd /Users/slpixe/web/me/domains
+git switch main
+git status --short --branch
+git diff -- main.tf
+git add main.tf
+git commit -m "dns: add sudoku multiplayer records"
+git push origin main
+```
+
+The push triggers the existing GitLab OpenTofu CI workflow. Wait for that
+pipeline to finish successfully before checking public DNS. Then run:
+
+```bash
 fly certs check multi.sudoku.slpixe.com --app sudoku-multiplayer
 ```
 
-Add the exact A/AAAA or validation records printed by `fly certs setup` at the
-authoritative DNS provider. Wait until `fly certs check` reports valid DNS and
-certificate state.
+Do not continue until Fly reports valid DNS and certificate state.
 
 Create a Neon snapshot, then deploy through the checked-in single-instance
 wrapper:
