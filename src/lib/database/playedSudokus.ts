@@ -5,10 +5,6 @@ import type {Cell} from "src/lib/engine/types";
 import {stringifySudoku, cellsToSimpleSudoku} from "src/lib/engine/utility";
 
 const STORAGE_PLAYED_SUDOKU_PREFIX = "sudoku-played-";
-const LEGACY_BASE_COLLECTION_IDS: Readonly<Record<string, string>> = {
-  expert: "fiendish",
-  evil: "diabolical",
-};
 
 export interface StoredPlayedSudokuState {
   game: GameState;
@@ -16,7 +12,14 @@ export interface StoredPlayedSudokuState {
 }
 
 function normalizeStoredCollectionId(collectionId: string): string {
-  return LEGACY_BASE_COLLECTION_IDS[collectionId] ?? collectionId;
+  switch (collectionId) {
+    case "expert":
+      return "fiendish";
+    case "evil":
+      return "diabolical";
+    default:
+      return collectionId;
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -158,6 +158,23 @@ describe("localStoragePlayedSudokuRepository", () => {
     expect(localStoragePlayedSudokuRepository.getSudokuState(sudokuKey)?.game.sudokuCollectionName).toBe(canonicalId);
   });
 
+  it.each(["constructor", "toString", "__proto__"])(
+    "preserves prototype-like custom collection name %s",
+    (collectionId) => {
+      const game = {...INITIAL_GAME_STATE, sudokuCollectionName: collectionId};
+      vi.stubGlobal(
+        "localStorage",
+        createLocalStorageMock({
+          [storageKey]: JSON.stringify({game, sudoku: INITIAL_SUDOKU_STATE.current}),
+        }),
+      );
+
+      expect(localStoragePlayedSudokuRepository.getSudokuState(sudokuKey)?.game.sudokuCollectionName).toBe(
+        collectionId,
+      );
+    },
+  );
+
   it("fails safely when current played sudoku storage contains corrupt JSON", () => {
     vi.stubGlobal("localStorage", createLocalStorageMock({[storageKey]: "{"}));
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
