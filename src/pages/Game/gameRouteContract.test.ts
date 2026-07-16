@@ -43,6 +43,24 @@ describe("game route contract", () => {
     });
   });
 
+  it.each([
+    {collectionKey: "collection", puzzleKey: "puzzle", collectionId: "expert"},
+    {collectionKey: "collection", puzzleKey: "puzzle", collectionId: "evil"},
+    {collectionKey: "sudokuCollectionName", puzzleKey: "sudokuIndex", collectionId: "expert"},
+    {collectionKey: "sudokuCollectionName", puzzleKey: "sudokuIndex", collectionId: "evil"},
+  ])(
+    "rejects retired $collectionId full-payload routes using $collectionKey",
+    ({collectionKey, puzzleKey, collectionId}) => {
+      expect(
+        parseGameRouteIntent({
+          [collectionKey]: collectionId,
+          [puzzleKey]: "1",
+          sudoku: "123",
+        }),
+      ).toEqual({kind: "invalid", forceRestart: false});
+    },
+  );
+
   it("parses full payload params without metadata as an exact custom puzzle", () => {
     expect(parseGameRouteIntent({sudoku: "123"})).toEqual({
       kind: "payload",

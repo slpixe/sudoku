@@ -20,6 +20,7 @@ export type GameRouteIntent =
 
 const EXACT_PAYLOAD_COLLECTION_ID = "custom";
 const EXACT_PAYLOAD_PUZZLE_NUMBER = 1;
+const RETIRED_COLLECTION_IDS = new Set(["expert", "evil"]);
 
 function stripWrappingQuotes(value: string) {
   if (value.startsWith('"') && value.endsWith('"')) {
@@ -85,6 +86,10 @@ export function parseGameRouteIntent(search: Record<string, unknown>, rawSearch?
   const hasCollection = collectionId !== undefined;
   const hasPuzzle = puzzleValue !== undefined;
   const hasPuzzleMetadata = hasCollection && puzzleNumber !== undefined;
+
+  if (collectionId && RETIRED_COLLECTION_IDS.has(collectionId)) {
+    return {kind: "invalid", forceRestart};
+  }
 
   if (sudoku !== undefined) {
     return {

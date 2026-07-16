@@ -26,6 +26,16 @@ function legacyGameUrl(sudoku = FIRST_PUZZLE, sudokuIndex = 1, sudokuCollectionN
   return `/#/?${params.toString()}`;
 }
 
+function fullPayloadGameUrl(sudoku = FIRST_PUZZLE, puzzle = 1, collection = "easy") {
+  const params = new URLSearchParams({
+    collection,
+    puzzle: String(puzzle),
+    sudoku,
+  });
+
+  return `/#/?${params.toString()}`;
+}
+
 function payloadGameUrl(sudoku: string) {
   const params = new URLSearchParams({sudoku});
   return `/#/?${params.toString()}`;
@@ -545,6 +555,26 @@ test("recovers safely from a retired Expert compact route", async ({page}) => {
   await page.getByTestId("app-dialog-confirm").click();
   await expect(page).not.toHaveURL(/collection=expert/);
 });
+
+for (const {routeName, url, retiredId} of [
+  {
+    routeName: "current full-payload params",
+    url: fullPayloadGameUrl(FIRST_PUZZLE, 1, "expert"),
+    retiredId: "expert",
+  },
+  {
+    routeName: "legacy full-payload params",
+    url: legacyGameUrl(FIRST_PUZZLE, 1, "evil"),
+    retiredId: "evil",
+  },
+]) {
+  test(`recovers safely from retired IDs in ${routeName}`, async ({page}) => {
+    await page.goto(url);
+    await expect(page.getByTestId("app-dialog-message")).toHaveText("The Sudoku in the URL is invalid.");
+    await page.getByTestId("app-dialog-confirm").click();
+    await expect(page).not.toHaveURL(new RegExp(`(?:collection|sudokuCollectionName)=${retiredId}`));
+  });
+}
 
 test("loads exact payload URLs without collection metadata", async ({page}) => {
   await page.goto(payloadGameUrl(CUSTOM_PUZZLE));
