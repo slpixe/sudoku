@@ -36,6 +36,11 @@ describe("multiplayer deployment configuration", () => {
     expect(flyConfig).toContain("pnpm run deploy:multiplayer");
     expect(flyConfig).toMatch(/\[deploy\][\s\S]*strategy = "immediate"/);
     expect(operations).toContain("Do not override the `immediate` deployment strategy");
+    expect(operations).toContain("fly apps create sudoku-multiplayer --org personal");
+    expect(operations).toContain("/Users/slpixe/web/me/domains/main.tf");
+    expect(operations).toContain("git push origin main");
+    expect(operations).not.toContain("op read");
+    expect(operations).not.toContain("<FLY_ORGANIZATION>");
     expect(workflow).not.toContain("deploy:multiplayer");
   });
 });
