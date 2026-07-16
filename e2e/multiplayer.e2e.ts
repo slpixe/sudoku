@@ -93,6 +93,17 @@ async function fillRemainingPuzzle(first: Page, second: Page): Promise<void> {
   }
 }
 
+test("creates a room from the renamed Fiendish catalog", async ({page}) => {
+  await page.goto("/#/select-game");
+  await page.getByRole("button", {name: "Create online room"}).click();
+  await page.getByTestId("select-game-collection-fiendish").click();
+  await page.getByTestId("select-game-card-1").click();
+
+  await expect(page.getByTestId("current-game-label")).toHaveText("F-1");
+  await expect(page.getByTestId("sudoku-board")).toBeVisible();
+  await expect(page.getByTestId("multiplayer-room-code")).toHaveText(/^[A-HJ-NP-Z2-9]{6}$/);
+});
+
 test("synchronizes the complete two-player room flow in both directions", async ({baseURL, browser}) => {
   if (!baseURL) {
     throw new Error("Playwright baseURL must be configured");

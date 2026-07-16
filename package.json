@@ -2,7 +2,7 @@
   "name": "sudoku",
   "version": "0.1.0",
   "type": "module",
-  "description": "Play over 3,000 Sudoku puzzles from easy to evil. Open source and free with no tracking.",
+  "description": "Play over 3,000 Sudoku puzzles across five difficulty levels. Open source and free with no tracking.",
   "license": "MIT",
   "packageManager": "pnpm@11.9.0",
   "engines": {

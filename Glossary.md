@@ -129,10 +129,18 @@ Current code words: `SelectGame`, `GameSelect`.
 
 ## Difficulty
 
-A group of games such as Easy, Medium, Hard, Expert, or Evil.
+A group of games in the Easy, Medium, Hard, Fiendish, or Diabolical ladder.
 
 Current code words: `Collection`, `BaseCollection`, `sudokuCollectionName`.
 Decision note: use Difficulty for the current product vocabulary. Collection remains useful as an internal/general code term.
+
+## Puzzle Code
+
+The stable, language-independent identifier for a built-in puzzle. It combines
+the difficulty prefix (`E`, `M`, `H`, `F`, or `D`) with the one-based puzzle
+number, for example `E-1`, `F-27`, or `D-500`.
+
+Current code words: `getBaseCollectionPuzzleCode`, `getSudokuPuzzleDisplayLabel`.
 
 ## Game
 

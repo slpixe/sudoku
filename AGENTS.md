@@ -17,6 +17,8 @@ This project is a React, TypeScript, Vite, and Tailwind Sudoku web app based on 
 - Production allows only the exact browser origin `https://sudoku.slpixe.com`. Configure `VITE_MULTIPLAYER_URL=https://multi.sudoku.slpixe.com` in Netlify's Production build context. Never commit or log `DATABASE_URL`.
 - Treat migrations as forward-only and use expand/contract changes. Take a Neon snapshot before schema releases; prefer a forward fix, and restore a database snapshot only as a last resort because it discards newer room activity.
 - Migration `002_timer_started.sql` intentionally keeps compatibility triggers for pre-migration server writes during release and rollback windows. Remove them only through a later numbered contract migration after that older image can no longer write.
+- Migration `003_difficulty_ids.sql` expands the room collection constraint for `expert`/`evil` compatibility and canonicalizes existing rows to `fiendish`/`diabolical`. New writes use only the canonical IDs; the old values remain allowed until a later contract migration.
+- Deploy the multiplayer backend before the updated frontend and take a Neon snapshot before the schema release.
 - `/health` reports process liveness, `/ready` checks Postgres, and `/metrics` exposes process-local aggregate operational counts. Logs and metrics must not contain database URLs, secrets, room codes, guest/connection IDs, snapshots, or command payloads.
 - The full production setup, DNS/certificate, monitoring, redaction, backup, rollback, and local runbook is in `docs/multiplayer-operations.md`.
 
@@ -91,7 +93,7 @@ This project is a React, TypeScript, Vite, and Tailwind Sudoku web app based on 
 
 # Sudoku Data Notes
 
-- Runtime puzzle collections are loaded from `sudokus/easy.txt`, `medium.txt`, `hard.txt`, `expert.txt`, and `evil.txt` using Vite raw imports.
+- Runtime puzzle collections are loaded from `sudokus/easy.txt`, `medium.txt`, `hard.txt`, `fiendish.txt`, and `diabolical.txt` using Vite raw imports. The top-difficulty file rename preserved every puzzle line and its order.
 - `scripts/generate_sudokus.ts` uses the local generator and appends directly usable puzzles to `sudokus/<difficulty>.txt`; review generated data before committing it.
 - `scripts/fetch_sudokus.ts` can fetch from WebSudoku or Sudoku.com, but writes intermediate root-level `sudokus-*.json` artifacts that are not loaded by the app.
 - TS scripts run through `scripts/register_ts_node.mjs` because this ESM project uses extensionless TypeScript imports.

@@ -84,7 +84,7 @@ async function insertLegacyRoom(
   );
 }
 
-describe("timer_started migration", () => {
+describe("multiplayer database migrations", () => {
   const databases: PgliteDatabase[] = [];
   const temporaryDirectories: string[] = [];
 
