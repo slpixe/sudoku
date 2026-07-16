@@ -12,7 +12,13 @@ const INVALID_GIVENS_SUDOKU = parseSudoku(
 
 describe("generate", () => {
   it("uses non-overlapping difficulty ranges", () => {
-    const difficulties = [DIFFICULTY.EASY, DIFFICULTY.MEDIUM, DIFFICULTY.HARD, DIFFICULTY.EXPERT, DIFFICULTY.EVIL];
+    const difficulties = [
+      DIFFICULTY.EASY,
+      DIFFICULTY.MEDIUM,
+      DIFFICULTY.HARD,
+      DIFFICULTY.FIENDISH,
+      DIFFICULTY.DIABOLICAL,
+    ];
 
     for (let i = 1; i < difficulties.length; i++) {
       const previousDifficulty = difficulties[i - 1];
@@ -35,7 +41,7 @@ describe("generate", () => {
 
   it("generates the difficult sudoku using a seed", () => {
     const randomFn = createSeededRandom(10);
-    const sudoku = generateSudoku(DIFFICULTY.EVIL, randomFn);
+    const sudoku = generateSudoku(DIFFICULTY.DIABOLICAL, randomFn);
     // Check if it is unique.
     expect(isSudokuUnique(sudoku.sudoku)).toBe(true);
     // Check if it can be solved.

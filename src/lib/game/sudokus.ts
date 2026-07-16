@@ -1,8 +1,8 @@
 import easySudokus from "../../../sudokus/easy.txt?raw";
 import mediumSudokus from "../../../sudokus/medium.txt?raw";
 import hardSudokus from "../../../sudokus/hard.txt?raw";
-import expertSudokus from "../../../sudokus/expert.txt?raw";
-import evilSudokus from "../../../sudokus/evil.txt?raw";
+import fiendishSudokus from "../../../sudokus/fiendish.txt?raw";
+import diabolicalSudokus from "../../../sudokus/diabolical.txt?raw";
 import {parseSudoku} from "src/lib/engine/utility";
 import {solve} from "src/lib/engine/solverAC3";
 import {useCallback, useState} from "react";
@@ -25,8 +25,8 @@ const BASE_SUDOKU_COLLECTIONS: Record<BaseCollection, string> = {
   [BaseCollection.Easy]: easySudokus,
   [BaseCollection.Medium]: mediumSudokus,
   [BaseCollection.Hard]: hardSudokus,
-  [BaseCollection.Expert]: expertSudokus,
-  [BaseCollection.Evil]: evilSudokus,
+  [BaseCollection.Fiendish]: fiendishSudokus,
+  [BaseCollection.Diabolical]: diabolicalSudokus,
 } as const;
 
 function getLineCount(collection: Collection): number {

@@ -32,8 +32,8 @@
     "generate-easy-sudokus": "pnpm run build:core && node --import ./scripts/register_ts_node.mjs --experimental-specifier-resolution=node ./scripts/generate_sudokus.ts -d easy -n 500",
     "generate-medium-sudokus": "pnpm run build:core && node --import ./scripts/register_ts_node.mjs --experimental-specifier-resolution=node ./scripts/generate_sudokus.ts -d medium -n 500",
     "generate-hard-sudokus": "pnpm run build:core && node --import ./scripts/register_ts_node.mjs --experimental-specifier-resolution=node ./scripts/generate_sudokus.ts -d hard -n 500",
-    "generate-expert-sudokus": "pnpm run build:core && node --import ./scripts/register_ts_node.mjs --experimental-specifier-resolution=node ./scripts/generate_sudokus.ts -d expert -n 500",
-    "generate-evil-sudokus": "pnpm run build:core && node --import ./scripts/register_ts_node.mjs --experimental-specifier-resolution=node ./scripts/generate_sudokus.ts -d evil -n 500"
+    "generate-fiendish-sudokus": "pnpm run build:core && node --import ./scripts/register_ts_node.mjs --experimental-specifier-resolution=node ./scripts/generate_sudokus.ts -d fiendish -n 500",
+    "generate-diabolical-sudokus": "pnpm run build:core && node --import ./scripts/register_ts_node.mjs --experimental-specifier-resolution=node ./scripts/generate_sudokus.ts -d diabolical -n 500"
   },
   "keywords": [
     "sudoku",

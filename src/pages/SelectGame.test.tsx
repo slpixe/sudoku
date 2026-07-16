@@ -164,7 +164,7 @@ describe("SelectGame", () => {
     expect(screen.queryByTestId("select-game-collection-custom-one")).toBeNull();
     expect(screen.queryByTestId("select-game-card-status-1")).toBeNull();
     expect(screen.getByTestId("select-game-collection-easy").className).toContain("bg-white");
-    for (const id of ["easy", "medium", "hard", "expert", "evil"]) {
+    for (const id of ["easy", "medium", "hard", "fiendish", "diabolical"]) {
       expect(screen.getByTestId(`select-game-collection-${id}`)).toBeTruthy();
     }
   });

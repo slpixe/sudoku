@@ -122,6 +122,30 @@ describe("socket request schemas", () => {
   const guestId = "123e4567-e89b-42d3-a456-426614174000";
   const connectionId = "123e4567-e89b-42d3-a456-426614174001";
 
+  it.each(["fiendish", "diabolical"])("accepts the canonical %s collection ID", (collectionId) => {
+    expect(
+      createRoomRequestSchema.parse({
+        guestId,
+        connectionId,
+        collectionId,
+        puzzleNumber: 1,
+        puzzleFingerprint: "0".repeat(81),
+      }).collectionId,
+    ).toBe(collectionId);
+  });
+
+  it.each(["expert", "evil"])("rejects the retired %s client collection ID", (collectionId) => {
+    expect(() =>
+      createRoomRequestSchema.parse({
+        guestId,
+        connectionId,
+        collectionId,
+        puzzleNumber: 1,
+        puzzleFingerprint: "0".repeat(81),
+      }),
+    ).toThrow();
+  });
+
   it("accepts the exact create, join, and leave request shapes", () => {
     expect(
       createRoomRequestSchema.parse({
