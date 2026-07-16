@@ -250,7 +250,7 @@ test("shows restart confirmation dialog for finished games on select screen", as
   await expect(dialog).toBeVisible();
   await confirmButton.click();
   await expect(dialog).toHaveCount(0);
-  await expect(page.getByTestId("current-game-label")).toHaveText("Easy #2");
+  await expect(page.getByTestId("current-game-label")).toHaveText("E-2");
 });
 
 for (const viewport of selectGameViewports) {

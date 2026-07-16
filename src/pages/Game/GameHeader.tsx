@@ -126,11 +126,10 @@ export const GameHeader: React.FC<{
   blocked: boolean;
   canUndo: boolean;
   clearWhenInactive?: boolean;
-  collectionName: string;
   locked: boolean;
   pauseForClearConfirmation: boolean;
+  puzzleLabel: string;
   status: GameStateMachine;
-  sudokuIndex: number;
   timerContent: React.ReactNode;
   won: boolean;
   onClearConfirmed: () => void;
@@ -142,11 +141,10 @@ export const GameHeader: React.FC<{
   blocked,
   canUndo,
   clearWhenInactive = false,
-  collectionName,
   locked,
   pauseForClearConfirmation,
+  puzzleLabel,
   status,
-  sudokuIndex,
   timerContent,
   won,
   onClearConfirmed,
@@ -165,8 +163,8 @@ export const GameHeader: React.FC<{
       data-testid="sudoku-game-header"
     >
       <div className="sudoku-header-meta flex min-w-0 items-center gap-2 text-white">
-        <DifficultyShow className="truncate text-white capitalize" data-testid="current-game-label">
-          {`${collectionName} #${sudokuIndex + 1}`}
+        <DifficultyShow className="truncate text-white" data-testid="current-game-label">
+          {puzzleLabel}
         </DifficultyShow>
         {timerContent}
       </div>

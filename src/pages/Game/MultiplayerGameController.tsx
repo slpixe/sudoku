@@ -6,7 +6,7 @@ import {GameStateMachine} from "src/context/GameContext";
 import {useUserPreferences} from "src/context/UserPrefencesContext";
 import type {Cell, CellCoordinates} from "src/lib/engine/types";
 import {getCellIndex} from "src/lib/game/deriveBoardData";
-import {getSudokuCollectionDisplayName} from "src/lib/game/collectionNames";
+import {getSudokuPuzzleDisplayLabel} from "src/lib/game/collectionNames";
 import type {UseMultiplayerRoomResult} from "src/lib/multiplayer/useMultiplayerRoom";
 
 import {GameTimer} from "./GameTimer";
@@ -197,17 +197,16 @@ export function MultiplayerGameController({room, roomCode, onNewGame, onRetry}: 
       clearWhenInactive
       cells={cells}
       clipboardNotes={clipboardNotes}
-      collectionName={getSudokuCollectionDisplayName(confirmed.collectionId)}
       completionContent={completionContent}
       locked={false}
       notesMode={notesMode}
       partnerCellCoordinates={partnerCellCoordinates}
       pauseForClearConfirmation={false}
       preferences={preferences}
+      puzzleLabel={getSudokuPuzzleDisplayLabel(confirmed.collectionId, confirmed.puzzleNumber)}
       showMenu={showMenu}
       status={gameStatus}
       statusContent={statusContent}
-      sudokuIndex={confirmed.puzzleNumber - 1}
       timerContent={<MultiplayerGameTimer snapshot={confirmed} />}
       won={won}
       onActivateNotesMode={() => setNotesMode(true)}

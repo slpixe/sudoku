@@ -73,7 +73,7 @@ test("keeps built-in game flows usable after a warmed-cache offline reload", asy
   await page.goto("/#/select-game");
   await expect(page.getByRole("button", {name: "Solo / offline"})).toHaveAttribute("aria-pressed", "true");
   await page.getByTestId("select-game-card-1").click();
-  await expect(page.getByTestId("current-game-label")).toHaveText("Easy #1");
+  await expect(page.getByTestId("current-game-label")).toHaveText("E-1");
   await expect(page.getByTestId("sudoku-board")).toBeVisible();
 
   const serviceWorker = await waitForServiceWorkerControl(page);
@@ -95,7 +95,7 @@ test("keeps built-in game flows usable after a warmed-cache offline reload", asy
 
   try {
     await page.reload({waitUntil: "networkidle"});
-    await expect(page.getByTestId("current-game-label")).toHaveText("Easy #1");
+    await expect(page.getByTestId("current-game-label")).toHaveText("E-1");
     await expect(page.getByTestId("sudoku-board")).toBeVisible();
 
     await page.getByTestId("sudoku-action-new-game").click();
@@ -107,7 +107,7 @@ test("keeps built-in game flows usable after a warmed-cache offline reload", asy
     await expect(page.getByText(/internet connection is required/i)).toBeVisible();
 
     await page.getByTestId("select-game-card-2").click();
-    await expect(page.getByTestId("current-game-label")).toHaveText("Easy #2");
+    await expect(page.getByTestId("current-game-label")).toHaveText("E-2");
     await expect(page.getByTestId("sudoku-board")).toBeVisible();
     await page.getByTestId("sudoku-cell-0-0").click();
     await page.getByTestId("sudoku-number-1").click();

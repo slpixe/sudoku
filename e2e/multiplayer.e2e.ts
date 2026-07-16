@@ -24,7 +24,7 @@ async function createEasyRoom(page: Page): Promise<string> {
   await page.goto("/#/select-game");
   await page.getByRole("button", {name: "Create online room"}).click();
   await page.getByTestId("select-game-card-1").click();
-  await expect(page.getByTestId("current-game-label")).toHaveText("Easy #1");
+  await expect(page.getByTestId("current-game-label")).toHaveText("E-1");
   await expect(page.getByTestId("sudoku-board")).toBeVisible();
   const roomCode = (await page.getByTestId("multiplayer-room-code").textContent())?.trim();
   if (!roomCode) {
@@ -38,7 +38,7 @@ async function joinRoom(page: Page, roomCode: string): Promise<void> {
   await page.getByRole("button", {name: "Join existing room"}).click();
   await page.getByLabel("Room code").fill(roomCode);
   await page.getByRole("button", {name: "Join room"}).click();
-  await expect(page.getByTestId("current-game-label")).toHaveText("Easy #1");
+  await expect(page.getByTestId("current-game-label")).toHaveText("E-1");
   await expect(page.getByTestId("sudoku-board")).toBeVisible();
 }
 
@@ -228,7 +228,7 @@ test("shares one seat across tabs and releases a disconnected reservation after 
 
     const creatorExtraTab = await creatorContext.newPage();
     await creatorExtraTab.goto(`/#/room/${roomCode}`);
-    await expect(creatorExtraTab.getByTestId("current-game-label")).toHaveText("Easy #1");
+    await expect(creatorExtraTab.getByTestId("current-game-label")).toHaveText("E-1");
     await expect(creator.getByLabel("2/2 connected")).toHaveText("2/2");
     await expect(creatorExtraTab.getByLabel("2/2 connected")).toHaveText("2/2");
 
@@ -242,7 +242,7 @@ test("shares one seat across tabs and releases a disconnected reservation after 
     await expect(creator.getByLabel("1/2 connected")).toHaveText("1/2");
     const immediateReconnect = await joinerContext.newPage();
     await immediateReconnect.goto(`/#/room/${roomCode}`);
-    await expect(immediateReconnect.getByTestId("current-game-label")).toHaveText("Easy #1");
+    await expect(immediateReconnect.getByTestId("current-game-label")).toHaveText("E-1");
     await expect(creator.getByLabel("2/2 connected")).toHaveText("2/2");
 
     await immediateReconnect.close();
