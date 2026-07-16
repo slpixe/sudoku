@@ -6,9 +6,11 @@ import {AppDialogProvider} from "./components/AppDialog";
 import {InstallAppPrompt} from "./components/pwa/InstallAppPrompt";
 
 const LazyGame = React.lazy(() => import("./pages/Game"));
+const LazyMultiplayerGame = React.lazy(() => import("./pages/MultiplayerGame"));
 const LazySelectGame = React.lazy(() => import("./pages/SelectGame"));
 
 const GameRoute = () => <LazyGame />;
+const MultiplayerGameRoute = () => <LazyMultiplayerGame />;
 const SelectGameRoute = () => <LazySelectGame />;
 
 const routeFallback = <div className="min-h-screen bg-gray-800 dark:bg-gray-900" />;
@@ -27,7 +29,13 @@ const selectGameRoute = createRoute({
   component: SelectGameRoute,
 });
 
-rootRoute.addChildren([gameRoute, selectGameRoute]);
+const multiplayerGameRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/room/$code",
+  component: MultiplayerGameRoute,
+});
+
+rootRoute.addChildren([gameRoute, selectGameRoute, multiplayerGameRoute]);
 
 const hashHistory = createHashHistory();
 

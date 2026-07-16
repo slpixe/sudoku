@@ -45,6 +45,6 @@ export default defineConfig(() => ({
     port: 3000,
   },
   test: {
-    exclude: [...configDefaults.exclude, ".pnpm-store/**", ".worktrees/**"],
+    exclude: [...configDefaults.exclude, ".pnpm-store/**", ".worktrees/**", "packages/**", "server/**"],
   },
 }));

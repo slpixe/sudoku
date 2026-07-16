@@ -1,0 +1,71 @@
+import {describe, expect, it, vi} from "vitest";
+
+import {PgDatabase} from "./PgDatabase.js";
+
+function result(rows: Record<string, unknown>[] = []) {
+  return {rows, rowCount: rows.length, command: "", oid: 0, fields: []};
+}
+
+function fakePool() {
+  const query = vi.fn(async (...args: [text: string, values?: readonly unknown[]]) => {
+    void args;
+    return result();
+  });
+  const release = vi.fn();
+  const client = {query, release};
+  const pool = {
+    query: vi.fn(async (...args: [text: string, values?: readonly unknown[]]) => {
+      void args;
+      return result();
+    }),
+    connect: vi.fn(async () => client),
+    end: vi.fn(async () => undefined),
+  };
+  return {client, pool, query, release};
+}
+
+describe("PgDatabase", () => {
+  it("runs a transaction on one checked-out client and releases it after commit", async () => {
+    const {pool, query, release} = fakePool();
+    const database = new PgDatabase(pool as never);
+
+    await expect(
+      database.transaction(async (tx) => {
+        await tx.query("UPDATE rooms SET revision = $1", [1]);
+        return "committed";
+      }),
+    ).resolves.toBe("committed");
+
+    expect(pool.connect).toHaveBeenCalledOnce();
+    expect(pool.query).not.toHaveBeenCalled();
+    expect(query.mock.calls.map(([text]) => text)).toEqual(["BEGIN", "UPDATE rooms SET revision = $1", "COMMIT"]);
+    expect(release).toHaveBeenCalledOnce();
+  });
+
+  it("rolls back on failure and always releases the checked-out client", async () => {
+    const {pool, query, release} = fakePool();
+    const database = new PgDatabase(pool as never);
+
+    await expect(
+      database.transaction(async (tx) => {
+        await tx.query("DELETE FROM rooms");
+        throw new Error("write failed");
+      }),
+    ).rejects.toThrow("write failed");
+
+    expect(query.mock.calls.map(([text]) => text)).toEqual(["BEGIN", "DELETE FROM rooms", "ROLLBACK"]);
+    expect(release).toHaveBeenCalledOnce();
+  });
+
+  it("executes a complete migration script without splitting function bodies", async () => {
+    const {pool, query} = fakePool();
+    const database = new PgDatabase(pool as never);
+    const script = "CREATE FUNCTION example() RETURNS void AS $$ BEGIN PERFORM 1; END; $$ LANGUAGE plpgsql;";
+
+    await database.transaction(async (tx) => {
+      await tx.executeScript(script);
+    });
+
+    expect(query.mock.calls.map(([text]) => text)).toEqual(["BEGIN", script, "COMMIT"]);
+  });
+});

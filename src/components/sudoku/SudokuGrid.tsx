@@ -80,6 +80,7 @@ export const GridCell = ({
   highlightNumber,
   bounds,
   active,
+  partnerActive,
   notesMode,
   initial,
   number,
@@ -93,6 +94,7 @@ export const GridCell = ({
   highlightNumber: boolean;
   bounds: Bounds;
   active: boolean;
+  partnerActive: boolean;
   notesMode: boolean;
   initial: boolean;
   number: number;
@@ -136,6 +138,7 @@ export const GridCell = ({
         data-cell-initial={initial ? "true" : "false"}
         data-cell-matching-number={highlightNumber ? "true" : "false"}
         data-cell-notes-mode={notesMode ? "true" : "false"}
+        data-cell-partner-active={partnerActive ? "true" : "false"}
         data-cell-value={number === 0 ? "" : number}
         data-testid={testId}
         onClick={(e) => {
@@ -151,6 +154,14 @@ export const GridCell = ({
         style={dimensions}
         className={clsx("absolute z-20 border-2", borderColor)}
       />
+      {partnerActive ? (
+        <div
+          aria-hidden="true"
+          data-testid={testId ? `${testId}-partner` : undefined}
+          style={{...dimensions, transform: active ? "scale(0.8)" : undefined}}
+          className="pointer-events-none absolute z-30 border-2 border-dashed border-emerald-500 dark:border-emerald-400"
+        />
+      ) : null}
       <div
         style={dimensions}
         className={clsx("absolute z-0 transition-colors duration-0 hover:bg-opacity-50", backgroundColor)}

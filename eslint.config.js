@@ -13,7 +13,7 @@ export default [
 
   // TypeScript files (browser environment)
   {
-    files: ["**/*.{ts,tsx}"],
+    files: ["src/**/*.{ts,tsx}", "e2e/**/*.{ts,tsx}"],
     ignores: ["**/*.config.{js,ts}", "scripts/**/*.{js,ts}", "**/*.worker.{js,ts}"],
     languageOptions: {
       parser: tsparser,
@@ -75,6 +75,94 @@ export default [
     },
   },
 
+  // TypeScript workspace packages (Node environment)
+  {
+    files: ["packages/**/*.{ts,tsx}"],
+    languageOptions: {
+      parser: tsparser,
+      parserOptions: {
+        project: ["./packages/*/tsconfig.json", "./packages/*/tsconfig.test.json"],
+        tsconfigRootDir: import.meta.dirname,
+      },
+      globals: {
+        ...globals.node,
+      },
+    },
+    plugins: {
+      "@typescript-eslint": tseslint,
+      "unused-imports": unusedImports,
+      immutable: immutable,
+      "simple-import-sort": simpleImportSort,
+    },
+    rules: {
+      ...tseslint.configs.recommended.rules,
+      curly: ["warn", "all"],
+      "no-undef": "error",
+      "no-unused-vars": "off",
+      "@typescript-eslint/no-unused-vars": "warn",
+      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/no-unused-expressions": "warn",
+      "unused-imports/no-unused-imports": "error",
+      "unused-imports/no-unused-vars": "off",
+      "no-case-declarations": "off",
+      "no-empty": "off",
+      "no-constant-condition": "off",
+      "no-cond-assign": "off",
+      "no-prototype-builtins": "off",
+      "no-useless-escape": "off",
+      "no-func-assign": "off",
+      "no-fallthrough": "off",
+      "no-control-regex": "off",
+      "no-misleading-character-class": "off",
+      "no-sparse-arrays": "off",
+      "valid-typeof": "off",
+    },
+  },
+
+  // TypeScript server files (Node environment)
+  {
+    files: ["server/**/*.{ts,tsx}"],
+    languageOptions: {
+      parser: tsparser,
+      parserOptions: {
+        project: "./server/tsconfig.json",
+        tsconfigRootDir: import.meta.dirname,
+      },
+      globals: {
+        ...globals.node,
+      },
+    },
+    plugins: {
+      "@typescript-eslint": tseslint,
+      "unused-imports": unusedImports,
+      immutable: immutable,
+      "simple-import-sort": simpleImportSort,
+    },
+    rules: {
+      ...tseslint.configs.recommended.rules,
+      curly: ["warn", "all"],
+      "no-undef": "error",
+      "no-unused-vars": "off",
+      "@typescript-eslint/no-unused-vars": "warn",
+      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/no-unused-expressions": "warn",
+      "unused-imports/no-unused-imports": "error",
+      "unused-imports/no-unused-vars": "off",
+      "no-case-declarations": "off",
+      "no-empty": "off",
+      "no-constant-condition": "off",
+      "no-cond-assign": "off",
+      "no-prototype-builtins": "off",
+      "no-useless-escape": "off",
+      "no-func-assign": "off",
+      "no-fallthrough": "off",
+      "no-control-regex": "off",
+      "no-misleading-character-class": "off",
+      "no-sparse-arrays": "off",
+      "valid-typeof": "off",
+    },
+  },
+
   // TypeScript worker files
   {
     files: ["**/*.worker.{ts}"],
@@ -116,6 +204,8 @@ export default [
       ".pnpm-store/**",
       ".worktrees/**",
       "dist/**",
+      "packages/**/dist/**",
+      "server/dist/**",
       "node_modules/**",
       "playwright-report/**",
       "test-results/**",

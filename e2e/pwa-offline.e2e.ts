@@ -63,7 +63,16 @@ function expectCached(pathnames: string[], predicate: (pathname: string) => bool
 }
 
 test("keeps built-in game flows usable after a warmed-cache offline reload", async ({context, page}) => {
-  await page.goto("/");
+  const multiplayerRequests: string[] = [];
+  page.on("request", (request) => {
+    if (new URL(request.url()).hostname === "multi.sudoku.slpixe.com") {
+      multiplayerRequests.push(request.url());
+    }
+  });
+
+  await page.goto("/#/select-game");
+  await expect(page.getByRole("button", {name: "Solo / offline"})).toHaveAttribute("aria-pressed", "true");
+  await page.getByTestId("select-game-card-1").click();
   await expect(page.getByTestId("current-game-label")).toHaveText("Easy #1");
   await expect(page.getByTestId("sudoku-board")).toBeVisible();
 
@@ -92,10 +101,49 @@ test("keeps built-in game flows usable after a warmed-cache offline reload", asy
     await page.getByTestId("sudoku-action-new-game").click();
     await expect(page.getByRole("heading", {name: "Select Game"})).toBeVisible();
     await expect(page.getByTestId("select-game-grid")).toBeVisible();
+    await expect(page.getByRole("button", {name: "Solo / offline"})).toBeEnabled();
+    await expect(page.getByRole("button", {name: "Create online room"})).toBeDisabled();
+    await expect(page.getByRole("button", {name: "Join existing room"})).toBeDisabled();
+    await expect(page.getByText(/internet connection is required/i)).toBeVisible();
 
     await page.getByTestId("select-game-card-2").click();
     await expect(page.getByTestId("current-game-label")).toHaveText("Easy #2");
     await expect(page.getByTestId("sudoku-board")).toBeVisible();
+    await page.getByTestId("sudoku-cell-0-0").click();
+    await page.getByTestId("sudoku-number-1").click();
+    await expect(page.getByTestId("sudoku-cell-value-0-0")).toHaveText("1");
+    expect(multiplayerRequests).toEqual([]);
+  } finally {
+    await context.setOffline(false);
+  }
+});
+
+test("shows the online-required state for a warmed-cache offline room deep link without opening a socket", async ({
+  context,
+  page,
+}) => {
+  const multiplayerRequests: string[] = [];
+  page.on("request", (request) => {
+    if (new URL(request.url()).hostname === "multi.sudoku.slpixe.com") {
+      multiplayerRequests.push(request.url());
+    }
+  });
+
+  await page.goto("/#/select-game");
+  await waitForServiceWorkerControl(page);
+  const cachedPathnames = await getCachedPathnames(page);
+  expectCached(
+    cachedPathnames,
+    (pathname) => /^\/assets\/MultiplayerGame-[\w-]+\.js$/.test(pathname),
+    "Multiplayer room route chunk",
+  );
+
+  await context.setOffline(true);
+  try {
+    await page.goto("/#/room/ABC234", {waitUntil: "domcontentloaded"});
+    await expect(page.getByText(/internet connection is required/i)).toBeVisible();
+    await expect(page.getByTestId("multiplayer-room-code")).toHaveText("ABC234");
+    expect(multiplayerRequests).toEqual([]);
   } finally {
     await context.setOffline(false);
   }

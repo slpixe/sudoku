@@ -3,7 +3,6 @@ import * as React from "react";
 import {useNavigate} from "@tanstack/react-router";
 import {useTranslation} from "react-i18next";
 import Button from "src/components/Button";
-import type {GameState} from "src/context/GameContext";
 import {translateCollectionName} from "src/lib/database/collections";
 import {getSudokusPaginated, useSudokuCollections} from "src/lib/game/sudokus";
 import {formatDuration} from "src/utils/format";
@@ -31,14 +30,14 @@ const CompletionMetric: React.FC<CompletionMetricProps> = ({label, testId, value
   </p>
 );
 
-function useNextSudoku(gameState: GameState) {
+function useNextSudoku(sudokuCollectionName: string, sudokuIndex: number) {
   const {getCollection} = useSudokuCollections();
 
   return React.useMemo(() => {
     try {
-      const collection = getCollection(gameState.sudokuCollectionName);
+      const collection = getCollection(sudokuCollectionName);
       const collectionName = translateCollectionName(collection.name);
-      const nextIndex = gameState.sudokuIndex + 1;
+      const nextIndex = sudokuIndex + 1;
       const result = getSudokusPaginated(collection, nextIndex, 1);
       const sudoku = result.sudokus[0];
 
@@ -47,7 +46,7 @@ function useNextSudoku(gameState: GameState) {
       }
 
       const nextSudokuParams: NextSudokuParams = {
-        collection: gameState.sudokuCollectionName,
+        collection: sudokuCollectionName,
         puzzle: nextIndex + 1,
       };
 
@@ -58,21 +57,35 @@ function useNextSudoku(gameState: GameState) {
     } catch (error) {
       console.error("Error calculating next sudoku:", error);
       return {
-        collectionName: translateCollectionName(gameState.sudokuCollectionName),
+        collectionName: translateCollectionName(sudokuCollectionName),
         nextSudokuParams: null,
       };
     }
-  }, [gameState.sudokuCollectionName, gameState.sudokuIndex, getCollection]);
+  }, [getCollection, sudokuCollectionName, sudokuIndex]);
 }
 
-export const GameCompletionPanel: React.FC<{game: GameState}> = ({game}) => {
+export type GameCompletionPanelProps = {
+  previousTimes: number[];
+  secondsPlayed: number;
+  sudokuCollectionName: string;
+  sudokuIndex: number;
+  timesSolved: number;
+};
+
+export const GameCompletionPanel: React.FC<GameCompletionPanelProps> = ({
+  previousTimes,
+  secondsPlayed,
+  sudokuCollectionName,
+  sudokuIndex,
+  timesSolved,
+}) => {
   const navigate = useNavigate();
   const {t} = useTranslation();
   const panelRef = React.useRef<HTMLDivElement>(null);
-  const {collectionName, nextSudokuParams} = useNextSudoku(game);
-  const bestTime = game.previousTimes.length > 0 ? Math.min(...game.previousTimes) : null;
+  const {collectionName, nextSudokuParams} = useNextSudoku(sudokuCollectionName, sudokuIndex);
+  const bestTime = previousTimes.length > 0 ? Math.min(...previousTimes) : null;
   const bestTimeValue = bestTime !== null ? formatDuration(bestTime) : null;
-  const thisTimeValue = formatDuration(game.secondsPlayed);
+  const thisTimeValue = formatDuration(secondsPlayed);
 
   React.useEffect(() => {
     panelRef.current?.querySelector<HTMLButtonElement>("[data-completion-primary-action='true']")?.focus();
@@ -114,8 +127,8 @@ export const GameCompletionPanel: React.FC<{game: GameState}> = ({game}) => {
           <CompletionMetric
             label={t("solved_count_label")}
             testId="sudoku-completion-solved-count"
-            value={t(game.timesSolved === 1 ? "solved_count_value_one" : "solved_count_value_other", {
-              count: game.timesSolved,
+            value={t(timesSolved === 1 ? "solved_count_value_one" : "solved_count_value_other", {
+              count: timesSolved,
             })}
           />
           {bestTimeValue !== null ? (

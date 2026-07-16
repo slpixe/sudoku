@@ -25,10 +25,11 @@ A fast, offline-ready Sudoku game with thousands of puzzles, touch-friendly cont
 - Light and dark themes with accessible controls
 - Internationalized interface with automatic browser-language selection
 - Custom puzzle creation with validation and solving support
+- Guest-first two-player online rooms with synchronized play and reconnect recovery
 
 ## Technical overview
 
-The application is built with React, TypeScript, Vite, and Tailwind CSS. Game progress and preferences are persisted locally, while routing supports compact, shareable puzzle URLs. The test suite combines Vitest unit coverage with Playwright end-to-end checks across light and dark themes, responsive viewports, persistence, gameplay, and PWA behavior.
+The application is built with React, TypeScript, Vite, and Tailwind CSS. Solo game progress and preferences are persisted locally, while routing supports compact, shareable puzzle URLs. Optional online rooms use Socket.IO with an authoritative Node.js service and Postgres-backed room state; registration is not required. The test suite combines Vitest unit coverage with Playwright end-to-end checks across light and dark themes, responsive viewports, persistence, gameplay, PWA behavior, and real two-browser multiplayer flows.
 
 Recent modernization work includes:
 
@@ -63,7 +64,19 @@ pnpm run lint
 pnpm test
 pnpm build
 pnpm run test:e2e
+pnpm run test:e2e:multiplayer
 ```
+
+For local online-room development, start the disposable backend and frontend in separate terminals:
+
+```bash
+NODE_ENV=test PORT=8080 RECONNECT_GRACE_SECONDS=1 pnpm --filter @sudoku/multiplayer-server start:test
+VITE_MULTIPLAYER_URL=http://127.0.0.1:8080 pnpm exec vite --host 0.0.0.0 --port 3000 --strictPort
+```
+
+The disposable server uses the in-memory room repository and a one-second reconnect grace for accelerated local review; production uses 60 seconds.
+
+Production remains split between the static Netlify PWA at `sudoku.slpixe.com`, one Fly Machine at `multi.sudoku.slpixe.com`, and Neon Postgres in London. See [Multiplayer operations](docs/multiplayer-operations.md) for setup, migration, monitoring, backup, and rollback instructions.
 
 ### Docker
 

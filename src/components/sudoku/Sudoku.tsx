@@ -1,4 +1,5 @@
 import * as React from "react";
+import {useTranslation} from "react-i18next";
 
 import SudokuMenuCircle, {MenuWrapper, MenuContainer} from "./SudokuMenuCircle";
 import {
@@ -44,6 +45,8 @@ const SudokuCell = React.memo(
   ({
     number,
     active,
+    partnerActive,
+    partnerSelectedLabel,
     highlight,
     bounds,
     onClick,
@@ -60,6 +63,8 @@ const SudokuCell = React.memo(
   }: {
     number: number;
     active: boolean;
+    partnerActive: boolean;
+    partnerSelectedLabel: string;
     highlightNumber: boolean;
     highlight: boolean;
     conflict: boolean;
@@ -82,9 +87,10 @@ const SudokuCell = React.memo(
         <GridCell
           ariaLabel={`${initial ? "Given" : "Editable"} cell row ${row} column ${column}${
             number === 0 ? " empty" : ` value ${number}`
-          }`}
+          }${partnerActive ? `, ${partnerSelectedLabel}` : ""}`}
           notesMode={notesMode}
           active={active}
+          partnerActive={partnerActive}
           conflict={conflict}
           highlight={highlight}
           highlightNumber={highlightNumber}
@@ -124,6 +130,7 @@ const SudokuCell = React.memo(
 
 interface SudokuProps {
   boardData: DerivedBoardData;
+  partnerCellCoordinates?: CellCoordinates;
   sudoku: Cell[];
   showHints: boolean;
   showWrongEntries: boolean;
@@ -144,6 +151,7 @@ export const Sudoku: React.FC<SudokuProps> = ({
   sudoku,
   showHints,
   boardData,
+  partnerCellCoordinates,
   hideMenu,
   showMenu,
   selectCell,
@@ -157,8 +165,10 @@ export const Sudoku: React.FC<SudokuProps> = ({
   notesMode,
   shouldShowMenu,
 }) => {
+  const {t} = useTranslation();
   const height = 100;
   const width = 100;
+  const partnerSelectedLabel = t("sudoku_other_player_selected");
 
   const xSection = height / 9;
   const ySection = width / 9;
@@ -223,14 +233,18 @@ export const Sudoku: React.FC<SudokuProps> = ({
           };
 
           const isActive = activeCell ? c.x === activeCell.x && c.y === activeCell.y : false;
+          const isPartnerActive = partnerCellCoordinates?.x === c.x && partnerCellCoordinates?.y === c.y;
           const highlight = boardData.friendCellIndexes.has(cellIndex);
           const isWrong = showWrongEntries && (c.number === 0 ? false : c.solution !== c.number);
-          const highlightNumber = showMatchingNumbers && activeCell && c.number !== 0 ? activeCell.number === c.number : false;
+          const highlightNumber =
+            showMatchingNumbers && activeCell && c.number !== 0 ? activeCell.number === c.number : false;
 
           return (
             <SudokuCell
               key={i}
               active={isActive}
+              partnerActive={isPartnerActive}
+              partnerSelectedLabel={partnerSelectedLabel}
               highlight={highlight}
               highlightNumber={highlightNumber && !isActive}
               conflict={inConflictPath || isWrong}

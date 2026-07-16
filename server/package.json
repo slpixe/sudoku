@@ -1,0 +1,39 @@
+{
+  "name": "@sudoku/multiplayer-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prebuild": "pnpm --filter @sudoku/core build && pnpm --filter @sudoku/multiplayer-protocol build",
+    "predev": "pnpm --filter @sudoku/core build && pnpm --filter @sudoku/multiplayer-protocol build",
+    "dev": "tsx watch src/index.ts",
+    "migrate": "node dist/db/migrate.js",
+    "migrate:dev": "tsx src/db/migrate.ts",
+    "pretest": "pnpm --filter @sudoku/core build && pnpm --filter @sudoku/multiplayer-protocol build",
+    "prestart:test": "pnpm --filter @sudoku/core build && pnpm --filter @sudoku/multiplayer-protocol build",
+    "start": "node dist/index.js",
+    "start:test": "tsx src/testing/startTestServer.ts",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@sudoku/core": "workspace:*",
+    "@sudoku/multiplayer-protocol": "workspace:*",
+    "pg": "8.22.0",
+    "socket.io": "4.8.3",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.4",
+    "@types/node": "24.3.1",
+    "@types/pg": "8.20.0",
+    "socket.io-client": "4.8.3",
+    "tsx": "4.23.0",
+    "typescript": "5.8.3",
+    "vitest": "3.2.6"
+  }
+}

@@ -9,24 +9,31 @@
     "node": ">=24"
   },
   "scripts": {
-    "build": "vite build",
+    "build:core": "pnpm --filter @sudoku/core build",
+    "build:protocol": "pnpm --filter @sudoku/multiplayer-protocol build",
+    "build:web": "vite build",
+    "build": "pnpm --filter @sudoku/core build && pnpm --filter @sudoku/multiplayer-protocol build && pnpm run build:web && pnpm --filter @sudoku/multiplayer-server build",
+    "deploy:multiplayer": "fly deploy --ha=false --config server/fly.toml && fly scale count 1 --config server/fly.toml",
     "preview": "vite preview",
     "clean": "rm -rf dist/",
-    "test": "vitest run",
+    "test:web": "vitest run",
+    "test": "pnpm run test:web && pnpm --filter @sudoku/core test && pnpm --filter @sudoku/multiplayer-protocol test && pnpm --filter @sudoku/multiplayer-server test",
     "test:e2e": "playwright test",
+    "test:e2e:multiplayer": "playwright test --config playwright.multiplayer.config.ts",
     "test:e2e:ui": "playwright test --ui",
     "test:watch": "vitest",
     "start": "vite --host 0.0.0.0",
-    "typecheck": "tsc --noEmit",
+    "typecheck:web": "tsc --noEmit",
+    "typecheck": "pnpm run typecheck:web && pnpm --filter @sudoku/core typecheck && pnpm --filter @sudoku/multiplayer-protocol typecheck && pnpm --filter @sudoku/multiplayer-server typecheck",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "prettier:write": "prettier --write './src/**/*.ts' './src/**/*.tsx'",
-    "fetch-sudokus": "node --import ./scripts/register_ts_node.mjs --experimental-specifier-resolution=node ./scripts/fetch_sudokus.ts -l 6 -n 100 -p sudokuDotCom",
-    "generate-easy-sudokus": "node --import ./scripts/register_ts_node.mjs --experimental-specifier-resolution=node ./scripts/generate_sudokus.ts -d easy -n 500",
-    "generate-medium-sudokus": "node --import ./scripts/register_ts_node.mjs --experimental-specifier-resolution=node ./scripts/generate_sudokus.ts -d medium -n 500",
-    "generate-hard-sudokus": "node --import ./scripts/register_ts_node.mjs --experimental-specifier-resolution=node ./scripts/generate_sudokus.ts -d hard -n 500",
-    "generate-expert-sudokus": "node --import ./scripts/register_ts_node.mjs --experimental-specifier-resolution=node ./scripts/generate_sudokus.ts -d expert -n 500",
-    "generate-evil-sudokus": "node --import ./scripts/register_ts_node.mjs --experimental-specifier-resolution=node ./scripts/generate_sudokus.ts -d evil -n 500"
+    "fetch-sudokus": "pnpm run build:core && node --import ./scripts/register_ts_node.mjs --experimental-specifier-resolution=node ./scripts/fetch_sudokus.ts -l 6 -n 100 -p sudokuDotCom",
+    "generate-easy-sudokus": "pnpm run build:core && node --import ./scripts/register_ts_node.mjs --experimental-specifier-resolution=node ./scripts/generate_sudokus.ts -d easy -n 500",
+    "generate-medium-sudokus": "pnpm run build:core && node --import ./scripts/register_ts_node.mjs --experimental-specifier-resolution=node ./scripts/generate_sudokus.ts -d medium -n 500",
+    "generate-hard-sudokus": "pnpm run build:core && node --import ./scripts/register_ts_node.mjs --experimental-specifier-resolution=node ./scripts/generate_sudokus.ts -d hard -n 500",
+    "generate-expert-sudokus": "pnpm run build:core && node --import ./scripts/register_ts_node.mjs --experimental-specifier-resolution=node ./scripts/generate_sudokus.ts -d expert -n 500",
+    "generate-evil-sudokus": "pnpm run build:core && node --import ./scripts/register_ts_node.mjs --experimental-specifier-resolution=node ./scripts/generate_sudokus.ts -d evil -n 500"
   },
   "keywords": [
     "sudoku",
@@ -41,6 +48,8 @@
     "@eslint/js": "9.39.4",
     "@playwright/test": "^1.60.0",
     "@tailwindcss/forms": "0.5.11",
+    "@testing-library/react": "16.3.2",
+    "@testing-library/user-event": "14.6.1",
     "@types/lodash-es": "4.17.12",
     "@types/node": "24.3.1",
     "@types/react": "18.3.31",
@@ -58,6 +67,7 @@
     "eslint-plugin-simple-import-sort": "12.1.1",
     "eslint-plugin-unused-imports": "4.4.1",
     "globals": "16.3.0",
+    "jsdom": "29.1.1",
     "postcss": "8.5.16",
     "prettier": "3.2.5",
     "prettier-plugin-tailwindcss": "0.5.14",
@@ -72,6 +82,8 @@
     "workbox-window": "7.4.1"
   },
   "dependencies": {
+    "@sudoku/core": "workspace:*",
+    "@sudoku/multiplayer-protocol": "workspace:*",
     "@tanstack/react-router": "1.121.34",
     "clsx": "2.1.1",
     "hotkeys-js": "3.13.7",
@@ -80,6 +92,8 @@
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "react-i18next": "15.7.2",
-    "tailwind-merge": "3.3.1"
+    "socket.io-client": "4.8.3",
+    "tailwind-merge": "3.3.1",
+    "zod": "4.4.3"
   }
 }

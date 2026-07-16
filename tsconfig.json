@@ -26,7 +26,7 @@
     "e2e",
     "src",
     "scripts",
-    "playwright.config.ts",
+    "playwright*.config.ts",
     "vite.config.ts"
   ]
 }
