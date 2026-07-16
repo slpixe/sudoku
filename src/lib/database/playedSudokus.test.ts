@@ -127,8 +127,11 @@ describe("localStoragePlayedSudokuRepository", () => {
     expect(localStoragePlayedSudokuRepository.getPlayedSudokus()).toEqual([]);
   });
 
-  it("loads migrated played sudoku states that stored difficulty instead of collection name", () => {
-    const migratedGame: Record<string, unknown> = {...INITIAL_GAME_STATE, difficulty: "expert"};
+  it.each([
+    ["expert", "fiendish"],
+    ["evil", "diabolical"],
+  ])("normalizes legacy difficulty %s to %s", (legacyId, canonicalId) => {
+    const migratedGame: Record<string, unknown> = {...INITIAL_GAME_STATE, difficulty: legacyId};
     delete migratedGame.sudokuCollectionName;
     vi.stubGlobal(
       "localStorage",
@@ -137,7 +140,22 @@ describe("localStoragePlayedSudokuRepository", () => {
       }),
     );
 
-    expect(localStoragePlayedSudokuRepository.getSudokuState(sudokuKey)?.game.sudokuCollectionName).toBe("expert");
+    expect(localStoragePlayedSudokuRepository.getSudokuState(sudokuKey)?.game.sudokuCollectionName).toBe(canonicalId);
+  });
+
+  it.each([
+    ["expert", "fiendish"],
+    ["evil", "diabolical"],
+  ])("normalizes stale collection name %s to %s", (legacyId, canonicalId) => {
+    const game = {...INITIAL_GAME_STATE, sudokuCollectionName: legacyId};
+    vi.stubGlobal(
+      "localStorage",
+      createLocalStorageMock({
+        [storageKey]: JSON.stringify({game, sudoku: INITIAL_SUDOKU_STATE.current}),
+      }),
+    );
+
+    expect(localStoragePlayedSudokuRepository.getSudokuState(sudokuKey)?.game.sudokuCollectionName).toBe(canonicalId);
   });
 
   it("fails safely when current played sudoku storage contains corrupt JSON", () => {

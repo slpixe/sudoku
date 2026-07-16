@@ -74,6 +74,11 @@ describe("game route contract", () => {
     expect(createCompactGameSearch("easy", 1, true)).toEqual({collection: "easy", puzzle: 1, restart: "1"});
   });
 
+  it("builds the renamed top-difficulty compact routes", () => {
+    expect(createCompactGameSearch("fiendish", 1)).toEqual({collection: "fiendish", puzzle: 1});
+    expect(createCompactGameSearch("diabolical", 500)).toEqual({collection: "diabolical", puzzle: 500});
+  });
+
   it("builds payload search with exact sudoku data", () => {
     expect(createPayloadGameSearch("123", "custom", 1)).toEqual({sudoku: "123", collection: "custom", puzzle: 1});
   });

@@ -532,6 +532,20 @@ test("normalizes legacy built-in full-payload URLs to compact params", async ({p
   await expectGameSearch(page, FIRST_PUZZLE, 1, "easy");
 });
 
+test("loads a canonical Fiendish catalog route", async ({page}) => {
+  await page.goto(gameUrl(1, "fiendish"));
+  await expect(page.getByTestId("current-game-label")).toHaveText("F-1");
+  await expect(page.getByTestId("sudoku-board")).toBeVisible();
+  await expectGameSearch(page, "", 1, "fiendish");
+});
+
+test("recovers safely from a retired Expert compact route", async ({page}) => {
+  await page.goto(gameUrl(1, "expert"));
+  await expect(page.getByTestId("app-dialog-message")).toHaveText("The Sudoku in the URL is invalid.");
+  await page.getByTestId("app-dialog-confirm").click();
+  await expect(page).not.toHaveURL(/collection=expert/);
+});
+
 test("loads exact payload URLs without collection metadata", async ({page}) => {
   await page.goto(payloadGameUrl(CUSTOM_PUZZLE));
 

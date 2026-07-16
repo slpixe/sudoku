@@ -5,10 +5,18 @@ import type {Cell} from "src/lib/engine/types";
 import {stringifySudoku, cellsToSimpleSudoku} from "src/lib/engine/utility";
 
 const STORAGE_PLAYED_SUDOKU_PREFIX = "sudoku-played-";
+const LEGACY_BASE_COLLECTION_IDS: Readonly<Record<string, string>> = {
+  expert: "fiendish",
+  evil: "diabolical",
+};
 
 export interface StoredPlayedSudokuState {
   game: GameState;
   sudoku: Cell[];
+}
+
+function normalizeStoredCollectionId(collectionId: string): string {
+  return LEGACY_BASE_COLLECTION_IDS[collectionId] ?? collectionId;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -119,6 +127,11 @@ function getSudokuFromStorage(sudokuKey: string): StoredPlayedSudokuState | unde
     const difficulty = (sudoku.game as any).difficulty;
     if (!sudoku.game.sudokuCollectionName && difficulty) {
       sudoku.game.sudokuCollectionName = difficulty;
+    }
+
+    const collectionName = sudoku.game.sudokuCollectionName;
+    if (collectionName) {
+      sudoku.game.sudokuCollectionName = normalizeStoredCollectionId(collectionName);
     }
     return sudoku;
   }
