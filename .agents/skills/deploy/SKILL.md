@@ -25,6 +25,14 @@ defines the authority, ordering, safety gates, verification, and reporting.
   connection IDs, snapshots, or command payloads in reports.
 - Do not add deployment automation or registry publishing to CI.
 
+## Handle read-only requests
+
+For a readiness review, status check, or production verification request,
+perform only the requested read-only inspections, report the findings, and
+stop. Do not continue into release classification or shared preflight. Do not
+push, create or update a pull request, merge, deploy, publish, roll back, change
+configuration or secrets, or perform any other release mutation.
+
 ## Choose the release path
 
 Use the frontend-only path only when the change cannot affect the multiplayer
@@ -44,7 +52,10 @@ State the chosen path and why before changing production.
 3. Push the review branch and open or update its pull request.
 4. Wait for all required pull-request checks to pass, including the production
    image build for backend releases. Do not deploy failed or unverified code.
-5. Record the pull request, exact commit, and non-secret check results for the
+5. Confirm the user has approved the exact release commit and all required
+   pull-request reviews are complete. Do not change production before both
+   approval gates pass.
+6. Record the pull request, exact commit, and non-secret check results for the
    completion report.
 
 ## Release frontend-only changes
@@ -70,9 +81,10 @@ State the chosen path and why before changing production.
    service to one Machine.
 4. Verify the release command and migrations succeeded. For a schema release,
    confirm the expected migration record without exposing credentials.
-5. Verify exactly one serving 512 MB Machine remains in `lhr`, Fly health
-   checks pass, and both `https://multi.sudoku.slpixe.com/health` and
-   `https://multi.sudoku.slpixe.com/ready` succeed.
+5. Verify Fly inventory and scale state show exactly one Machine total. That
+   Machine must have 512 MB, be in `lhr`, be serving, and pass Fly health
+   checks. Both `https://multi.sudoku.slpixe.com/health` and
+   `https://multi.sudoku.slpixe.com/ready` must succeed.
 6. Stop before merging if any backend verification fails. Once the backend is
    healthy, merge the pull request so Netlify publishes the compatible
    frontend.

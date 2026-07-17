@@ -26,6 +26,12 @@ a request to review deployment readiness is read-only and does not authorize
 production changes. Mutating production requires an explicit deploy, publish,
 release, or rollback request.
 
+For a read-only readiness, status, or production verification request, the
+operator performs only the requested inspections, reports the findings, and
+stops before release classification or preflight. Read-only handling must not
+push, create or update a pull request, merge, deploy, publish, roll back, change
+configuration or secrets, or perform another release mutation.
+
 The skill classifies each release before acting:
 
 - A frontend-only release uses the shortened Netlify path.
@@ -41,49 +47,51 @@ Before either release path, the operator must:
 2. Confirm the intended branch and commit, inspect the worktree, and stop for
    unrelated or uncommitted changes that make the release ambiguous.
 3. Confirm that no secrets will be printed, committed, or placed in reports.
-4. Run the local checks appropriate to the change and identify the required
-   pull-request checks, including the production image build when applicable.
-5. Stop rather than opening a release path for code whose local checks have
-   failed or whose intended commit is unclear.
+4. Run the local checks appropriate to the change.
+5. Push the review branch and open or update its pull request.
+6. Wait for required pull-request checks, including the production image build
+   when applicable, to pass.
+7. Confirm that the user approved the exact release commit and all required
+   pull-request reviews are complete before changing production.
+8. Stop rather than changing production for code whose checks failed, whose
+   intended commit is unclear, or whose approval gates remain incomplete.
 
 ## Frontend-only release
 
 For a release that cannot affect the multiplayer backend, protocol, puzzle
 catalog, or schema:
 
-1. Push the review branch and open or update its pull request.
-2. Wait for required CI checks to pass.
-3. Merge the pull request so Netlify publishes from `master`.
-4. Confirm that Netlify published the intended commit.
-5. Smoke-test the production site in a fresh browser context.
-6. Complete local cleanup and report the result.
+1. Merge the approved pull request so Netlify publishes from `master`.
+2. Confirm that Netlify published the intended commit.
+3. Smoke-test the production site in a fresh browser context.
+4. Complete local cleanup and report the result.
 
 ## Full backend-first release
 
 For multiplayer or coupled changes:
 
-1. Push the review branch, open or update its pull request, and wait for CI and
-   the image-build job to pass before changing production.
-2. For a schema release, verify that a named Neon snapshot or point-in-time
+1. For a schema release, verify that a named Neon snapshot or point-in-time
    recovery window exists and covers the rollout. Stop if neither can be
    verified. Never delete or rotate a snapshot automatically.
-3. Confirm Fly authentication, the expected production application, exactly
+2. Confirm Fly authentication, the expected production application, exactly
    one 512 MB Machine in `lhr`, and a healthy pre-deploy `/ready` response.
-4. Deploy only through `pnpm run deploy:multiplayer`. This preserves the
+3. Deploy only through `pnpm run deploy:multiplayer`. This preserves the
    immediate replacement strategy, release-command migrations, and reset to
    one Machine.
-5. Verify the release command, exactly one serving Machine, Fly health checks,
-   `/health`, and `/ready`. When the schema changed, also verify the migration
-   record without exposing credentials.
-6. Stop before merging if the backend is unhealthy. If it is healthy, merge
+4. Verify the release command and migration outcome. Verify Fly inventory and
+   scale state show exactly one Machine total; that Machine must have 512 MB,
+   be in `lhr`, be serving, and pass Fly health checks. Verify `/health` and
+   `/ready`. When the schema changed, also verify the migration record without
+   exposing credentials.
+5. Stop before merging if the backend is unhealthy. If it is healthy, merge
    the pull request so Netlify publishes the compatible frontend.
-7. Confirm that Netlify published the intended commit and that post-merge
+6. Confirm that Netlify published the intended commit and that post-merge
    `master` checks pass.
-8. Smoke-test the live application in a fresh browser context. Verify the
+7. Smoke-test the live application in a fresh browser context. Verify the
    affected frontend behavior and multiplayer selection or connectivity, but
    do not create production rooms unless the user explicitly authorizes that
    test.
-9. Complete local cleanup and report the result.
+8. Complete local cleanup and report the result.
 
 Fresh-browser verification is required because an existing PWA tab may remain
 controlled by an older service worker. If the old interface persists, advise
