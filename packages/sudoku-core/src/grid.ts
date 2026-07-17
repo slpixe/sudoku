@@ -1,8 +1,14 @@
 export type SimpleSudoku = number[][];
 
-export type BaseCollectionId = "easy" | "medium" | "hard" | "expert" | "evil";
+export type BaseCollectionId = "easy" | "medium" | "hard" | "fiendish" | "diabolical";
 
-export const BASE_COLLECTION_IDS: readonly BaseCollectionId[] = ["easy", "medium", "hard", "expert", "evil"];
+export const BASE_COLLECTION_IDS: readonly BaseCollectionId[] = [
+  "easy",
+  "medium",
+  "hard",
+  "fiendish",
+  "diabolical",
+];
 
 export const SUDOKU_COORDINATES = [0, 1, 2, 3, 4, 5, 6, 7, 8];
 export const SUDOKU_NUMBERS = [1, 2, 3, 4, 5, 6, 7, 8, 9];

@@ -157,14 +157,16 @@ describe("SelectGame", () => {
 
     expect(screen.getByTestId("select-game-collection-custom-one")).toBeTruthy();
     expect(screen.getByTestId("select-game-card-status-1")).toBeTruthy();
+    expect(screen.getByTestId("sudoku-preview-number-1").textContent).toBe("E-1");
     await user.click(screen.getByTestId("select-game-collection-custom-one"));
+    expect(screen.getByTestId("sudoku-preview-number-1").textContent).toBe("1");
 
     await user.click(screen.getByRole("button", {name: "select_mode_create_online"}));
 
     expect(screen.queryByTestId("select-game-collection-custom-one")).toBeNull();
     expect(screen.queryByTestId("select-game-card-status-1")).toBeNull();
     expect(screen.getByTestId("select-game-collection-easy").className).toContain("bg-white");
-    for (const id of ["easy", "medium", "hard", "expert", "evil"]) {
+    for (const id of ["easy", "medium", "hard", "fiendish", "diabolical"]) {
       expect(screen.getByTestId(`select-game-collection-${id}`)).toBeTruthy();
     }
   });

@@ -14,6 +14,7 @@ import {useAppDialog} from "src/components/AppDialog";
 import {appPersistence, StoredPlayedSudokuState} from "src/lib/persistence/appPersistence";
 import {createCompactGameSearch} from "./gameRouteContract";
 import {isBaseCollectionId} from "src/lib/game/baseCollections";
+import {getBaseCollectionPuzzleCode} from "src/lib/game/baseCollectionMetadata";
 import type {PuzzleSelection} from "./selectGameMode";
 
 const TabItem = ({active, children, ...props}: React.ButtonHTMLAttributes<HTMLButtonElement> & {active: boolean}) => (
@@ -125,10 +126,14 @@ const SudokuToSelect = ({
   const navigate = useNavigate();
   const {t} = useTranslation();
   const dialog = useAppDialog();
+  const puzzleNumber = index + 1;
+  const puzzleCode = getBaseCollectionPuzzleCode(sudokuCollectionName, puzzleNumber);
+  const puzzleLabel = puzzleCode ?? String(puzzleNumber);
+  const difficulty = translateCollectionName(sudokuCollectionName);
 
   const choose = async () => {
     if (onSelect) {
-      onSelect({collectionId: sudokuCollectionName, puzzleNumber: index + 1});
+      onSelect({collectionId: sudokuCollectionName, puzzleNumber});
       return;
     }
     if (finished) {
@@ -139,7 +144,7 @@ const SudokuToSelect = ({
     }
     navigate({
       to: "/",
-      search: createCompactGameSearch(sudokuCollectionName, index + 1, Boolean(finished)),
+      search: createCompactGameSearch(sudokuCollectionName, puzzleNumber, Boolean(finished)),
     });
   };
 
@@ -183,8 +188,9 @@ const SudokuToSelect = ({
         <SudokuPreview
           size={size}
           onClick={choose}
-          id={index + 1}
-          ariaLabel={t("select_sudoku", {sudokuIndex: index + 1})}
+          id={puzzleNumber}
+          label={puzzleLabel}
+          ariaLabel={t("select_sudoku", {difficulty, puzzleLabel})}
           disabled={disabled}
           sudoku={finished ? sudoku.solution : sudoku.sudoku}
           darken

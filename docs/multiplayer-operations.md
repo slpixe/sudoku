@@ -232,12 +232,13 @@ runs at server startup and every 15 minutes, deleting only expired rooms that
 are not present in process memory; foreign-key cascades remove their processed
 commands and undo actions.
 
-The files in `sudokus/easy.txt`, `medium.txt`, `hard.txt`, `expert.txt`, and
-`evil.txt` are a static multiplayer catalog. Collection ID, one-based line
-number, and the 81-character givens line form the creation fingerprint. Never
-reorder, replace, or delete deployed lines; append new puzzles only. Deploy
-frontend and backend from compatible catalog revisions. Existing rooms retain
-their stored givens and solution.
+The files in `sudokus/easy.txt`, `medium.txt`, `hard.txt`, `fiendish.txt`, and
+`diabolical.txt` are a static multiplayer catalog. Collection ID, one-based
+line number, and the 81-character givens line form the creation fingerprint.
+The Fiendish and Diabolical file rename did not change file contents or line
+order. Never reorder, replace, or delete deployed lines; append new puzzles
+only. Deploy frontend and backend from compatible catalog revisions. Existing
+rooms retain their stored givens and solution.
 
 ## Forward-only rollout and rollback
 
@@ -250,6 +251,14 @@ Migration `002_timer_started.sql` deliberately retains compatibility triggers
 for writes from the pre-migration server during the Fly release-command and
 rollback windows. Remove them only in a later numbered contract migration,
 after that older server image can no longer receive production writes.
+
+Migration `003_difficulty_ids.sql` expands the room collection constraint to
+allow the legacy `expert` and `evil` IDs during the release and rollback
+window, then canonicalizes existing rows to `fiendish` and `diabolical`. New
+server writes use only `fiendish` and `diabolical`; the legacy values remain
+allowed until a later numbered contract migration removes them. Take a Neon
+snapshot before this schema release, deploy the multiplayer backend first,
+verify `/ready`, and only then deploy the updated frontend.
 
 For an application regression with a compatible database, find the preceding
 image and redeploy it while retaining one Machine:

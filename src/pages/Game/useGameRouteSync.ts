@@ -6,11 +6,11 @@ import {useTranslation} from "react-i18next";
 import {useAppDialog} from "src/components/AppDialog";
 import {GameStateMachine, type GameState} from "src/context/GameContext";
 import {SudokuState} from "src/context/SudokuContext";
-import {translateCollectionName} from "src/lib/database/collections";
 import type {UserPreferences} from "src/lib/database/userPreferences";
 import {SimpleSudoku} from "src/lib/engine/types";
 import {cellsToSimpleSudoku, parseSudoku, stringifySudoku} from "src/lib/engine/utility";
 import {solve} from "src/lib/engine/solverAC3";
+import {getSudokuPuzzleDisplayLabel} from "src/lib/game/collectionNames";
 import {getSudokuCollection, getSudokusPaginated} from "src/lib/game/sudokus";
 import {appPersistence} from "src/lib/persistence/appPersistence";
 import {
@@ -373,10 +373,14 @@ export function useGameRouteSync({
         pauseForDialog();
         const areYouSure = await dialog.confirm({
           message: translate("confirm_new_game", {
-            currentCollectionName: translateCollectionName(currentGameState.sudokuCollectionName),
-            currentIndex: currentGameState.sudokuIndex + 1,
-            newCollectionName: translateCollectionName(routeSudoku.sudokuCollectionName),
-            newIndex: routeSudoku.sudokuIndex,
+            currentPuzzleLabel: getSudokuPuzzleDisplayLabel(
+              currentGameState.sudokuCollectionName,
+              currentGameState.sudokuIndex + 1,
+            ),
+            newPuzzleLabel: getSudokuPuzzleDisplayLabel(
+              routeSudoku.sudokuCollectionName,
+              routeSudoku.sudokuIndex,
+            ),
           }),
         });
         if (cancelled) {

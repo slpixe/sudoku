@@ -5,11 +5,15 @@ import {
   type RoomStatus,
   type UndoEntry,
 } from "@sudoku/multiplayer-protocol";
-import type {BaseCollectionId} from "@sudoku/core";
+import {BASE_COLLECTION_IDS, type BaseCollectionId} from "@sudoku/core";
 
 const roomCodePattern = /^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$/;
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const collectionIds = new Set<BaseCollectionId>(["easy", "medium", "hard", "expert", "evil"]);
+const collectionIds = new Set<string>(BASE_COLLECTION_IDS);
+const legacyCollectionIds: Readonly<Record<string, BaseCollectionId>> = {
+  expert: "fiendish",
+  evil: "diabolical",
+};
 const statuses = new Set<RoomStatus>(["running", "paused", "completed"]);
 
 export interface RoomRow {
@@ -38,6 +42,12 @@ function fail(field: string): never {
 
 function stringField(value: unknown, field: string): string {
   return typeof value === "string" ? value : fail(field);
+}
+
+function collectionIdField(value: unknown): BaseCollectionId {
+  const stored = stringField(value, "collection_id");
+  const canonical = legacyCollectionIds[stored] ?? stored;
+  return collectionIds.has(canonical) ? (canonical as BaseCollectionId) : fail("collection_id");
 }
 
 function integerField(value: unknown, field: string, minimum = 0): number {
@@ -120,10 +130,7 @@ export function mapRoomRow(
   if (!roomCodePattern.test(roomCode)) {
     fail("code");
   }
-  const collectionId = stringField(row.collection_id, "collection_id") as BaseCollectionId;
-  if (!collectionIds.has(collectionId)) {
-    fail("collection_id");
-  }
+  const collectionId = collectionIdField(row.collection_id);
   const status = stringField(row.status, "status") as RoomStatus;
   if (!statuses.has(status)) {
     fail("status");

@@ -40,11 +40,11 @@ async function expectInsideElement(inner: Locator, outer: Locator, name: string)
   expect(innerBox.y + innerBox.height, `${name} bottom edge`).toBeLessThanOrEqual(outerBox.y + outerBox.height + 1);
 }
 
-async function expectPreviewNumberAboveMetadata(page: Page, previewId: number, metadata: Locator, name: string) {
+async function expectPreviewLabelAboveMetadata(page: Page, previewId: number, metadata: Locator, name: string) {
   const preview = page.getByTestId(`sudoku-preview-${previewId}`);
-  const previewNumber = page.getByTestId(`sudoku-preview-number-${previewId}`);
+  const previewLabel = page.getByTestId(`sudoku-preview-number-${previewId}`);
   const previewBox = await preview.boundingBox();
-  const numberBox = await previewNumber.boundingBox();
+  const numberBox = await previewLabel.boundingBox();
   const metadataBox = await metadata.boundingBox();
 
   if (!previewBox || !numberBox || !metadataBox) {
@@ -61,11 +61,13 @@ async function expectPreviewNumberAboveMetadata(page: Page, previewId: number, m
   expect(numberCenterY, `${name} upper-third lower bound`).toBeGreaterThanOrEqual(previewUpperBandY);
   expect(numberCenterY, `${name} upper-third position`).toBeLessThanOrEqual(previewTopThirdY);
   expect(numberBox.y + numberBox.height, `${name} clears saved metadata`).toBeLessThanOrEqual(metadataBox.y - 1);
-  await expect(previewNumber).toHaveCSS("color", "rgb(13, 148, 136)");
-  await expect(previewNumber).toHaveCSS("opacity", "1");
-  await expect(previewNumber).toHaveClass(/text-teal-600/);
-  await expect(previewNumber).toHaveClass(/dark:text-teal-600/);
-  await expect(previewNumber).not.toHaveClass(/opacity-/);
+  await expect(previewLabel).toHaveText(`E-${previewId}`);
+  await expectInsideElement(previewLabel, preview, `${name} label`);
+  await expect(previewLabel).toHaveCSS("color", "rgb(13, 148, 136)");
+  await expect(previewLabel).toHaveCSS("opacity", "1");
+  await expect(previewLabel).toHaveClass(/text-teal-600/);
+  await expect(previewLabel).toHaveClass(/dark:text-teal-600/);
+  await expect(previewLabel).not.toHaveClass(/opacity-/);
 }
 
 async function seedSelectGameStates(page: Page) {
@@ -206,6 +208,20 @@ test("keeps Solo available and disables online actions while offline", async ({p
   await context.setOffline(false);
 });
 
+test("localizes difficulty names while keeping puzzle codes invariant", async ({page}) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "language", {value: "es-ES", configurable: true});
+    Object.defineProperty(navigator, "languages", {value: ["es-ES", "es"], configurable: true});
+  });
+  await page.goto("/#/select-game");
+
+  await expect(page.getByTestId("select-game-collection-easy")).toHaveText("Fácil");
+  await expect(page.getByTestId("sudoku-preview-number-1")).toHaveText("E-1");
+  await expect(page.getByTestId("sudoku-preview-1")).toHaveAccessibleName(
+    "Seleccionar sudoku E-1 de dificultad Fácil",
+  );
+});
+
 test("shows restart confirmation dialog for finished games on select screen", async ({page}) => {
   await seedSelectGameStates(page);
   await page.goto("/#/select-game");
@@ -234,7 +250,7 @@ test("shows restart confirmation dialog for finished games on select screen", as
   await expect(dialog).toBeVisible();
   await confirmButton.click();
   await expect(dialog).toHaveCount(0);
-  await expect(page.getByTestId("current-game-label")).toHaveText("Easy #2");
+  await expect(page.getByTestId("current-game-label")).toHaveText("E-2");
 });
 
 for (const viewport of selectGameViewports) {
@@ -267,13 +283,13 @@ for (const viewport of selectGameViewports) {
       finishedCard,
       `${viewport.name} restart label`,
     );
-    await expectPreviewNumberAboveMetadata(
+    await expectPreviewLabelAboveMetadata(
       page,
       1,
       unfinishedStatus.getByText(/Play time:\s+21:05 min/),
       `${viewport.name} unfinished preview number`,
     );
-    await expectPreviewNumberAboveMetadata(
+    await expectPreviewLabelAboveMetadata(
       page,
       2,
       finishedStatus.getByText(/Last time:\s+18:42 min/),

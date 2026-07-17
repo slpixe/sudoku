@@ -43,6 +43,24 @@ describe("game route contract", () => {
     });
   });
 
+  it.each([
+    {collectionKey: "collection", puzzleKey: "puzzle", collectionId: "expert"},
+    {collectionKey: "collection", puzzleKey: "puzzle", collectionId: "evil"},
+    {collectionKey: "sudokuCollectionName", puzzleKey: "sudokuIndex", collectionId: "expert"},
+    {collectionKey: "sudokuCollectionName", puzzleKey: "sudokuIndex", collectionId: "evil"},
+  ])(
+    "rejects retired $collectionId full-payload routes using $collectionKey",
+    ({collectionKey, puzzleKey, collectionId}) => {
+      expect(
+        parseGameRouteIntent({
+          [collectionKey]: collectionId,
+          [puzzleKey]: "1",
+          sudoku: "123",
+        }),
+      ).toEqual({kind: "invalid", forceRestart: false});
+    },
+  );
+
   it("parses full payload params without metadata as an exact custom puzzle", () => {
     expect(parseGameRouteIntent({sudoku: "123"})).toEqual({
       kind: "payload",
@@ -72,6 +90,11 @@ describe("game route contract", () => {
   it("builds compact search without sudoku payload", () => {
     expect(createCompactGameSearch("easy", 1)).toEqual({collection: "easy", puzzle: 1});
     expect(createCompactGameSearch("easy", 1, true)).toEqual({collection: "easy", puzzle: 1, restart: "1"});
+  });
+
+  it("builds the renamed top-difficulty compact routes", () => {
+    expect(createCompactGameSearch("fiendish", 1)).toEqual({collection: "fiendish", puzzle: 1});
+    expect(createCompactGameSearch("diabolical", 500)).toEqual({collection: "diabolical", puzzle: 500});
   });
 
   it("builds payload search with exact sudoku data", () => {

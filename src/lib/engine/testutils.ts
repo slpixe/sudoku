@@ -113,7 +113,7 @@ export const SOLVED_SUDOKUS: SolvedSudoku[] = [
     ),
   },
   {
-    description: "evil sudoku 1",
+    description: "diabolical sudoku 1",
     unsolved: parseSudoku(
       [
         "_6______4",

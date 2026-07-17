@@ -23,9 +23,15 @@ function cellValue(page: Page, x: number, y: number) {
   return page.getByTestId(`sudoku-cell-value-${x}-${y}`);
 }
 
-async function openGame(page: Page, sudoku = FIRST_PUZZLE, sudokuIndex = 1, collection = "easy", label = "Easy") {
+async function openGame(
+  page: Page,
+  sudoku = FIRST_PUZZLE,
+  sudokuIndex = 1,
+  collection = "easy",
+  expectedLabel = `E-${sudokuIndex}`,
+) {
   await page.goto(gameUrl(sudoku, sudokuIndex, collection));
-  await expect(page.getByTestId("current-game-label")).toHaveText(`${label} #${sudokuIndex}`);
+  await expect(page.getByTestId("current-game-label")).toHaveText(expectedLabel);
   await expect(page.getByTestId("sudoku-board")).toBeVisible();
   await continueIfPaused(page);
   await expect(cellValue(page, 5, 0)).toHaveText(sudoku[5] === "0" ? "" : sudoku[5]);
@@ -219,10 +225,11 @@ test("solves a sudoku and starts the next game from the completion panel", async
   await expect(page.getByTestId("sudoku-number-7")).toHaveCount(0);
   await expect(page.getByTestId("sudoku-toggle-occurrences")).toHaveCount(0);
   await expect(page.getByTestId("sudoku-completion-next")).toBeFocused();
+  await expect(page.getByTestId("sudoku-completion-next")).toHaveText("Next E-2");
 
   await page.getByTestId("sudoku-completion-next").click();
 
-  await expect(page.getByTestId("current-game-label")).toHaveText("Easy #2");
+  await expect(page.getByTestId("current-game-label")).toHaveText("E-2");
   await expect(page.getByTestId("sudoku-completion-panel")).toHaveCount(0);
   await expect(cellValue(page, 2, 0)).toHaveText("9");
   await expectGameSearch(page, SECOND_PUZZLE, 2, "easy");

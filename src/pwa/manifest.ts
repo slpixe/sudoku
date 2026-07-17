@@ -3,7 +3,7 @@ import type {ManifestOptions} from "vite-plugin-pwa";
 export const pwaManifest = {
   name: "Sudoku",
   short_name: "Sudoku",
-  description: "Play over 3,000 Sudoku puzzles from easy to evil. Open source and free with no tracking.",
+  description: "Play over 3,000 Sudoku puzzles across five difficulty levels. Open source and free with no tracking.",
   theme_color: "#1F2937",
   background_color: "#1F2937",
   display: "standalone",

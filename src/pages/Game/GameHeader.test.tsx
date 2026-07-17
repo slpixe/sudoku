@@ -53,11 +53,10 @@ function renderHeader({
         blocked={blocked}
         canUndo
         clearWhenInactive={clearWhenInactive}
-        collectionName="Easy"
         locked={locked}
         pauseForClearConfirmation={pauseForClearConfirmation}
+        puzzleLabel="E-1"
         status={status}
-        sudokuIndex={0}
         timerContent={<div data-testid="test-timer">01:05 min</div>}
         won={won}
         onClearConfirmed={onClearConfirmed}
@@ -73,6 +72,11 @@ function renderHeader({
 }
 
 describe("GameHeader", () => {
+  it("shows the supplied stable puzzle label", () => {
+    renderHeader();
+    expect(screen.getByTestId("current-game-label").textContent).toBe("E-1");
+  });
+
   it("delegates confirmed Clear and New Game policy", async () => {
     const user = userEvent.setup();
     const callbacks = renderHeader();

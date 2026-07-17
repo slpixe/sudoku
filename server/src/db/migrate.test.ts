@@ -52,6 +52,7 @@ async function insertLegacyRoom(
   input: {
     id: string;
     code: string;
+    collectionId?: string;
     revision: number;
     status: "running" | "paused";
     runningSince: Date | null;
@@ -66,7 +67,7 @@ async function insertLegacyRoom(
     [
       input.id,
       input.code,
-      "easy",
+      input.collectionId ?? "easy",
       1,
       emptyBoard.givens,
       emptyBoard.solution,
@@ -83,13 +84,60 @@ async function insertLegacyRoom(
   );
 }
 
-describe("timer_started migration", () => {
+describe("multiplayer database migrations", () => {
   const databases: PgliteDatabase[] = [];
   const temporaryDirectories: string[] = [];
 
   afterEach(async () => {
     await Promise.all(databases.splice(0).map((database) => database.close()));
     await Promise.all(temporaryDirectories.splice(0).map((directory) => rm(directory, {recursive: true, force: true})));
+  });
+
+  it("expands and canonicalizes the top difficulty IDs", async () => {
+    const database = new PgliteDatabase();
+    databases.push(database);
+    const migration001Directory = await mkdtemp(path.join(tmpdir(), "sudoku-migration-difficulty-"));
+    temporaryDirectories.push(migration001Directory);
+    await copyFile(
+      path.join(migrationsDirectory, "001_multiplayer_rooms.sql"),
+      path.join(migration001Directory, "001_multiplayer_rooms.sql"),
+    );
+    await runMigrations(database, migration001Directory);
+
+    await insertLegacyRoom(database, {
+      id: roomId,
+      code: "ABC234",
+      collectionId: "expert",
+      revision: 0,
+      status: "running",
+      runningSince: null,
+    });
+    await insertLegacyRoom(database, {
+      id: resumedRoomId,
+      code: "DEF567",
+      collectionId: "evil",
+      revision: 0,
+      status: "running",
+      runningSince: null,
+    });
+
+    await runMigrations(database, migrationsDirectory);
+
+    const migrated = await database.query<{collection_id: string}>(
+      "SELECT collection_id FROM rooms ORDER BY code",
+    );
+    expect(migrated.rows).toEqual([{collection_id: "fiendish"}, {collection_id: "diabolical"}]);
+
+    await expect(
+      insertLegacyRoom(database, {
+        id: postMigrationRoomId,
+        code: "GHJ678",
+        collectionId: "expert",
+        revision: 0,
+        status: "running",
+        runningSince: null,
+      }),
+    ).resolves.toBeUndefined();
   });
 
   it("backfills ordered history and remains compatible with legacy command and room writes", async () => {

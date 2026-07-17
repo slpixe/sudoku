@@ -24,17 +24,16 @@ export type GameViewProps = {
   clearWhenInactive?: boolean;
   cells: Cell[];
   clipboardNotes: number[] | null;
-  collectionName: string;
   completionContent: React.ReactNode;
   locked: boolean;
   notesMode: boolean;
   partnerCellCoordinates?: CellCoordinates;
   pauseForClearConfirmation: boolean;
   preferences: UserPreferences;
+  puzzleLabel: string;
   showMenu: boolean;
   status: GameStateMachine;
   statusContent?: React.ReactNode;
-  sudokuIndex: number;
   timerContent: React.ReactNode;
   won: boolean;
   onActivateNotesMode: () => void;
@@ -67,17 +66,16 @@ export function GameView({
   clearWhenInactive = false,
   cells,
   clipboardNotes,
-  collectionName,
   completionContent,
   locked,
   notesMode,
   partnerCellCoordinates,
   pauseForClearConfirmation,
   preferences,
+  puzzleLabel,
   showMenu,
   status,
   statusContent,
-  sudokuIndex,
   timerContent,
   won,
   onActivateNotesMode,
@@ -177,11 +175,10 @@ export function GameView({
               blocked={blocked}
               canUndo={canUndo}
               clearWhenInactive={clearWhenInactive}
-              collectionName={collectionName}
               locked={lockedGame}
               pauseForClearConfirmation={pauseForClearConfirmation}
+              puzzleLabel={puzzleLabel}
               status={status}
-              sudokuIndex={sudokuIndex}
               timerContent={timerContent}
               won={won}
               onClearConfirmed={onClearConfirmed}

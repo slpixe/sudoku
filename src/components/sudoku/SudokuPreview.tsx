@@ -49,6 +49,7 @@ const SudokuPreviewGrid = React.memo(
 export default class SudokuPreview extends React.PureComponent<{
   sudoku: SimpleSudoku;
   id: number;
+  label?: string;
   darken?: boolean;
   size?: number;
   ariaLabel?: string;
@@ -56,7 +57,9 @@ export default class SudokuPreview extends React.PureComponent<{
   onClick: () => void;
 }> {
   render() {
-    const {sudoku, id, onClick, size = 150, ariaLabel, disabled = false} = this.props;
+    const {sudoku, id, label, onClick, size = 150, ariaLabel, disabled = false} = this.props;
+    const visibleLabel = label ?? String(id);
+    const labelScale = visibleLabel.length >= 5 ? 5 : visibleLabel.length >= 3 ? 4 : 3;
     const containerHeight = size;
     const containerWidth = size;
     const height = 100;
@@ -88,9 +91,9 @@ export default class SudokuPreview extends React.PureComponent<{
             <div
               className="font-bold text-teal-600 dark:text-teal-600"
               data-testid={`sudoku-preview-number-${id}`}
-              style={{fontSize: size / 3}}
+              style={{fontSize: size / labelScale}}
             >
-              {id}
+              {visibleLabel}
             </div>
           </div>
           <SudokuPreviewGrid width={width} height={height} hideLeftRight />

@@ -1,27 +1,17 @@
 import {t} from "i18next";
+import {getBaseCollectionMetadata} from "src/lib/game/baseCollectionMetadata";
 
 export enum BaseCollection {
   Easy = "easy",
   Medium = "medium",
   Hard = "hard",
-  Expert = "expert",
-  Evil = "evil",
+  Fiendish = "fiendish",
+  Diabolical = "diabolical",
 }
 
 export function translateCollectionName(collectionName: string) {
-  // TODO: Find better place for this.
-  const BASE_COLLECTION_TRANSLATION: Record<BaseCollection, string> = {
-    [BaseCollection.Easy]: t("difficulty_easy"),
-    [BaseCollection.Medium]: t("difficulty_medium"),
-    [BaseCollection.Hard]: t("difficulty_hard"),
-    [BaseCollection.Expert]: t("difficulty_expert"),
-    [BaseCollection.Evil]: t("difficulty_evil"),
-  };
-  // TODO: We should also pass the collection id, not just the name.
-  if (collectionName in BASE_COLLECTION_TRANSLATION) {
-    return BASE_COLLECTION_TRANSLATION[collectionName as BaseCollection];
-  }
-  return collectionName;
+  const metadata = getBaseCollectionMetadata(collectionName);
+  return metadata ? t(metadata.translationKey) : collectionName;
 }
 
 export interface CollectionIndex {

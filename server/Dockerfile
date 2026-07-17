@@ -48,8 +48,8 @@ COPY --chown=node:node server/migrations ./server/migrations
 COPY --chown=node:node sudokus/easy.txt sudokus/easy.txt
 COPY --chown=node:node sudokus/medium.txt sudokus/medium.txt
 COPY --chown=node:node sudokus/hard.txt sudokus/hard.txt
-COPY --chown=node:node sudokus/expert.txt sudokus/expert.txt
-COPY --chown=node:node sudokus/evil.txt sudokus/evil.txt
+COPY --chown=node:node sudokus/fiendish.txt sudokus/fiendish.txt
+COPY --chown=node:node sudokus/diabolical.txt sudokus/diabolical.txt
 
 USER node
 EXPOSE 8080

@@ -26,6 +26,16 @@ function legacyGameUrl(sudoku = FIRST_PUZZLE, sudokuIndex = 1, sudokuCollectionN
   return `/#/?${params.toString()}`;
 }
 
+function fullPayloadGameUrl(sudoku = FIRST_PUZZLE, puzzle = 1, collection = "easy") {
+  const params = new URLSearchParams({
+    collection,
+    puzzle: String(puzzle),
+    sudoku,
+  });
+
+  return `/#/?${params.toString()}`;
+}
+
 function payloadGameUrl(sudoku: string) {
   const params = new URLSearchParams({sudoku});
   return `/#/?${params.toString()}`;
@@ -43,9 +53,15 @@ function cellNotes(page: Page, x: number, y: number) {
   return page.getByTestId(`sudoku-cell-notes-${x}-${y}`);
 }
 
-async function openGame(page: Page, sudoku = FIRST_PUZZLE, sudokuIndex = 1, collection = "easy", label = "Easy") {
+async function openGame(
+  page: Page,
+  sudoku = FIRST_PUZZLE,
+  sudokuIndex = 1,
+  collection = "easy",
+  expectedLabel = `E-${sudokuIndex}`,
+) {
   await page.goto(gameUrl(sudokuIndex, collection));
-  await expect(page.getByTestId("current-game-label")).toHaveText(`${label} #${sudokuIndex}`);
+  await expect(page.getByTestId("current-game-label")).toHaveText(expectedLabel);
   await expect(page.getByTestId("sudoku-board")).toBeVisible();
   await continueIfPaused(page);
   await expect(cellValue(page, 5, 0)).toHaveText(sudoku[5] === "0" ? "" : sudoku[5]);
@@ -507,7 +523,7 @@ test("keeps a stored paused game paused when loaded from the URL", async ({page}
   });
 
   await page.goto(gameUrl());
-  await expect(page.getByTestId("current-game-label")).toHaveText("Easy #1");
+  await expect(page.getByTestId("current-game-label")).toHaveText("E-1");
   await expect(page.getByTestId("sudoku-action-pause")).toHaveAttribute("aria-label", "Continue");
   expect(await getTimerSeconds(page)).toBe(10);
 
@@ -521,10 +537,44 @@ test("keeps a stored paused game paused when loaded from the URL", async ({page}
 test("normalizes legacy built-in full-payload URLs to compact params", async ({page}) => {
   await page.goto(legacyGameUrl(FIRST_PUZZLE, 1, "easy"));
 
-  await expect(page.getByTestId("current-game-label")).toHaveText("Easy #1");
+  await expect(page.getByTestId("current-game-label")).toHaveText("E-1");
   await expect(cellValue(page, 5, 0)).toHaveText("");
   await expectGameSearch(page, FIRST_PUZZLE, 1, "easy");
 });
+
+test("loads a canonical Fiendish catalog route", async ({page}) => {
+  await page.goto(gameUrl(1, "fiendish"));
+  await expect(page.getByTestId("current-game-label")).toHaveText("F-1");
+  await expect(page.getByTestId("sudoku-board")).toBeVisible();
+  await expectGameSearch(page, "", 1, "fiendish");
+});
+
+test("recovers safely from a retired Expert compact route", async ({page}) => {
+  await page.goto(gameUrl(1, "expert"));
+  await expect(page.getByTestId("app-dialog-message")).toHaveText("The Sudoku in the URL is invalid.");
+  await page.getByTestId("app-dialog-confirm").click();
+  await expect(page).not.toHaveURL(/collection=expert/);
+});
+
+for (const {routeName, url, retiredId} of [
+  {
+    routeName: "current full-payload params",
+    url: fullPayloadGameUrl(FIRST_PUZZLE, 1, "expert"),
+    retiredId: "expert",
+  },
+  {
+    routeName: "legacy full-payload params",
+    url: legacyGameUrl(FIRST_PUZZLE, 1, "evil"),
+    retiredId: "evil",
+  },
+]) {
+  test(`recovers safely from retired IDs in ${routeName}`, async ({page}) => {
+    await page.goto(url);
+    await expect(page.getByTestId("app-dialog-message")).toHaveText("The Sudoku in the URL is invalid.");
+    await page.getByTestId("app-dialog-confirm").click();
+    await expect(page).not.toHaveURL(new RegExp(`(?:collection|sudokuCollectionName)=${retiredId}`));
+  });
+}
 
 test("loads exact payload URLs without collection metadata", async ({page}) => {
   await page.goto(payloadGameUrl(CUSTOM_PUZZLE));
@@ -900,7 +950,7 @@ test("uses browser language automatically", async ({page}) => {
 
   await page.goto(gameUrl());
 
-  await expect(page.getByTestId("current-game-label")).toHaveText("Fácil #1");
+  await expect(page.getByTestId("current-game-label")).toHaveText("E-1");
   await expect(page.getByRole("button", {name: "Nuevo juego"})).toBeVisible();
   await expect(page.getByLabel("Select language")).toHaveCount(0);
 });
@@ -935,7 +985,7 @@ test("pauses the timer while confirming a route puzzle change", async ({page}) =
 
   await page.goto(gameUrl(2, "easy"));
   const restartDialog = page.getByTestId("app-dialog");
-  await expect(restartDialog).toContainText("do you want to pause it and start Easy #2");
+  await expect(restartDialog).toContainText("do you want to pause it and start E-2");
 
   const timerWhileDialogOpened = await page.getByTestId("game-timer").textContent();
   await page.waitForTimeout(1400);
@@ -974,7 +1024,7 @@ test("changes games through the selection screen", async ({page}) => {
   await expect(restartDialog).toContainText("This will restart the sudoku and reset the timer");
   await page.getByTestId("app-dialog-confirm").click();
 
-  await expect(page.getByTestId("current-game-label")).toHaveText("Medium #1");
+  await expect(page.getByTestId("current-game-label")).toHaveText("M-1");
   await expect(page).toHaveURL(/collection=medium/);
   await expect(page).not.toHaveURL(/sudoku=/);
 });
@@ -983,8 +1033,8 @@ test("locks older tabs when another tab claims a different active puzzle", async
   const pageA = page;
   const pageB = await context.newPage();
 
-  await openGame(pageA, FIRST_PUZZLE, 1, "easy", "Easy");
-  await openGame(pageB, SECOND_PUZZLE, 2, "easy", "Easy");
+  await openGame(pageA, FIRST_PUZZLE, 1, "easy", "E-1");
+  await openGame(pageB, SECOND_PUZZLE, 2, "easy", "E-2");
 
   await expect(pageA.getByTestId("active-game-lock-overlay")).toBeVisible();
   await expect(cellValue(pageA, 0, 0)).toHaveText("");
@@ -992,16 +1042,16 @@ test("locks older tabs when another tab claims a different active puzzle", async
 
   await pageA.getByTestId("active-game-lock-switch").click();
   await expect(pageA.getByTestId("active-game-lock-overlay")).toHaveCount(0);
-  await expect(pageA.getByTestId("current-game-label")).toHaveText("Easy #2");
+  await expect(pageA.getByTestId("current-game-label")).toHaveText("E-2");
   await expectGameSearch(pageA, SECOND_PUZZLE, 2, "easy");
 
   await pageA.goto(gameUrl(1, "easy"));
-  await expect(pageA.getByTestId("current-game-label")).toHaveText("Easy #1");
+  await expect(pageA.getByTestId("current-game-label")).toHaveText("E-1");
   await expect(pageB.getByTestId("active-game-lock-overlay")).toBeVisible();
 
   await pageB.getByTestId("active-game-lock-resume").click();
   await expect(pageB.getByTestId("active-game-lock-overlay")).toHaveCount(0);
-  await expect(pageB.getByTestId("current-game-label")).toHaveText("Easy #2");
+  await expect(pageB.getByTestId("current-game-label")).toHaveText("E-2");
   await expect(pageA.getByTestId("active-game-lock-overlay")).toBeVisible();
 
   await pageB.close();
@@ -1011,8 +1061,8 @@ test("locks older tabs when another tab claims the same active puzzle", async ({
   const pageA = page;
   const pageB = await context.newPage();
 
-  await openGame(pageA, FIRST_PUZZLE, 1, "easy", "Easy");
-  await openGame(pageB, FIRST_PUZZLE, 1, "easy", "Easy");
+  await openGame(pageA, FIRST_PUZZLE, 1, "easy", "E-1");
+  await openGame(pageB, FIRST_PUZZLE, 1, "easy", "E-1");
 
   await expect(pageA.getByTestId("active-game-lock-overlay")).toBeVisible();
   await expect(cellValue(pageA, 0, 0)).toHaveText("");

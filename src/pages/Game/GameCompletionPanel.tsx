@@ -4,6 +4,7 @@ import {useNavigate} from "@tanstack/react-router";
 import {useTranslation} from "react-i18next";
 import Button from "src/components/Button";
 import {translateCollectionName} from "src/lib/database/collections";
+import {getSudokuPuzzleDisplayLabel} from "src/lib/game/collectionNames";
 import {getSudokusPaginated, useSudokuCollections} from "src/lib/game/sudokus";
 import {formatDuration} from "src/utils/format";
 import {createCompactGameSearch} from "./gameRouteContract";
@@ -42,22 +43,25 @@ function useNextSudoku(sudokuCollectionName: string, sudokuIndex: number) {
       const sudoku = result.sudokus[0];
 
       if (!sudoku) {
-        return {collectionName, nextSudokuParams: null};
+        return {collectionName, nextPuzzleLabel: null, nextSudokuParams: null};
       }
 
+      const nextPuzzleNumber = nextIndex + 1;
       const nextSudokuParams: NextSudokuParams = {
         collection: sudokuCollectionName,
-        puzzle: nextIndex + 1,
+        puzzle: nextPuzzleNumber,
       };
 
       return {
         collectionName,
+        nextPuzzleLabel: getSudokuPuzzleDisplayLabel(sudokuCollectionName, nextPuzzleNumber),
         nextSudokuParams,
       };
     } catch (error) {
       console.error("Error calculating next sudoku:", error);
       return {
         collectionName: translateCollectionName(sudokuCollectionName),
+        nextPuzzleLabel: null,
         nextSudokuParams: null,
       };
     }
@@ -82,7 +86,7 @@ export const GameCompletionPanel: React.FC<GameCompletionPanelProps> = ({
   const navigate = useNavigate();
   const {t} = useTranslation();
   const panelRef = React.useRef<HTMLDivElement>(null);
-  const {collectionName, nextSudokuParams} = useNextSudoku(sudokuCollectionName, sudokuIndex);
+  const {collectionName, nextPuzzleLabel, nextSudokuParams} = useNextSudoku(sudokuCollectionName, sudokuIndex);
   const bestTime = previousTimes.length > 0 ? Math.min(...previousTimes) : null;
   const bestTimeValue = bestTime !== null ? formatDuration(bestTime) : null;
   const thisTimeValue = formatDuration(secondsPlayed);
@@ -150,10 +154,7 @@ export const GameCompletionPanel: React.FC<GameCompletionPanelProps> = ({
             data-testid="sudoku-completion-next"
             onClick={goToNextSudoku}
           >
-            {t("completion_next_sudoku", {
-              collection: collectionName,
-              sudokuIndex: nextSudokuParams.puzzle,
-            })}
+            {t("completion_next_sudoku", {puzzleLabel: nextPuzzleLabel})}
           </Button>
         ) : null}
         <Button

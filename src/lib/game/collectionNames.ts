@@ -1,5 +1,6 @@
 import {translateCollectionName} from "src/lib/database/collections";
 import {isBaseCollectionId} from "src/lib/game/baseCollections";
+import {getBaseCollectionPuzzleCode} from "src/lib/game/baseCollectionMetadata";
 import {appPersistence} from "src/lib/persistence/appPersistence";
 
 export function getSudokuCollectionDisplayName(collectionId: string) {
@@ -14,4 +15,11 @@ export function getSudokuCollectionDisplayName(collectionId: string) {
     console.error("Error loading sudoku collection:", error);
     return translateCollectionName(collectionId);
   }
+}
+
+export function getSudokuPuzzleDisplayLabel(collectionId: string, puzzleNumber: number) {
+  return (
+    getBaseCollectionPuzzleCode(collectionId, puzzleNumber) ??
+    `${getSudokuCollectionDisplayName(collectionId)} #${puzzleNumber}`
+  );
 }

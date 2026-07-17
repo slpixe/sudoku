@@ -6,7 +6,7 @@ import {useSudoku} from "src/context/SudokuContext";
 import {useUserPreferences} from "src/context/UserPrefencesContext";
 import {solve} from "src/lib/engine/solverAC3";
 import {cellsToSimpleSudoku, stringifySudoku} from "src/lib/engine/utility";
-import {getSudokuCollectionDisplayName} from "src/lib/game/collectionNames";
+import {getSudokuPuzzleDisplayLabel} from "src/lib/game/collectionNames";
 import {appPersistence} from "src/lib/persistence/appPersistence";
 
 import {GameProviders} from "./Game/GameProviders";
@@ -150,7 +150,7 @@ const GameWithRouteManagement = () => {
   }, [navigate, pauseGame]);
 
   const canUndo = sudokuState.historyIndex < sudokuState.history.length - 1;
-  const collectionName = getSudokuCollectionDisplayName(gameState.sudokuCollectionName);
+  const puzzleLabel = getSudokuPuzzleDisplayLabel(gameState.sudokuCollectionName, gameState.sudokuIndex + 1);
   const completionContent = gameState.won ? (
     <React.Suspense fallback={null}>
       <GameCompletionPanel
@@ -170,15 +170,14 @@ const GameWithRouteManagement = () => {
       canUndo={canUndo}
       cells={sudoku}
       clipboardNotes={gameState.clipboardNotes}
-      collectionName={collectionName}
       completionContent={completionContent}
       locked={activeGameLock.locked}
       notesMode={gameState.notesMode}
       pauseForClearConfirmation
       preferences={userPreferencesState}
+      puzzleLabel={puzzleLabel}
       showMenu={gameState.showMenu}
       status={gameState.state}
-      sudokuIndex={gameState.sudokuIndex}
       timerContent={soloTimerContent}
       won={gameState.won}
       onActivateNotesMode={activateNotesMode}

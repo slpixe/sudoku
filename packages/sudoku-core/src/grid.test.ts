@@ -1,10 +1,14 @@
 import {describe, expect, it} from "vitest";
 
-import {parseSudoku, squareIndex, stringifySudoku} from "./index.js";
+import {BASE_COLLECTION_IDS, parseSudoku, squareIndex, stringifySudoku} from "./index.js";
 
 const EASY = "534920700060007309900000010008700000496803002721594806000200940800046100003000000";
 
 describe("sudoku grid", () => {
+  it("defines the canonical built-in difficulty IDs in display order", () => {
+    expect(BASE_COLLECTION_IDS).toEqual(["easy", "medium", "hard", "fiendish", "diabolical"]);
+  });
+
   it("round-trips an 81-character puzzle", () => {
     expect(stringifySudoku(parseSudoku(EASY))).toBe(EASY);
   });

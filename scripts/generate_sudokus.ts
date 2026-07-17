@@ -11,8 +11,8 @@ program
   .option("-n, --number <n>", "Number of sudokus to generate", (n) => parseInt(n, 10), 20)
   .option(
     "-d, --difficulty [type]",
-    "Difficulty [easy], [medium], [hard], [expert], [evil]",
-    /^(easy|medium|hard|expert|evil)$/i,
+    "Difficulty [easy], [medium], [hard], [fiendish], [diabolical]",
+    /^(easy|medium|hard|fiendish|diabolical)$/i,
     "medium",
   )
   .parse(process.argv);
@@ -21,8 +21,8 @@ const mapping: Record<string, DIFFICULTY> = {
   easy: DIFFICULTY.EASY,
   medium: DIFFICULTY.MEDIUM,
   hard: DIFFICULTY.HARD,
-  expert: DIFFICULTY.EXPERT,
-  evil: DIFFICULTY.EVIL,
+  fiendish: DIFFICULTY.FIENDISH,
+  diabolical: DIFFICULTY.DIABOLICAL,
 };
 
 const options = program.opts();
