@@ -105,6 +105,16 @@ function renderView(overrides: Partial<GameViewProps> = {}) {
 }
 
 describe("GameView", () => {
+  it("uses compact shared spacing around the game grid", () => {
+    const {container} = renderView();
+    const layout = container.querySelector("main.sudoku-game-layout");
+
+    expect(layout).not.toBeNull();
+    expect(layout?.className).toContain("gap-1");
+    expect(layout?.className).not.toContain("gap-3");
+    expect(layout?.className).not.toContain("mt-3");
+  });
+
   it("delegates number, hint, undo, pause, confirmed Clear, and New Game commands", async () => {
     const user = userEvent.setup();
     const {props} = renderView();

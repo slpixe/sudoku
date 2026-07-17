@@ -170,7 +170,7 @@ export function GameView({
           />
         ) : null}
         <div className="flex justify-center">
-          <main className={`sudoku-game-layout${won ? " sudoku-game-layout-complete" : ""} mt-3 grid w-full gap-3`}>
+          <main className={`sudoku-game-layout${won ? " sudoku-game-layout-complete" : ""} grid w-full gap-1`}>
             <GameHeader
               blocked={blocked}
               canUndo={canUndo}

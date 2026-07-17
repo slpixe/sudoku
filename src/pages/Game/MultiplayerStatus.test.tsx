@@ -26,10 +26,20 @@ it("renders the compact room status with in-button copy feedback", () => {
     />,
   );
 
+  const status = screen.getByTestId("multiplayer-status");
+  const copyButton = screen.getByTestId("multiplayer-copy-button");
+  const statusClasses = status.className.split(/\s+/);
+  const copyButtonClasses = copyButton.className.split(/\s+/);
+
+  expect(statusClasses).toContain("p-1");
+  expect(statusClasses).not.toContain("p-2");
+  expect(statusClasses).not.toContain("mt-3");
+  expect(copyButtonClasses).toContain("min-h-5");
+  expect(copyButtonClasses).not.toContain("min-h-9");
   expect(screen.getByTestId("multiplayer-primary-row").textContent).toContain("multiplayer_room_label");
   expect(screen.getByTestId("multiplayer-primary-row").textContent).toContain("ABC234");
   expect(screen.getByTestId("multiplayer-primary-row").textContent).toContain("multiplayer_presence_fraction");
-  expect(screen.getByTestId("multiplayer-copy-button").textContent).toContain("multiplayer_copied");
+  expect(copyButton.textContent).toContain("multiplayer_copied");
   expect(screen.getByTestId("multiplayer-copy-announcement").textContent).toContain("multiplayer_link_copied");
   expect(screen.getByTestId("multiplayer-copy-announcement").closest('[role="status"]')).toBeNull();
   expect(screen.queryByText(/https?:\/\//)).toBeNull();
