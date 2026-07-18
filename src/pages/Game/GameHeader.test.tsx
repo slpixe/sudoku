@@ -72,6 +72,14 @@ function renderHeader({
 }
 
 describe("GameHeader", () => {
+  it("uses compact shared top padding", () => {
+    renderHeader();
+    const headerClasses = screen.getByTestId("sudoku-game-header").className.split(/\s+/);
+
+    expect(headerClasses).toContain("pt-2");
+    expect(headerClasses).not.toContain("pt-4");
+  });
+
   it("shows the supplied stable puzzle label", () => {
     renderHeader();
     expect(screen.getByTestId("current-game-label").textContent).toBe("E-1");

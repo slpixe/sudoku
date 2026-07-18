@@ -105,6 +105,28 @@ function renderView(overrides: Partial<GameViewProps> = {}) {
 }
 
 describe("GameView", () => {
+  it("places status content first inside the shared game grid", () => {
+    const {container} = renderView({statusContent: <section data-testid="test-status-content">Status</section>});
+    const layout = container.querySelector("main.sudoku-game-layout");
+    const status = screen.getByTestId("test-status-content");
+    const header = screen.getByTestId("sudoku-game-header");
+
+    expect(layout).not.toBeNull();
+    expect(layout?.className.split(/\s+/)).toContain("sudoku-game-layout-multiplayer");
+    expect(layout?.firstElementChild).toBe(status);
+    expect(status.nextElementSibling).toBe(header);
+  });
+
+  it("uses compact shared spacing around the game grid", () => {
+    const {container} = renderView();
+    const layout = container.querySelector("main.sudoku-game-layout");
+
+    expect(layout).not.toBeNull();
+    expect(layout?.className).toContain("gap-1");
+    expect(layout?.className).not.toContain("gap-3");
+    expect(layout?.className).not.toContain("mt-3");
+  });
+
   it("delegates number, hint, undo, pause, confirmed Clear, and New Game commands", async () => {
     const user = userEvent.setup();
     const {props} = renderView();

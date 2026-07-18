@@ -104,6 +104,67 @@ test("creates a room from the renamed Fiendish catalog", async ({page}) => {
   await expect(page.getByTestId("multiplayer-room-code")).toHaveText(/^[A-HJ-NP-Z2-9]{6}$/);
 });
 
+test("places multiplayer status responsively across landscape breakpoints", async ({page}) => {
+  await createEasyRoom(page);
+  const viewports = [
+    {width: 699, height: 500, mode: "spanning"},
+    {width: 700, height: 500, mode: "right-column"},
+    {width: 844, height: 390, mode: "right-column"},
+    {width: 900, height: 500, mode: "right-column"},
+    {width: 901, height: 500, mode: "right-column"},
+    {width: 2_000, height: 500, mode: "right-column"},
+    {width: 1_024, height: 600, mode: "stacked"},
+  ] as const;
+
+  for (const viewport of viewports) {
+    await page.setViewportSize({width: viewport.width, height: viewport.height});
+    const layout = await page.locator("main.sudoku-game-layout").evaluate((main) => {
+      const status = main.querySelector<HTMLElement>("[data-testid='multiplayer-status']");
+      const header = main.querySelector<HTMLElement>("[data-testid='sudoku-game-header']");
+      const board = main.querySelector<HTMLElement>("[data-testid='sudoku-board']");
+      const numbers = main.querySelector<HTMLElement>(".sudoku-number-pad");
+      const controls = main.querySelector<HTMLElement>(".sudoku-control-pad");
+      if (!status || !header || !board || !numbers || !controls) {
+        throw new Error("Expected the complete multiplayer game grid");
+      }
+      const box = (element: HTMLElement) => element.getBoundingClientRect();
+      const statusBox = box(status);
+      const headerBox = box(header);
+      const boardBox = box(board);
+      const numbersBox = box(numbers);
+      const controlsBox = box(controls);
+      return {
+        controlsBottom: controlsBox.bottom,
+        gridAreas: getComputedStyle(main).gridTemplateAreas,
+        statusBeforeHeader: status.nextElementSibling === header,
+        statusBottom: statusBox.bottom,
+        statusLeft: statusBox.left,
+        headerTop: headerBox.top,
+        boardTop: boardBox.top,
+        boardRight: boardBox.right,
+        numbersTop: numbersBox.top,
+        controlsTop: controlsBox.top,
+      };
+    });
+
+    expect(layout.statusBeforeHeader).toBe(true);
+    expect(layout.controlsBottom).toBeLessThanOrEqual(viewport.height + 1);
+    if (viewport.mode === "stacked") {
+      expect(layout.gridAreas).toBe("none");
+      expect(layout.statusBottom).toBeLessThanOrEqual(layout.headerTop);
+      expect(layout.headerTop).toBeLessThan(layout.boardTop);
+      expect(layout.boardTop).toBeLessThan(layout.numbersTop);
+      expect(layout.numbersTop).toBeLessThan(layout.controlsTop);
+    } else if (viewport.mode === "spanning") {
+      expect(layout.gridAreas).toContain('"status status"');
+      expect(layout.statusBottom).toBeLessThanOrEqual(layout.boardTop);
+    } else {
+      expect(layout.gridAreas).toContain('"board status"');
+      expect(layout.statusLeft).toBeGreaterThanOrEqual(layout.boardRight);
+    }
+  }
+});
+
 test("synchronizes the complete two-player room flow in both directions", async ({baseURL, browser}) => {
   if (!baseURL) {
     throw new Error("Playwright baseURL must be configured");
@@ -180,6 +241,12 @@ test("synchronizes the complete two-player room flow in both directions", async 
     await fillRemainingPuzzle(creator, joiner);
     await expect(creator.getByTestId("multiplayer-completion-panel")).toContainText("Solved");
     await expect(joiner.getByTestId("multiplayer-completion-panel")).toContainText("Solved");
+    await creator.setViewportSize({width: 900, height: 500});
+    const completedGridAreas = await creator
+      .locator("main.sudoku-game-layout")
+      .evaluate((main) => getComputedStyle(main).gridTemplateAreas);
+    expect(completedGridAreas).toContain('"board status"');
+    expect(completedGridAreas).toContain('"board completion"');
   } finally {
     await creatorContext.close();
     await joinerContext.close();

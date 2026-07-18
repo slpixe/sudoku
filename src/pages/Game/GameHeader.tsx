@@ -159,7 +159,7 @@ export const GameHeader: React.FC<{
   const clearDisabled = clearBlocked || (paused && !clearWhenInactive);
   return (
     <header
-      className="sudoku-game-header flex items-center justify-between gap-2 pt-4 text-sm sm:text-base"
+      className="sudoku-game-header flex items-center justify-between gap-2 pt-2 text-sm sm:text-base"
       data-testid="sudoku-game-header"
     >
       <div className="sudoku-header-meta flex min-w-0 items-center gap-2 text-white">

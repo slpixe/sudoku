@@ -62,7 +62,7 @@ export function MultiplayerStatus({
 
   return (
     <section
-      className="multiplayer-status mx-auto mt-3 grid gap-2 rounded-sm bg-gray-700/70 p-2 text-sm text-white"
+      className="multiplayer-status mx-auto grid w-full gap-2 rounded-sm bg-gray-700/70 p-1 text-sm text-white"
       data-testid="multiplayer-status"
     >
       <div className="flex min-w-0 flex-wrap items-center gap-2" data-testid="multiplayer-primary-row">
@@ -85,7 +85,7 @@ export function MultiplayerStatus({
         </span>
         <Button
           aria-label={t("multiplayer_copy_link")}
-          className="ml-auto min-h-9 bg-teal-700 text-white dark:bg-teal-600"
+          className="ml-auto min-h-5 bg-teal-700 text-white dark:bg-teal-600"
           data-testid="multiplayer-copy-button"
           onClick={onCopyLink}
         >
