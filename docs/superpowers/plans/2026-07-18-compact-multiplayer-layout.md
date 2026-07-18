@@ -172,7 +172,7 @@ git add src/pages/Game/GameHeader.test.tsx src/pages/Game/GameHeader.tsx
 git commit -m "style: reduce game header top padding"
 ```
 
-### Task 3: Move multiplayer status into the shared game grid
+### Task 3: Move multiplayer status into the shared game grid (completed in `a1c077d`)
 
 **Files:**
 - Modify: `src/pages/Game/GameView.test.tsx`
@@ -184,7 +184,7 @@ git commit -m "style: reduce game header top padding"
 - Consumes: Existing optional `GameViewProps.statusContent: React.ReactNode` and `MultiplayerStatus` markup.
 - Produces: A `sudoku-game-layout-multiplayer` modifier class whenever status content exists, with that content rendered as the main grid's first child; no prop or state changes.
 
-- [ ] **Step 1: Add failing component assertions for grid ownership and width**
+- [x] **Step 1: Add failing component assertions for grid ownership and width**
 
 Add this test near the start of the `GameView` describe block:
 
@@ -208,7 +208,7 @@ In `MultiplayerStatus.test.tsx`, add this assertion to the existing compact-room
 expect(statusClasses).toContain("w-full");
 ```
 
-- [ ] **Step 2: Run the focused component tests and verify they fail**
+- [x] **Step 2: Run the focused component tests and verify they fail**
 
 Run:
 
@@ -218,7 +218,7 @@ pnpm exec vitest run src/pages/Game/GameView.test.tsx src/pages/Game/Multiplayer
 
 Expected: FAIL because status content is still outside `<main>`, the modifier class is absent, and the multiplayer status lacks `w-full`.
 
-- [ ] **Step 3: Move status content and add the multiplayer modifier**
+- [x] **Step 3: Move status content and add the multiplayer modifier**
 
 Remove `{statusContent}` from above `Shortcuts`, then update the main element and its first child to:
 
@@ -236,7 +236,7 @@ Update the multiplayer status section class to:
 className="multiplayer-status mx-auto grid w-full gap-2 rounded-sm bg-gray-700/70 p-1 text-sm text-white"
 ```
 
-- [ ] **Step 4: Run the focused component tests and verify they pass**
+- [x] **Step 4: Run the focused component tests and verify they pass**
 
 Run:
 
@@ -246,14 +246,14 @@ pnpm exec vitest run src/pages/Game/GameView.test.tsx src/pages/Game/Multiplayer
 
 Expected: both files PASS, including DOM-order, compact-class, accessibility, and interaction coverage.
 
-- [ ] **Step 5: Commit shared grid ownership**
+- [x] **Step 5: Commit shared grid ownership**
 
 ```bash
 git add src/pages/Game/GameView.test.tsx src/pages/Game/MultiplayerStatus.test.tsx src/pages/Game/GameView.tsx src/pages/Game/MultiplayerStatus.tsx
 git commit -m "refactor: place multiplayer status in game grid"
 ```
 
-### Task 4: Extend short-landscape layout across wide viewports
+### Task 4: Extend short-landscape layout across wide viewports (completed in `611f038`)
 
 **Files:**
 - Modify: `src/main.css:45-307`
@@ -263,7 +263,7 @@ git commit -m "refactor: place multiplayer status in game grid"
 - Consumes: The `sudoku-game-layout-multiplayer` class and first-child status structure produced by Task 3.
 - Produces: Responsive CSS grid areas for stacked, narrow short-landscape, wide short-landscape, and completed multiplayer layouts.
 
-- [ ] **Step 1: Add a failing responsive multiplayer-grid test**
+- [x] **Step 1: Add a failing responsive multiplayer-grid test**
 
 Add this test after the Fiendish room-creation test in `e2e/multiplayer.e2e.ts`:
 
@@ -341,7 +341,7 @@ expect(completedGridAreas).toContain('"board status"');
 expect(completedGridAreas).toContain('"board completion"');
 ```
 
-- [ ] **Step 2: Run the focused Playwright test and verify it fails**
+- [x] **Step 2: Run the focused Playwright test and verify it fails**
 
 Run:
 
@@ -351,7 +351,7 @@ pnpm exec playwright test --config playwright.multiplayer.config.ts -g "places m
 
 Expected: FAIL because the responsive multiplayer grid areas are not implemented yet: 699×500 does not span the status across both columns, 901×500 and 2000×500 remain stacked, and the completed 900×500 grid has no status area.
 
-- [ ] **Step 3: Remove the short-landscape maximum-width ceiling**
+- [x] **Step 3: Remove the short-landscape maximum-width ceiling**
 
 Apply these exact media-query changes in `src/main.css`:
 
@@ -376,7 +376,7 @@ In the primary short-landscape `.sudoku-game-layout` rule, retain `column-gap: 0
 row-gap: 0.25rem;
 ```
 
-- [ ] **Step 4: Add multiplayer status grid areas**
+- [x] **Step 4: Add multiplayer status grid areas**
 
 Inside the primary short-landscape media query, directly after `.sudoku-game-layout`, add:
 
@@ -428,7 +428,7 @@ After the primary short-landscape media query, add the narrow fallback:
 }
 ```
 
-- [ ] **Step 5: Run focused component and responsive tests**
+- [x] **Step 5: Run focused component and responsive tests**
 
 Run:
 
@@ -439,14 +439,14 @@ pnpm exec playwright test --config playwright.multiplayer.config.ts -g "places m
 
 Expected: component tests PASS, the responsive test passes at all seven viewports with controls inside the viewport, and the completed 900×500 layout keeps status above the right-column completion content.
 
-- [ ] **Step 6: Commit the responsive grid**
+- [x] **Step 6: Commit the responsive grid**
 
 ```bash
 git add src/main.css e2e/multiplayer.e2e.ts
 git commit -m "style: improve responsive multiplayer layout"
 ```
 
-### Task 5: Verify the complete user-visible flow
+### Task 5: Verify the complete user-visible flow (completed)
 
 **Files:**
 - Verify only: no expected file changes.
@@ -455,7 +455,7 @@ git commit -m "style: improve responsive multiplayer layout"
 - Consumes: The compact styling and responsive grid produced by Tasks 1 through 4.
 - Produces: Verification evidence for the shared single-player layout and multiplayer room layout.
 
-- [ ] **Step 1: Run static and full unit checks**
+- [x] **Step 1: Run static and full unit checks**
 
 Run:
 
@@ -468,7 +468,7 @@ pnpm run build
 
 Expected: every command exits with status 0 and reports no TypeScript, ESLint, unit-test, or build failures.
 
-- [ ] **Step 2: Run the single-player Playwright suite**
+- [x] **Step 2: Run the single-player Playwright suite**
 
 Run:
 
@@ -478,7 +478,7 @@ pnpm run test:e2e
 
 Expected: PASS. The isolated preview starts on port 4179, game interactions remain usable, and the shared compact grid does not regress single-player flows.
 
-- [ ] **Step 3: Run the multiplayer Playwright suite**
+- [x] **Step 3: Run the multiplayer Playwright suite**
 
 Run:
 
@@ -488,6 +488,6 @@ pnpm run test:e2e:multiplayer
 
 Expected: PASS. Room creation, joining, presence, shared actions, reconnect behavior, and multiplayer layout remain functional.
 
-- [ ] **Step 4: Record verification without changing behavior**
+- [x] **Step 4: Record verification without changing behavior**
 
 If all checks pass, report their exact commands in the implementation handoff. If a check fails, diagnose whether it is caused by these class changes before modifying any file; do not expand the implementation beyond this design without approval.
