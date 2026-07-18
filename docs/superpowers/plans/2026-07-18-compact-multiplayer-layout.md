@@ -4,7 +4,7 @@
 
 **Goal:** Reduce vertical space above and within the Sudoku game so multiplayer controls remain visible on shorter viewports.
 
-**Architecture:** Keep the existing component structure and change only Tailwind utility classes. `MultiplayerStatus` owns the bar-specific compaction, while `GameView` owns the smaller shared spacing between the header, board, number pad, and control pad.
+**Architecture:** Keep the existing component structure and change only Tailwind utility classes. `MultiplayerStatus` owns the bar-specific compaction, `GameView` owns the smaller shared spacing between game sections, and `GameHeader` owns the reduced shared top padding.
 
 **Tech Stack:** React 18, TypeScript, Tailwind CSS 3, Vitest, Testing Library, Playwright, pnpm 11.9.0
 
@@ -12,7 +12,8 @@
 
 - Apply the compact status-card styling only in `MultiplayerStatus`.
 - Apply the game-grid spacing change to both single-player and multiplayer through `GameView`.
-- Do not change `GameHeader` internals, multiplayer state, protocol behavior, puzzle sizing, translations, or control behavior.
+- Reduce only the shared `GameHeader` top padding from `pt-4` to `pt-2`; retain the existing short-landscape zero-padding override.
+- Do not change other `GameHeader` dimensions, multiplayer state, protocol behavior, puzzle sizing, translations, or control behavior.
 - Preserve flex wrapping, connection recovery, retry behavior, accessible names, visible focus treatment, and live-region announcements.
 - Use pnpm for all checks.
 
@@ -37,12 +38,14 @@ In the existing `renders the compact room status with in-button copy feedback` t
 ```tsx
 const status = screen.getByTestId("multiplayer-status");
 const copyButton = screen.getByTestId("multiplayer-copy-button");
+const statusClasses = status.className.split(/\s+/);
+const copyButtonClasses = copyButton.className.split(/\s+/);
 
-expect(status.className).toContain("p-1");
-expect(status.className).not.toContain("p-2");
-expect(status.className).not.toContain("mt-3");
-expect(copyButton.className).toContain("min-h-5");
-expect(copyButton.className).not.toContain("min-h-9");
+expect(statusClasses).toContain("p-1");
+expect(statusClasses).not.toContain("p-2");
+expect(statusClasses).not.toContain("mt-3");
+expect(copyButtonClasses).toContain("min-h-5");
+expect(copyButtonClasses).not.toContain("min-h-9");
 ```
 
 - [ ] **Step 2: Add a failing shared-grid spacing test**
@@ -106,13 +109,72 @@ git add src/pages/Game/MultiplayerStatus.test.tsx src/pages/Game/GameView.test.t
 git commit -m "style: compact multiplayer game layout"
 ```
 
-### Task 2: Verify the complete user-visible flow
+### Task 2: Reduce shared game-header top padding
+
+**Files:**
+- Modify: `src/pages/Game/GameHeader.test.tsx`
+- Modify: `src/pages/Game/GameHeader.tsx:160-164`
+
+**Interfaces:**
+- Consumes: Existing `GameHeader` props and short-landscape `.sudoku-game-header` CSS override without changes.
+- Produces: The same rendered `GameHeader` interface with `pt-2` instead of `pt-4`; no new props, types, or behavior.
+
+- [ ] **Step 1: Add a failing header-padding assertion**
+
+Add this test near the start of the `GameHeader` describe block:
+
+```tsx
+it("uses compact shared top padding", () => {
+  renderHeader();
+  const headerClasses = screen.getByTestId("sudoku-game-header").className.split(/\s+/);
+
+  expect(headerClasses).toContain("pt-2");
+  expect(headerClasses).not.toContain("pt-4");
+});
+```
+
+- [ ] **Step 2: Run the focused test and verify the new assertion fails**
+
+Run:
+
+```bash
+pnpm exec vitest run src/pages/Game/GameHeader.test.tsx
+```
+
+Expected: FAIL because `GameHeader` still renders `pt-4` and does not render `pt-2`.
+
+- [ ] **Step 3: Reduce the header top padding**
+
+In `GameHeader.tsx`, replace the header class string with:
+
+```tsx
+className="sudoku-game-header flex items-center justify-between gap-2 pt-2 text-sm sm:text-base"
+```
+
+- [ ] **Step 4: Run the focused test and verify it passes**
+
+Run:
+
+```bash
+pnpm exec vitest run src/pages/Game/GameHeader.test.tsx
+```
+
+Expected: all `GameHeader` tests PASS, including the compact padding assertion and existing command-behavior coverage.
+
+- [ ] **Step 5: Commit the compact header implementation**
+
+```bash
+git add src/pages/Game/GameHeader.test.tsx src/pages/Game/GameHeader.tsx
+git commit -m "style: reduce game header top padding"
+```
+
+### Task 3: Verify the complete user-visible flow
 
 **Files:**
 - Verify only: no expected file changes.
 
 **Interfaces:**
-- Consumes: The compact styling produced by Task 1.
+- Consumes: The compact styling produced by Tasks 1 and 2.
 - Produces: Verification evidence for the shared single-player layout and multiplayer room layout.
 
 - [ ] **Step 1: Run static and full unit checks**
@@ -151,4 +213,3 @@ Expected: PASS. Room creation, joining, presence, shared actions, reconnect beha
 - [ ] **Step 4: Record verification without changing behavior**
 
 If all checks pass, report their exact commands in the implementation handoff. If a check fails, diagnose whether it is caused by these class changes before modifying any file; do not expand the implementation beyond this design without approval.
-
