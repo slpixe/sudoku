@@ -62,7 +62,7 @@ export function MultiplayerStatus({
 
   return (
     <section
-      className="multiplayer-status mx-auto grid gap-2 rounded-sm bg-gray-700/70 p-1 text-sm text-white"
+      className="multiplayer-status mx-auto grid w-full gap-2 rounded-sm bg-gray-700/70 p-1 text-sm text-white"
       data-testid="multiplayer-status"
     >
       <div className="flex min-w-0 flex-wrap items-center gap-2" data-testid="multiplayer-primary-row">

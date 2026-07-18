@@ -32,6 +32,7 @@ it("renders the compact room status with in-button copy feedback", () => {
   const copyButtonClasses = copyButton.className.split(/\s+/);
 
   expect(statusClasses).toContain("p-1");
+  expect(statusClasses).toContain("w-full");
   expect(statusClasses).not.toContain("p-2");
   expect(statusClasses).not.toContain("mt-3");
   expect(copyButtonClasses).toContain("min-h-5");

@@ -145,7 +145,6 @@ export function GameView({
   return (
     <Container>
       <div>
-        {statusContent}
         {!interactionsBlocked ? (
           <Shortcuts
             activeCell={activeCell}
@@ -170,7 +169,10 @@ export function GameView({
           />
         ) : null}
         <div className="flex justify-center">
-          <main className={`sudoku-game-layout${won ? " sudoku-game-layout-complete" : ""} grid w-full gap-1`}>
+          <main
+            className={`sudoku-game-layout${won ? " sudoku-game-layout-complete" : ""}${statusContent ? " sudoku-game-layout-multiplayer" : ""} grid w-full gap-1`}
+          >
+            {statusContent}
             <GameHeader
               blocked={blocked}
               canUndo={canUndo}
