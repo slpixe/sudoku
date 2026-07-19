@@ -72,11 +72,11 @@ function renderHeader({
 }
 
 describe("GameHeader", () => {
-  it("uses compact shared top padding", () => {
+  it("uses no shared top padding", () => {
     renderHeader();
     const headerClasses = screen.getByTestId("sudoku-game-header").className.split(/\s+/);
 
-    expect(headerClasses).toContain("pt-2");
+    expect(headerClasses).not.toContain("pt-2");
     expect(headerClasses).not.toContain("pt-4");
   });
 
