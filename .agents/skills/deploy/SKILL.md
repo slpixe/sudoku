@@ -74,16 +74,18 @@ State the chosen path and why before changing production.
    point-in-time recovery window that covers the rollout. Stop if neither is
    verified. Never delete or rotate a snapshot automatically.
 2. Confirm Fly authentication and the expected production application. Verify
-   that production currently has exactly one 512 MB Machine in `lhr` and that
-   `/ready` succeeds before deployment.
+   that production currently has exactly one provisioned 512 MB Machine in
+   `lhr` (it may initially be stopped while idle) and that `/ready` succeeds
+   before deployment.
 3. Deploy only with `pnpm run deploy:multiplayer`. Do not substitute an ad hoc
    Fly command because the repository entry point disables HA and resets the
    service to one Machine.
 4. Verify the release command and migrations succeeded. For a schema release,
    confirm the expected migration record without exposing credentials.
-5. Verify Fly inventory and scale state show exactly one Machine total. That
-   Machine must have 512 MB, be in `lhr`, be serving, and pass Fly health
-   checks. Both `https://multi.sudoku.slpixe.com/health` and
+5. Verify Fly inventory and scale state show exactly one provisioned Machine
+   total. Immediately after deployment that Machine must have 512 MB, be in
+   `lhr`, be serving, and pass the Fly `/health` check. Both
+   `https://multi.sudoku.slpixe.com/health` and
    `https://multi.sudoku.slpixe.com/ready` must succeed.
 6. Stop before merging if any backend verification fails. Once the backend is
    healthy, merge the pull request so Netlify publishes the compatible

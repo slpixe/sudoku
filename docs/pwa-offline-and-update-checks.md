@@ -49,10 +49,24 @@ Use this check when changing PWA registration, Workbox options, build output, or
    await registration?.update();
    ```
 
-   Current expected behavior: the generated worker activates without a visible prompt because the app uses `registerType: "autoUpdate"`.
+   Expected: the current page remains controlled by the old worker and an
+   **Update available** prompt appears. The new worker must remain waiting; it
+   must not silently activate or reload the page.
 
-6. Reload the original tab.
+6. Before accepting the update, navigate to a lazy route that was not opened in
+   the current page session, such as Select Game or a puzzle.
 
-   Expected: the app reloads, the current game is still available, and in-app navigation to Select Game works.
+   Expected: the old route chunk is still served by the old worker's precache.
+   The game remains usable and the generic application error screen does not
+   appear.
 
-The no-reload stale-tab case is a known product decision point: if an old page stays open while a new deployment removes old lazy chunks from the server, an explicit update prompt may be better than silent activation. That prompt is intentionally outside the current offline coverage scope.
+7. Select **Update now**.
+
+   Expected: the waiting worker activates, the page reloads once, the current
+   game is still available, and subsequent lazy navigation uses the new build.
+
+Automated two-build coverage lives in `e2e/pwa-update.e2e.ts`. Its isolated
+fixture serves an old build, switches the same origin to a new build, and checks
+the complete waiting-worker, old-lazy-chunk, prompted activation, and reload
+sequence. Run it with `pnpm run test:e2e:pwa-update`; the full
+`pnpm run test:e2e` command includes it after the ordinary application suite.

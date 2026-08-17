@@ -4,6 +4,7 @@ import {createHashHistory, createRootRoute, createRoute, createRouter, RouterPro
 
 import {AppDialogProvider} from "./components/AppDialog";
 import {InstallAppPrompt} from "./components/pwa/InstallAppPrompt";
+import {UpdateAppPrompt} from "./components/pwa/UpdateAppPrompt";
 
 const LazyGame = React.lazy(() => import("./pages/Game"));
 const LazyMultiplayerGame = React.lazy(() => import("./pages/MultiplayerGame"));
@@ -122,6 +123,7 @@ const App = () => {
           <RouterProvider router={router} />
         </React.Suspense>
         <InstallAppPrompt />
+        <UpdateAppPrompt />
       </AppDialogProvider>
     </ErrorBoundary>
   );

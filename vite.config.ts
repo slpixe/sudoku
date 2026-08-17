@@ -5,13 +5,22 @@ import {configDefaults, defineConfig} from "vitest/config";
 
 import {pwaManifest} from "./src/pwa/manifest";
 
+const pwaE2eBuildId = process.env.PWA_E2E_BUILD_ID;
+const pwaE2eOutput = pwaE2eBuildId
+  ? {
+      assetFileNames: `assets/[name]-[hash]-${pwaE2eBuildId}[extname]`,
+      chunkFileNames: `assets/[name]-[hash]-${pwaE2eBuildId}.js`,
+      entryFileNames: `assets/[name]-[hash]-${pwaE2eBuildId}.js`,
+    }
+  : undefined;
+
 // https://vitejs.dev/config/
 export default defineConfig(() => ({
   plugins: [
     react(),
     tsconfigPaths(),
     VitePWA({
-      registerType: "autoUpdate",
+      registerType: "prompt",
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,webmanifest}"],
         runtimeCaching: [
@@ -44,6 +53,11 @@ export default defineConfig(() => ({
   preview: {
     port: 3000,
   },
+  build: pwaE2eOutput
+    ? {
+        rollupOptions: {output: pwaE2eOutput},
+      }
+    : undefined,
   test: {
     exclude: [...configDefaults.exclude, ".pnpm-store/**", ".worktrees/**", "packages/**", "server/**"],
   },
