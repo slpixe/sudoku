@@ -190,7 +190,7 @@ export default [
 
   // JavaScript helper scripts
   {
-    files: ["scripts/**/*.js"],
+    files: ["scripts/**/*.{js,mjs}"],
     languageOptions: {
       globals: {
         ...globals.node,

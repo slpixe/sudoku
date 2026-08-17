@@ -2,8 +2,9 @@
 
 The public application remains the static Netlify PWA at
 `https://sudoku.slpixe.com`. Online rooms use a separate Socket.IO service at
-`https://multi.sudoku.slpixe.com`, running on one 512 MB Fly Machine in London
-(`lhr`). Durable room state lives in a Neon Postgres project in AWS London
+`https://multi.sudoku.slpixe.com`, with one provisioned 512 MB Fly Machine in
+London (`lhr`). Fly stops that Machine after several idle minutes and starts it
+again on the next request. Durable room state lives in a Neon Postgres project in AWS London
 (`eu-west-2`). Netlify never receives the database credentials and does not
 proxy WebSocket traffic.
 
@@ -20,7 +21,9 @@ Postgres is the durable source of truth, but presence, reconnect seat
 reservations, and the per-room command queue are held in the Node process.
 Running two Machines today could admit more than two distinct guests, split a
 room's Socket.IO broadcasts, or process commands outside the same in-process
-queue. Keep the app at exactly one Machine after every deploy.
+queue. Keep the app at exactly one provisioned Machine after every deploy. It
+may be stopped while idle, so zero Machines running is healthy when there is no
+traffic.
 
 Horizontal scaling requires a compatible cross-instance Socket.IO adapter,
 distributed presence and reconnect reservations, and cross-instance command
@@ -188,9 +191,11 @@ The service returns no-cache JSON:
   active rooms, command count and latency, rejection counts, reconnects, and
   database errors. Counters reset when the Machine restarts.
 
-Both `/health` and `/ready` are Fly checks. With one Machine, a failed readiness
-check intentionally removes the unavailable service from routing; Solo play on
-Netlify remains unaffected.
+Only `/health` is a periodic Fly check. `/ready` is reserved for explicit
+deployment and operator verification because each call queries Postgres; polling
+it more frequently than Neon's autosuspend window prevents the database from
+scaling to zero. Solo play on Netlify remains unaffected when the Machine is
+stopped or the database is unavailable.
 
 ```bash
 curl -fsS https://multi.sudoku.slpixe.com/health
@@ -200,9 +205,10 @@ fly checks list --app sudoku-multiplayer
 fly logs --app sudoku-multiplayer
 ```
 
-Alert on readiness failures, repeated `database_error` events, increasing
+Alert on explicit readiness failures, repeated `database_error` events, increasing
 rejection or reconnect counts, sustained command-latency growth, and unexpected
-Machine count or region changes. Metrics are intentionally aggregate and must
+provisioned Machine count or region changes. A stopped Machine is expected during
+idle periods; a second provisioned Machine is not. Metrics are intentionally aggregate and must
 not be extended with room codes, guest IDs, connection IDs, puzzle snapshots,
 commands, database URLs, secrets, or raw request bodies.
 

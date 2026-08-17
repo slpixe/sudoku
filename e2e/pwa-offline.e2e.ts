@@ -9,36 +9,50 @@ type ServiceWorkerStatus = {
 const SERVICE_WORKER_TIMEOUT_MS = 10_000;
 
 async function waitForServiceWorkerControl(page: Page): Promise<ServiceWorkerStatus> {
-  return page.evaluate(async (timeoutMs) => {
+  const status = await page.evaluate(async () => {
     if (!("serviceWorker" in navigator)) {
       throw new Error("Service workers are not supported in this browser context");
     }
 
     const registration = await navigator.serviceWorker.ready;
-
-    if (!navigator.serviceWorker.controller) {
-      await new Promise<void>((resolve, reject) => {
-        const timeoutId = window.setTimeout(() => {
-          reject(new Error("Timed out waiting for the service worker to control the page"));
-        }, timeoutMs);
-
-        navigator.serviceWorker.addEventListener(
-          "controllerchange",
-          () => {
-            window.clearTimeout(timeoutId);
-            resolve();
-          },
-          {once: true},
-        );
-      });
-    }
-
     const registrations = await navigator.serviceWorker.getRegistrations();
 
     return {
       controlled: Boolean(navigator.serviceWorker.controller),
       registrations: registrations.length,
       scope: registration.scope,
+    };
+  });
+
+  if (status.controlled) {
+    return status;
+  }
+
+  await page.reload({waitUntil: "domcontentloaded"});
+  return page.evaluate(async (timeoutMs) => {
+    await new Promise<void>((resolve, reject) => {
+      if (navigator.serviceWorker.controller) {
+        resolve();
+        return;
+      }
+      const timeoutId = window.setTimeout(
+        () => reject(new Error("Timed out waiting for service worker control")),
+        timeoutMs,
+      );
+      navigator.serviceWorker.addEventListener(
+        "controllerchange",
+        () => {
+          window.clearTimeout(timeoutId);
+          resolve();
+        },
+        {once: true},
+      );
+    });
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    return {
+      controlled: Boolean(navigator.serviceWorker.controller),
+      registrations: registrations.length,
+      scope: registrations[0]?.scope ?? "",
     };
   }, SERVICE_WORKER_TIMEOUT_MS);
 }
