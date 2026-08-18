@@ -106,19 +106,8 @@ test("creates a room from the renamed Fiendish catalog", async ({page}) => {
 
 test("places multiplayer status responsively across landscape breakpoints", async ({page}) => {
   await createEasyRoom(page);
-  const viewports = [
-    {width: 699, height: 500, mode: "spanning"},
-    {width: 700, height: 500, mode: "right-column"},
-    {width: 844, height: 390, mode: "right-column"},
-    {width: 900, height: 500, mode: "right-column"},
-    {width: 901, height: 500, mode: "right-column"},
-    {width: 2_000, height: 500, mode: "right-column"},
-    {width: 1_024, height: 600, mode: "stacked"},
-  ] as const;
-
-  for (const viewport of viewports) {
-    await page.setViewportSize({width: viewport.width, height: viewport.height});
-    const layout = await page.locator("main.sudoku-game-layout").evaluate((main) => {
+  const measureLayout = () =>
+    page.locator("main.sudoku-game-layout").evaluate((main) => {
       const status = main.querySelector<HTMLElement>("[data-testid='multiplayer-status']");
       const header = main.querySelector<HTMLElement>("[data-testid='sudoku-game-header']");
       const board = main.querySelector<HTMLElement>("[data-testid='sudoku-board']");
@@ -146,9 +135,43 @@ test("places multiplayer status responsively across landscape breakpoints", asyn
         controlsTop: controlsBox.top,
       };
     });
+  const viewports = [
+    {width: 699, height: 500, mode: "spanning"},
+    {width: 700, height: 500, mode: "right-column"},
+    {width: 844, height: 390, mode: "right-column"},
+    {width: 900, height: 500, mode: "right-column"},
+    {width: 901, height: 500, mode: "right-column"},
+    {width: 2_000, height: 500, mode: "right-column"},
+    {width: 1_024, height: 600, mode: "stacked"},
+  ] as const;
+
+  for (const viewport of viewports) {
+    await page.setViewportSize({width: viewport.width, height: viewport.height});
+    // Chromium can apply the media query before recalculating dynamic viewport units.
+    // Poll both signals so geometry is sampled only after the resize has fully settled.
+    await expect
+      .poll(
+        async () => {
+          const layout = await measureLayout();
+          const expectedGridAreasApplied =
+            viewport.mode === "stacked"
+              ? layout.gridAreas === "none"
+              : viewport.mode === "spanning"
+                ? layout.gridAreas.includes('"status status"')
+                : layout.gridAreas.includes('"board status"');
+          return {
+            controlsFit: layout.controlsBottom <= viewport.height + 1,
+            expectedGridAreasApplied,
+          };
+        },
+        {
+          message: `Expected the ${viewport.width}x${viewport.height} layout to settle inside its viewport`,
+        },
+      )
+      .toEqual({controlsFit: true, expectedGridAreasApplied: true});
+    const layout = await measureLayout();
 
     expect(layout.statusBeforeHeader).toBe(true);
-    expect(layout.controlsBottom).toBeLessThanOrEqual(viewport.height + 1);
     if (viewport.mode === "stacked") {
       expect(layout.gridAreas).toBe("none");
       expect(layout.statusBottom).toBeLessThanOrEqual(layout.headerTop);
