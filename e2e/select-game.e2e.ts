@@ -176,6 +176,9 @@ test("switches between Solo, Create Online, and Join Existing", async ({page}) =
 });
 
 test("validates and normalizes room codes before hash-route navigation", async ({page}) => {
+  // This flow checks navigation with an unavailable backend, independently of
+  // production cold starts, network latency, and the real room catalog.
+  await page.route("**/socket.io/**", (route) => route.abort());
   await page.goto("/#/select-game");
   await page.getByRole("button", {name: "Join existing room"}).click();
 

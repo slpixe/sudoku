@@ -27,14 +27,11 @@ function roomRow(collectionId: string): RoomRow {
 }
 
 describe("mapRoomRow collection IDs", () => {
-  it.each([
-    ["expert", "fiendish"],
-    ["evil", "diabolical"],
-  ])("normalizes legacy %s rows to %s", (storedId, expectedId) => {
-    expect(mapRoomRow(roomRow(storedId), now).snapshot.collectionId).toBe(expectedId);
+  it.each(["expert", "evil", "unknown"])("rejects noncanonical %s rows", (storedId) => {
+    expect(() => mapRoomRow(roomRow(storedId), now)).toThrow("Invalid room row field: collection_id");
   });
 
-  it.each(["fiendish", "diabolical"])("accepts canonical %s rows", (collectionId) => {
+  it.each(["easy", "medium", "hard", "fiendish", "diabolical"])("accepts canonical %s rows", (collectionId) => {
     expect(mapRoomRow(roomRow(collectionId), now).snapshot.collectionId).toBe(collectionId);
   });
 });

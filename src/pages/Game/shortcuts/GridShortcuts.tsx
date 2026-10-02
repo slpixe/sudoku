@@ -1,6 +1,6 @@
 import * as React from "react";
 import hotkeys from "hotkeys-js";
-import {SUDOKU_COORDINATES, SUDOKU_NUMBERS} from "src/lib/engine/utility";
+import {SUDOKU_COORDINATES} from "src/lib/engine/utility";
 import {Cell} from "src/lib/engine/types";
 import {ShortcutScope} from "./ShortcutScope";
 import {DerivedBoardData, getCellIndex} from "src/lib/game/deriveBoardData";
@@ -126,6 +126,15 @@ const GridShortcuts: React.FC<{
         stateRef.current.activateNotesMode();
         return false;
       }
+      if (event.ctrlKey || event.metaKey || event.altKey || event.isComposing) {
+        return undefined;
+      }
+      // Match this key event, not the set of held keys: fast typing can overlap
+      // key presses, which hotkeys-js otherwise treats as a multi-key chord.
+      const digit = /^[1-9]$/.test(event.key) ? event.key : /^Digit([1-9])$/.exec(event.code)?.[1];
+      if (digit) {
+        return handleNumberShortcut(Number(digit));
+      }
       return undefined;
     });
 
@@ -202,11 +211,6 @@ const GridShortcuts: React.FC<{
       const nextCell = getCellByXY(newX, y);
       stateRef.current.selectCell(nextCell);
       return false;
-    });
-
-    SUDOKU_NUMBERS.forEach((n) => {
-      const keys = [String(n), `num_${n}`, `shift+${n}`, `shift+num_${n}`].join(",");
-      hotkeys(keys, ShortcutScope.Game, () => handleNumberShortcut(n));
     });
 
     hotkeys("backspace,num_subtract", ShortcutScope.Game, () => {

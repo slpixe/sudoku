@@ -10,10 +10,6 @@ import {BASE_COLLECTION_IDS, type BaseCollectionId} from "@sudoku/core";
 const roomCodePattern = /^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$/;
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const collectionIds = new Set<string>(BASE_COLLECTION_IDS);
-const legacyCollectionIds: Readonly<Record<string, BaseCollectionId>> = {
-  expert: "fiendish",
-  evil: "diabolical",
-};
 const statuses = new Set<RoomStatus>(["running", "paused", "completed"]);
 
 export interface RoomRow {
@@ -46,8 +42,7 @@ function stringField(value: unknown, field: string): string {
 
 function collectionIdField(value: unknown): BaseCollectionId {
   const stored = stringField(value, "collection_id");
-  const canonical = legacyCollectionIds[stored] ?? stored;
-  return collectionIds.has(canonical) ? (canonical as BaseCollectionId) : fail("collection_id");
+  return collectionIds.has(stored) ? (stored as BaseCollectionId) : fail("collection_id");
 }
 
 function integerField(value: unknown, field: string, minimum = 0): number {

@@ -121,7 +121,10 @@ describe("multiplayer database migrations", () => {
       runningSince: null,
     });
 
-    await runMigrations(database, migrationsDirectory);
+    for (const name of ["002_timer_started.sql", "003_difficulty_ids.sql"]) {
+      await copyFile(path.join(migrationsDirectory, name), path.join(migration001Directory, name));
+    }
+    await runMigrations(database, migration001Directory);
 
     const migrated = await database.query<{collection_id: string}>(
       "SELECT collection_id FROM rooms ORDER BY code",
@@ -138,6 +141,67 @@ describe("multiplayer database migrations", () => {
         runningSince: null,
       }),
     ).resolves.toBeUndefined();
+  });
+
+  it("contracts difficulty IDs without changing room state and rejects future legacy writes", async () => {
+    const database = new PgliteDatabase();
+    databases.push(database);
+    const expandDirectory = await mkdtemp(path.join(tmpdir(), "sudoku-migration-contract-"));
+    temporaryDirectories.push(expandDirectory);
+    for (const name of ["001_multiplayer_rooms.sql", "002_timer_started.sql", "003_difficulty_ids.sql"]) {
+      await copyFile(path.join(migrationsDirectory, name), path.join(expandDirectory, name));
+    }
+    await runMigrations(database, expandDirectory);
+
+    for (const [index, collectionId] of ["expert", "evil", "hard"].entries()) {
+      await insertLegacyRoom(database, {
+        id: uuid(index),
+        code: ["ABC234", "DEF567", "GHJ678"][index],
+        collectionId,
+        revision: 7,
+        status: "paused",
+        runningSince: null,
+      });
+    }
+    const before = await database.query<Record<string, unknown>>("SELECT * FROM rooms ORDER BY code");
+    await runMigrations(database, migrationsDirectory);
+    await runMigrations(database, migrationsDirectory);
+    const after = await database.query<Record<string, unknown>>("SELECT * FROM rooms ORDER BY code");
+    expect(after.rows).toEqual(
+      before.rows.map((row, index) => ({...row, collection_id: ["fiendish", "diabolical", "hard"][index]})),
+    );
+    const records = await database.query<{count: string}>(
+      "SELECT count(*)::text FROM schema_migrations WHERE name = '004_contract_difficulty_ids.sql'",
+    );
+    expect(records.rows).toEqual([{count: "1"}]);
+
+    for (const collectionId of ["expert", "evil"]) {
+      await expect(
+        insertLegacyRoom(database, {
+          id: postMigrationRoomId,
+          code: "JKL789",
+          collectionId,
+          revision: 0,
+          status: "running",
+          runningSince: null,
+        }),
+      ).rejects.toThrow(/rooms_collection_id_check/);
+      await expect(
+        database.query("UPDATE rooms SET collection_id = $1 WHERE id = $2", [collectionId, roomId]),
+      ).rejects.toThrow(/rooms_collection_id_check/);
+    }
+    for (const [index, collectionId] of ["easy", "medium", "hard", "fiendish", "diabolical"].entries()) {
+      await expect(
+        insertLegacyRoom(database, {
+          id: uuid(20 + index),
+          code: ["MNP234", "QRS567", "TUV678", "WXY789", "ZAB234"][index],
+          collectionId,
+          revision: 0,
+          status: "running",
+          runningSince: null,
+        }),
+      ).resolves.toBeUndefined();
+    }
   });
 
   it("backfills ordered history and remains compatible with legacy command and room writes", async () => {
