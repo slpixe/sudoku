@@ -585,6 +585,30 @@ test("loads exact payload URLs without collection metadata", async ({page}) => {
   await expectPayloadGameSearch(page, CUSTOM_PUZZLE);
 });
 
+test("preserves rapid overlapping keyboard digits, notes, and undo history", async ({page}) => {
+  await openGame(page);
+  await selectCell(page, 5, 0);
+  await page.keyboard.down("1");
+  await page.keyboard.down("2");
+  await page.keyboard.up("1");
+  await page.keyboard.up("2");
+  await page.keyboard.press("3");
+  await expect(cellValue(page, 5, 0)).toHaveText("3");
+  await page.keyboard.press(`${SHORTCUT_MODIFIER}+Z`);
+  await expect(cellValue(page, 5, 0)).toHaveText("2");
+  await page.keyboard.press(`${SHORTCUT_MODIFIER}+Z`);
+  await expect(cellValue(page, 5, 0)).toHaveText("1");
+  await page.keyboard.press("Backspace");
+  await page.keyboard.down("Shift");
+  await page.keyboard.down("1");
+  await page.keyboard.down("2");
+  await page.keyboard.up("1");
+  await page.keyboard.up("2");
+  await page.keyboard.press("3");
+  await page.keyboard.up("Shift");
+  await expect(cellNotes(page, 5, 0)).toHaveText("123");
+});
+
 test("supports number entry, erase, undo, redo, notes, hints, and keyboard shortcuts", async ({page}) => {
   await openGame(page);
 

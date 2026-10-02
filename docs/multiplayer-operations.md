@@ -262,9 +262,20 @@ Migration `003_difficulty_ids.sql` expands the room collection constraint to
 allow the legacy `expert` and `evil` IDs during the release and rollback
 window, then canonicalizes existing rows to `fiendish` and `diabolical`. New
 server writes use only `fiendish` and `diabolical`; the legacy values remain
-allowed until a later numbered contract migration removes them. Take a Neon
-snapshot before this schema release, deploy the multiplayer backend first,
+allowed until migration `004_contract_difficulty_ids.sql` removes them. Take a
+Neon snapshot before this schema release, deploy the multiplayer backend first,
 verify `/ready`, and only then deploy the updated frontend.
+
+Migration `004_contract_difficulty_ids.sql` rewrites any legacy rows created
+during the compatibility window, then restricts the constraint to the five
+canonical collection IDs. It preserves puzzle numbers, boards, timers, history,
+and room identities. The corresponding server release removes the row aliases.
+Before deploying an image containing `004`, verify that no serving image or
+supported rollback image writes `expert` or `evil`. Record the running image and
+the supported rollback image, and take a Neon snapshot. After `004`, application
+rollback is supported only to an image that already writes canonical IDs; never
+restore the old constraint or edit migration `003` to enable an older image.
+The timer compatibility triggers from migration `002` remain in place.
 
 For an application regression with a compatible database, find the preceding
 image and redeploy it while retaining one Machine:

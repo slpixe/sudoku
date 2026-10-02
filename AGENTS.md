@@ -17,7 +17,7 @@ This project is a React, TypeScript, Vite, and Tailwind Sudoku web app based on 
 - Production allows only the exact browser origin `https://sudoku.slpixe.com`. Configure `VITE_MULTIPLAYER_URL=https://multi.sudoku.slpixe.com` in Netlify's Production build context. Never commit or log `DATABASE_URL`.
 - Treat migrations as forward-only and use expand/contract changes. Take a Neon snapshot before schema releases; prefer a forward fix, and restore a database snapshot only as a last resort because it discards newer room activity.
 - Migration `002_timer_started.sql` intentionally keeps compatibility triggers for pre-migration server writes during release and rollback windows. Remove them only through a later numbered contract migration after that older image can no longer write.
-- Migration `003_difficulty_ids.sql` expands the room collection constraint for `expert`/`evil` compatibility and canonicalizes existing rows to `fiendish`/`diabolical`. New writes use only the canonical IDs; the old values remain allowed until a later contract migration.
+- Migration `003_difficulty_ids.sql` expands the room collection constraint for `expert`/`evil` compatibility and canonicalizes existing rows to `fiendish`/`diabolical`. Migration `004_contract_difficulty_ids.sql` rewrites any remaining legacy rows and restricts writes to canonical IDs. Deploy `004` only after images that write legacy IDs have been retired from serving traffic and the supported rollback window; take a Neon snapshot first. The server row mapper requires canonical IDs after `004`.
 - Deploy the multiplayer backend before the updated frontend and take a Neon snapshot before the schema release.
 - `/health` reports process liveness and is the only periodic Fly health check. `/ready` checks Postgres for explicit deployment or operator verification; do not poll it because doing so prevents Neon from scaling to zero. `/metrics` exposes process-local aggregate operational counts. Logs and metrics must not contain database URLs, secrets, room codes, guest/connection IDs, snapshots, or command payloads.
 - The full production setup, DNS/certificate, monitoring, redaction, backup, rollback, and local runbook is in `docs/multiplayer-operations.md`.
@@ -58,7 +58,7 @@ This project is a React, TypeScript, Vite, and Tailwind Sudoku web app based on 
 - Multiplayer changes additionally require `pnpm run test:e2e:multiplayer`; the dedicated suite starts an isolated frontend and real Socket.IO backend using the in-memory room repository on worktree-derived ports.
 - Verify the production backend image with `docker build -f server/Dockerfile -t sudoku-multiplayer:verify .` when a local container engine is running. If it is unavailable, record that limitation and rely on the non-publishing CI image-build job; never claim a local pass.
 - Docker uses Node 24 and Corepack. If testing Docker locally, the container engine must be running; this workspace may report Docker through Podman.
-- `pnpm-workspace.yaml` includes targeted security `overrides` for vulnerable transitive dependency ranges; review them during dependency upgrades and remove any that upstream packages no longer need.
+- `pnpm-workspace.yaml` retains a targeted `brace-expansion` override for the vulnerable 4.x range requested by minimatch 10.0.x. Earlier overrides were retired after upstream dependency refreshes resolved their advisories. Review overrides during dependency upgrades and remove any that upstream packages no longer need; verify both production and full dependency audits.
 
 # Development Server Notes
 
