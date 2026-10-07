@@ -198,7 +198,7 @@ export const GridCellNumber = ({
         "sudoku-cell-number pointer-events-none absolute z-20 -translate-x-1/2 -translate-y-1/2 font-bold leading-none",
         {
           "text-black dark:text-white": initial,
-          "text-amber-600": !initial && !conflict,
+          "text-[color:var(--sudoku-entry)]": !initial && !conflict,
           "text-red-600 dark:text-red-300": conflict && !initial,
         },
       )}

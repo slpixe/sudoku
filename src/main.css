@@ -2,13 +2,74 @@
 @import "tailwindcss/components";
 @import "tailwindcss/utilities";
 
+:root {
+  --sudoku-backdrop: #40535a;
+  --sudoku-toolbar: #edf2f3;
+  --sudoku-toolbar-text: #2c414a;
+  --sudoku-toolbar-border: #b8c8cd;
+  --sudoku-entry: #346792;
+  --sudoku-primary: #287b77;
+  --sudoku-digit-font: ui-rounded, "SF Pro Rounded", "Avenir Next", "Source Sans Pro", sans-serif;
+}
+
+:root.dark {
+  --sudoku-backdrop: #1b252b;
+  --sudoku-toolbar: #2c3b43;
+  --sudoku-toolbar-text: #e0e9ed;
+  --sudoku-toolbar-border: #4b606b;
+  --sudoku-entry: #a5c5e3;
+  --sudoku-primary: #287b77;
+}
+
 html,
 body,
 #root {
   min-height: 100vh;
   min-height: 100dvh;
   touch-action: pan-x pan-y;
-  @apply bg-gray-800 dark:bg-gray-900;
+  background-color: var(--sudoku-backdrop);
+}
+
+.sudoku-header-actions > button {
+  border: 1px solid var(--sudoku-toolbar-border);
+  border-radius: 0.5rem;
+  background-color: var(--sudoku-toolbar);
+  color: var(--sudoku-toolbar-text);
+  box-shadow: none;
+}
+
+.sudoku-header-actions > button:disabled {
+  opacity: 0.5;
+  filter: none;
+}
+
+.sudoku-header-actions > button[data-testid="sudoku-action-new-game"] {
+  border-color: var(--sudoku-primary);
+  background-color: var(--sudoku-primary);
+  color: #fff;
+}
+
+.sudoku-header-actions > button[data-testid="sudoku-action-theme"] {
+  height: 2rem;
+  width: 2rem;
+}
+
+.sudoku-header-actions > button[data-testid="sudoku-action-theme"] svg {
+  fill: currentColor;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: auto;
+}
+
+.sudoku-cell-number,
+.sudoku-cell-note,
+.sudoku-number-pad button {
+  font-family: var(--sudoku-digit-font);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.sudoku-cell-number {
+  font-weight: 400;
 }
 
 .sudoku-game-layout {
