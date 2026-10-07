@@ -152,7 +152,10 @@ body,
 
 @media (orientation: landscape) and (max-height: 520px) {
   .sudoku-game-layout {
-    --sudoku-landscape-board-size: min(calc(100dvh - 1.5rem), calc((100vw - 3rem - 0.75rem) / 2));
+    /* Keep a small edge gap while giving the board the remaining viewport height. */
+    --sudoku-landscape-board-size: min(calc(100dvh - 0.5rem), calc((100vw - 3rem - 0.75rem) / 2));
+
+    padding-block: 0.25rem;
 
     grid-template-areas:
       "board header"
@@ -417,7 +420,7 @@ body,
 @supports (height: 100svh) {
   @media (orientation: landscape) and (max-height: 520px) {
     .sudoku-game-layout {
-      --sudoku-landscape-board-size: min(calc(100svh - 1.5rem), calc((100vw - 3rem - 0.75rem) / 2));
+      --sudoku-landscape-board-size: min(calc(100svh - 0.5rem), calc((100vw - 3rem - 0.75rem) / 2));
     }
   }
 }
