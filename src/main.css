@@ -9,6 +9,9 @@
   --sudoku-toolbar-border: #b8c8cd;
   --sudoku-entry: #346792;
   --sudoku-primary: #287b77;
+  --sudoku-key: #dbeaf0;
+  --sudoku-key-text: #28516b;
+  --sudoku-key-border: #9dbbc8;
   --sudoku-digit-font: ui-rounded, "SF Pro Rounded", "Avenir Next", "Source Sans Pro", sans-serif;
 }
 
@@ -19,6 +22,9 @@
   --sudoku-toolbar-border: #4b606b;
   --sudoku-entry: #b99ae8;
   --sudoku-primary: #287b77;
+  --sudoku-key: #304b5c;
+  --sudoku-key-text: #e0edf5;
+  --sudoku-key-border: #587a8d;
 }
 
 html,
@@ -70,6 +76,35 @@ body,
 
 .sudoku-cell-number {
   font-weight: 400;
+}
+
+.sudoku-number-pad button {
+  border: 1px solid var(--sudoku-key-border);
+  border-radius: 0.75rem;
+  box-shadow: none;
+}
+
+.sudoku-number-pad button:not(.bg-red-400):not(.bg-emerald-600):not(.bg-sky-300):not(.bg-gray-300) {
+  background-color: var(--sudoku-key);
+  color: var(--sudoku-key-text);
+}
+
+.sudoku-control-pad button {
+  border: 1px solid var(--sudoku-toolbar-border);
+  border-radius: 0.5rem;
+  background-color: var(--sudoku-toolbar);
+  color: var(--sudoku-toolbar-text);
+  box-shadow: none;
+}
+
+.sudoku-control-pad button[aria-pressed="true"] {
+  border-color: #419c96;
+}
+
+.sudoku-number-pad button:disabled,
+.sudoku-control-pad button:disabled {
+  opacity: 0.45;
+  filter: none;
 }
 
 .sudoku-game-layout {
