@@ -72,17 +72,17 @@ describe("GridCell", () => {
 });
 
 describe("GridCellNumber", () => {
-  it("uses pending amber text for editable entries", () => {
+  it("uses the entry colour for editable entries", () => {
     const className = renderCellNumber({});
 
-    expect(className).toContain("text-amber-600");
+    expect(className).toContain("text-[color:var(--sudoku-entry)]");
     expect(className).not.toContain("text-teal-600");
   });
 
-  it("keeps pending amber text when an editable entry matches the active number", () => {
+  it("keeps the entry colour when an editable entry matches the active number", () => {
     const className = renderCellNumber({highlight: true});
 
-    expect(className).toContain("text-amber-600");
+    expect(className).toContain("text-[color:var(--sudoku-entry)]");
     expect(className).not.toContain("text-teal-600");
   });
 
@@ -90,7 +90,7 @@ describe("GridCellNumber", () => {
     const className = renderCellNumber({conflict: true});
 
     expect(className).toContain("text-red-600");
-    expect(className).not.toContain("text-amber-600");
+    expect(className).not.toContain("text-[color:var(--sudoku-entry)]");
     expect(className).not.toContain("text-teal-600");
   });
 
@@ -99,7 +99,7 @@ describe("GridCellNumber", () => {
 
     expect(className).toContain("text-black");
     expect(className).toContain("dark:text-white");
-    expect(className).not.toContain("text-amber-600");
+    expect(className).not.toContain("text-[color:var(--sudoku-entry)]");
     expect(className).not.toContain("text-teal-600");
   });
 });
